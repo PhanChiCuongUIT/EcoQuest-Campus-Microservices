@@ -1,0 +1,8 @@
+{
+  "idempotencyKey": "demo-sv001-recycle-002",
+  "studentId": "SV001",
+  "missionId": "MISSION-RECYCLE-01",
+  "stationId": "STATION-A1",
+  "actionType": "RECYCLE_BOTTLE",
+  "evidenceUrl": "https://example.com/evidence/recycle-bottle.jpg"
+}

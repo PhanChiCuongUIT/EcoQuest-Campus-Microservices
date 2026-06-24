@@ -1,0 +1,681 @@
+
+===== Note SE361 - Microservices (1).docx =====
+
+Nhớ đảm bảo tính microservice đúng và được đảm bảo, giống như các phần trước đã có. Có đầy đủ test chuẩn microservices.
+Cơ bản có thêm:
+Notification realtime.
+Report.
+Profile.
+Báo cáo
+Cần dùng thêm api công nghệ ngoài như cloudinary hay smtp gì thì nói mình nha.
+Frontend ui đang có thì không chỉnh lại, chỗ nào bị sai logic bbackend mới chỉnh lại hay thiếu gì thì thêm ui cần có vào (như các modal overlay hay full page drawer/route … các trang edit hay thêm nên dùng các cái này chứ không được để ở trang chính).
+Backend:
+Download pdf ra chưa đúng định dạng như preview.
+Phân auth rõ ràng student, moderator, admin phân biệt rõ. Người dùng bình thường đăng kí xong rồi phải xác nhận mail thật qua gmail, dùng smtp xác nhận rồi mới đăng nhập được và với role là student, admin có thể nâng người dùng student lên moderator và admin. Moderator vẫn có thể làm các nhiệm vụ như student để không gây conflict, chẳng qua là có thêm những use case moderator thôi. Admin có quyền của moderator (không bao gồm các use case student) và quyền admin.
+Về quên mật khẩu cũng sẽ gửi mail cập nhật mật khẩu cho user, user phải nhấn link trong mail đó rồi mới đến trang đổi mật khẩu được.
+Policy rules ở admin đang bị lỗi: Cannot reach Policy service at http://localhost:8090 — make sure backend is running locally.  fix lại.
+User nên có thêm avatar url úp ảnh avatar lên.
+Users có thêm phần status với 3 cái là active, inactive và banned.
+Về mặt úp ảnh hiện logic úp ảnh đã đúng chưa, khi đăng nhập vào máy khác thì có thấy ảnh đó không. Có cần dùng cloudinary hổ trợ không.
+Thêm phần reports nữa.
+Thêm notification realtime là thông báo về:
+Với student: có action được approved, có certificate hay badge mới đạt được, về việc bị report và report được chấp thuận hay không.
+Với moderator: tương tự student nhưng có thêm với mission được chấp nhận…
+Với admin: các thông báo từ người dùng và hệ thống.
+Missions thêm status nữa là pending, active, rejected, cancelled, completed.
+Stations thêm ảnh nữa là ảnh của station đó, có thể úp ảnh lên.
+
+Frontend
+Cải thiện UI dashboard, cho ảnh to hơn. Dashboard từng role phân rõ ràng nó khác nhau chứ hiện tại đang giống nhau hết. Như student đang ổn, cải thiện ui thôi hoặc có thể thêm chart thống kê những action/ mission/ report liên quan, còn moderator thì nên có các chart liên quan đến bản thân đã làm và hệ thống, admin cũng phải có các chart liên quan đến hệ thống.
+Mấy cái mission ở student và moderator dashboard chỉ hiện những cái tiêu biểu do user này đang tham gia thôi, bình thường thì tất cả mission nên trang mission (hiện đang là mục trang submit action), ở đó student/ moderator có thể summit actioc của mình ở từng mision với nút submit mision ở danh sách mision đó, hoặc nhấn vào chi tiết mision thì có nút summit action, moderator không thể approve action do mình tạo trong review queue mà phải do moderator khác hoặc admin approve. Trang mission đó cũng nên có search và lọc.
+Catalog Management 3 mục Missions, Stations, Badges nên có cả search và lọc.
+User nên có thêm avatar url úp ảnh avatar lên.
+Ảnh và thông tin người dùng như ảnh nên để ở top bar. Hiển thị người dùng với avatar bên trái, họ tên in đậm ở trên, role in thường ở dưới và khi nhấn vào hiển thị 3 lựa chọn là profile, chính sách và hướng dẫn của ứng dụng và một gạch dưới cùng là nút đăng xuất màu đỏ. Còn notification realtime là một cái chuông ngay bên cạnh cái này và nút đổi theme. Bên ui mobile thì nó là một mục trong bottom nav par là profile.
+
+Nút đổi theme là nếu ở light thì nó là mặt trời và là light mode, dark thì là mặt trăng và dark mode (là biểu thị theme hiện tại của hệ thống, trái ngược với hiện tại).
+Thanh tiêu đề top bar ở một số trang đang chưa đồng nhất fix lại.
+Nút ở bottom side bar có đổi role (nếu user là role moderator hoặc admin) và một gạch phân cách rồi đến nút đăng xuất màu đỏ.
+Bất kì hành động nào có ảnh hưởng đến hệ thống như đăng xuất hay tạo/ edit cái gì đó nên có thêm thông báo xác nhận, xác nhận rồi mới làm.
+Student và moderator phải có UI mobile web và desktop web, Admin chỉ cần có UI web desktop.
+Admin có thêm mục trang quản lý user có search và lọc, để quản lý các users, phân quyền (nâng student lên moderator, admin…), inactive/ban user khi đó sẽ có mail thông báo user kèm lí do. User bị banned admin có thể delete. User inactive có thể thiếu nại admin qua mail admin hoặc mail người gửi đính kèm.
+Mục Redeem Sustainability Rewards ở certificates - student này là gì, đang bị lỗi.
+
+Như backend nói thì cho phép moderator thêm và edit mision mà bản thân tạo, về thêm mision thì lúc đầu sẽ ở trạng thái pending, phải được admin chấp nhận mới được thành active, còn admin tạo thì cũng vẫn là pending rồi chấp nhận mới thành active. Những mission nào trạng thái active/ cancelled/ completed thì mới được hiển thị trên danh sách mission ở student/ moderator để submit action và chỉ submit được action cho mission status là active. Còn ở trang quản lý ở admin thì thấy được mọi mission với mọi trạng thái.
+Ở admin thêm mục trang báo cáo, báo cáo về từng tuần/ tháng/ năm các hoạt động mision với action như nào… và báo cáo về user với các hoạt động như nào, báo cáo từng student với điểm, chứng chỉ, badge và hoạt đông như nào.
+Thêm mục trang report cho student và moderator, student report được về user hay mission nào đó, moderator thì report về user và action của student.
+Thêm mới ui model overlay cho từng trang chi tiết/ thêm/ edit nếu chưa có.
+Moderator review queue ui đang chưa hợp lí. Hiển thị thông tin chưa hợp lí. Fix lại. Còn thêm search là lọc theo mision  trạng thái action nữa. Các action đã review rồi thì nó vẫn xuất hiện trong này chứ không biến mất.
+
+Cho ảnh logo to hơn ở sidebar
+Giao diện profile đang không ổn, fix lại.
+UI giao diện User Management đang không ổn, fix lại.
+Adjust Student Points ở admin đang có tác dụng gì, ui còn sơ sài quá.
+Report còn bị lỗi, fix lại.
+Thông báo xác nhận tạo ui riêng chứ không nên dùng thông báo mặc định
+Về việc úp ảnh (úp ảnh minh chứng, úp ảnh station, úp ảnh avatar) có vẻ còn lỗi, nếu cần thì úp ảnh lên cloudinary cũng được.
+Các frontend đã nói chỗ nào chưa có trong backend thì thêm backend đã rồi thêm frontend sau.
+
+
+
+===== Note SE361 - Microservices.docx =====
+
+Nhớ đảm bảo tính microservice đúng và được đảm bảo, giống như các phần trước đã có. Có đầy đủ test chuẩn microservices.
+Cơ bản có thêm:
+Notification realtime.
+Report.
+Profile.
+Báo cáo
+Cần dùng thêm api công nghệ ngoài như cloudinary hay smtp gì thì nói mình nha.
+Frontend ui đang có thì không chỉnh lại, chỗ nào bị sai logic bbackend mới chỉnh lại hay thiếu gì thì thêm ui cần có vào (như các modal overlay hay full page drawer/route … các trang edit hay thêm nên dùng các cái này chứ không được để ở trang chính).
+Backend:
+Download pdf ra chưa đúng định dạng như preview.
+Phân auth rõ ràng student, moderator, admin phân biệt rõ. Người dùng bình thường đăng kí xong rồi phải xác nhận mail thật qua gmail, dùng smtp xác nhận rồi mới đăng nhập được và với role là student, admin có thể nâng người dùng student lên moderator và admin. Moderator vẫn có thể làm các nhiệm vụ như student để không gây conflict, chẳng qua là có thêm những use case moderator thôi. Admin có quyền của moderator (không bao gồm các use case student) và quyền admin.
+Về quên mật khẩu cũng sẽ gửi mail cập nhật mật khẩu cho user, user phải nhấn link trong mail đó rồi mới đến trang đổi mật khẩu được.
+Policy rules ở admin đang bị lỗi: Cannot reach Policy service at http://localhost:8090 — make sure backend is running locally.  fix lại.
+User nên có thêm avatar url úp ảnh avatar lên.
+Users có thêm phần status với 3 cái là active, inactive và banned.
+Về mặt úp ảnh hiện logic úp ảnh đã đúng chưa, khi đăng nhập vào máy khác thì có thấy ảnh đó không. Có cần dùng cloudinary hổ trợ không.
+Thêm phần reports nữa.
+Thêm notification realtime là thông báo về:
+Với student: có action được approved, có certificate hay badge mới đạt được, về việc bị report và report được chấp thuận hay không.
+Với moderator: tương tự student nhưng có thêm với mission được chấp nhận…
+Với admin: các thông báo từ người dùng và hệ thống.
+Missions thêm status nữa là pending, active, rejected, cancelled, completed.
+Stations thêm ảnh nữa là ảnh của station đó, có thể úp ảnh lên.
+
+Frontend
+Cải thiện UI dashboard, cho ảnh to hơn. Dashboard từng role phân rõ ràng nó khác nhau chứ hiện tại đang giống nhau hết. Như student đang ổn, cải thiện ui thôi hoặc có thể thêm chart thống kê những action/ mission/ report liên quan, còn moderator thì nên có các chart liên quan đến bản thân đã làm và hệ thống, admin cũng phải có các chart liên quan đến hệ thống.
+Mấy cái mission ở student và moderator dashboard chỉ hiện những cái tiêu biểu do user này đang tham gia thôi, bình thường thì tất cả mission nên trang mission (hiện đang là mục trang submit action), ở đó student/ moderator có thể summit actioc của mình ở từng mision với nút submit mision ở danh sách mision đó, hoặc nhấn vào chi tiết mision thì có nút summit action, moderator không thể approve action do mình tạo trong review queue mà phải do moderator khác hoặc admin approve. Trang mission đó cũng nên có search và lọc.
+Catalog Management 3 mục Missions, Stations, Badges nên có cả search và lọc.
+User nên có thêm avatar url úp ảnh avatar lên.
+Ảnh và thông tin người dùng như ảnh nên để ở top bar. Hiển thị người dùng với avatar bên trái, họ tên in đậm ở trên, role in thường ở dưới và khi nhấn vào hiển thị 3 lựa chọn là profile, chính sách và hướng dẫn của ứng dụng và một gạch dưới cùng là nút đăng xuất màu đỏ. Còn notification realtime là một cái chuông ngay bên cạnh cái này và nút đổi theme. Bên ui mobile thì nó là một mục trong bottom nav par là profile.
+
+Nút đổi theme là nếu ở light thì nó là mặt trời và là light mode, dark thì là mặt trăng và dark mode (là biểu thị theme hiện tại của hệ thống, trái ngược với hiện tại).
+Thanh tiêu đề top bar ở một số trang đang chưa đồng nhất fix lại.
+Nút ở bottom side bar có đổi role (nếu user là role moderator hoặc admin) và một gạch phân cách rồi đến nút đăng xuất màu đỏ.
+Bất kì hành động nào có ảnh hưởng đến hệ thống như đăng xuất hay tạo/ edit cái gì đó nên có thêm thông báo xác nhận, xác nhận rồi mới làm.
+Student và moderator phải có UI mobile web và desktop web, Admin chỉ cần có UI web desktop.
+Admin có thêm mục trang quản lý user có search và lọc, để quản lý các users, phân quyền (nâng student lên moderator, admin…), inactive/ban user khi đó sẽ có mail thông báo user kèm lí do. User bị banned admin có thể delete. User inactive có thể thiếu nại admin qua mail admin hoặc mail người gửi đính kèm.
+Mục Redeem Sustainability Rewards ở certificates - student này là gì, đang bị lỗi.
+
+Như backend nói thì cho phép moderator thêm và edit mision mà bản thân tạo, về thêm mision thì lúc đầu sẽ ở trạng thái pending, phải được admin chấp nhận mới được thành active, còn admin tạo thì cũng vẫn là pending rồi chấp nhận mới thành active. Những mission nào trạng thái active/ cancelled/ completed thì mới được hiển thị trên danh sách mission ở student/ moderator để submit action và chỉ submit được action cho mission status là active. Còn ở trang quản lý ở admin thì thấy được mọi mission với mọi trạng thái.
+Ở admin thêm mục trang báo cáo, báo cáo về từng tuần/ tháng/ năm các hoạt động mision với action như nào… và báo cáo về user với các hoạt động như nào, báo cáo từng student với điểm, chứng chỉ, badge và hoạt đông như nào.
+Thêm mục trang report cho student và moderator, student report được về user hay mission nào đó, moderator thì report về user và action của student.
+Thêm mới ui model overlay cho từng trang chi tiết/ thêm/ edit nếu chưa có.
+Moderator review queue ui đang chưa hợp lí. Hiển thị thông tin chưa hợp lí. Fix lại. Còn thêm search là lọc theo mision  trạng thái action nữa. Các action đã review rồi thì nó vẫn xuất hiện trong này chứ không biến mất.
+Các frontend đã nói chỗ nào chưa có trong backend thì thêm backend đã rồi thêm frontend sau.
+
+
+===== EcoQuest_Campus_Microservices_De_Xuat_Du_An.docx =====
+
+
+ECOQUEST CAMPUS MICROSERVICES
+Hệ thống game hóa hành động xanh trong trường đại học
+Tóm tắt đề tài
+• Sinh viên tham gia các nhiệm vụ xanh như tái chế, check-in trạm xanh, báo cáo điểm rác, tham gia sự kiện dọn rác để nhận điểm, huy hiệu, chứng nhận và thứ hạng.
+• Dự án không tập trung vào độ phức tạp nghiệp vụ, mà tập trung thể hiện đúng kiến trúc microservices: service độc lập, database riêng, gateway, cache, gRPC, message broker, CQRS, DDD, Clean Architecture và Docker Compose.
+• Backend dùng Java/Spring Boot thay cho .NET nhưng vẫn giữ các nguyên tắc kiến trúc tương đương project thực hành EShopMicroservices.
+Hạng mục
+Đề xuất
+Tên repo
+ecoquest-campus-microservices
+Backend
+Java 21, Spring Boot 3, Spring Cloud Gateway
+Frontend
+React + Vite + Tailwind CSS
+Database
+PostgreSQL, MongoDB; mỗi service sở hữu DB riêng
+Infrastructure
+Redis, RabbitMQ, MinIO, Docker Compose
+Mức độ microservices kỳ vọng
+80-85% so với tầm kiến trúc của EShopMicroservices
+
+Mục lục tóm tắt
+1. Căn cứ thiết kế và mục tiêu microservices
+2. Ý tưởng dự án EcoQuest Campus
+3. Chức năng cần có và chức năng nên thêm
+4. Kiến trúc tổng quan
+5. Công nghệ sử dụng
+6. Phân rã service và database ownership
+7. Use case và các luồng hoạt động
+8. Event, gRPC và API endpoint mẫu
+9. Bố cục project
+10. Docker Compose, port mapping và cách chạy
+11. Demo, trình bày báo cáo và checklist tránh distributed monolith
+1. Căn cứ thiết kế và mục tiêu microservices
+Mục tiêu của đề tài không phải là sao chép nghiệp vụ EShop, mà là đạt mức độ microservices tương đương: tách service theo bounded context, mỗi service có database riêng, giao tiếp qua API/event rõ ràng, có API Gateway, gRPC, RabbitMQ, Redis, CQRS, DDD/Clean Architecture, Docker Compose và health check.
+Các yêu cầu kiến trúc rút ra từ tài liệu môn học
+• Microservices là các service nhỏ, độc lập, loosely coupled, có thể deploy độc lập và giao tiếp qua API rõ ràng.
+• Mỗi service nên sở hữu database riêng, không để service khác đọc hoặc ghi trực tiếp vào database của mình.
+• Project thực hành EShopMicroservices nhấn mạnh CQRS, DDD, Clean Architecture, Vertical Slice, Redis cache, gRPC, RabbitMQ, API Gateway và Docker Compose.
+• Cần tránh distributed monolith: tách nhiều service nhưng vẫn dùng chung database, phụ thuộc chéo domain model, hoặc gọi đồng bộ dây chuyền quá dài.
+Tiêu chí
+Cách EcoQuest đáp ứng
+Service độc lập
+Mỗi bounded context là một Spring Boot service/container riêng.
+Database per service
+Catalog, Action, Policy, Reward, Leaderboard, Recognition có DB riêng.
+API Gateway
+Spring Cloud Gateway route request từ frontend đến services.
+Sync communication
+Eco Action gọi Verification Policy bằng gRPC.
+Async communication
+RabbitMQ truyền event giữa Action, Reward, Leaderboard, Recognition.
+Cache
+Redis dùng cho draft/session/idempotency và leaderboard ranking.
+CQRS/Vertical Slice
+Các service feature-based: command/query/handler/controller theo từng use case.
+Clean Architecture + DDD
+Reward Ledger Service làm service lõi với Aggregate, Entity, Value Object, Domain Event.
+Containerization
+Docker Compose chạy toàn bộ service + database + Redis + RabbitMQ + MinIO.
+2. Ý tưởng dự án EcoQuest Campus
+EcoQuest Campus là hệ thống game hóa hành động xanh trong trường đại học. Sinh viên làm các hành động xanh như tái chế chai nhựa, check-in trạm xanh, tham gia cleanup event, báo cáo điểm có rác hoặc hoàn thành thử thách không dùng nhựa. Hệ thống xác minh hành động, cộng điểm, cấp huy hiệu, cập nhật bảng xếp hạng, phát chứng nhận và ghi nhận phần thưởng.
+Điểm thú vị
+Giá trị khi demo
+Game hóa hành động xanh
+Có điểm, huy hiệu, leaderboard, chứng nhận, phần thưởng.
+QR station/mock evidence
+Dễ mô phỏng bằng form hoặc QR code giả lập, không cần tích hợp phần cứng thật.
+Xác minh bằng policy service
+Có lý do dùng gRPC nội bộ.
+Cấp chứng nhận cho top BXH
+Có luồng event-driven cuối mùa, sinh certificate PDF và lưu vào MinIO.
+Leaderboard real-time gần đúng
+Có lý do dùng Redis Sorted Set.
+Tên đề tài chính thức đề xuất
+• EcoQuest Campus Microservices - Hệ thống game hóa hành động xanh và chứng nhận sinh viên xanh.
+• Tên repo: ecoquest-campus-microservices.
+• Đây là domain khác EShop, không trùng các đề tài e-commerce, giao đồ ăn, chat, e-learning, nghe nhạc, nhà trọ, bất động sản, WMS, rạp chiếu phim hoặc tuyển dụng.
+3. Chức năng cần có và chức năng nên thêm
+Để giữ phạm vi vừa đủ, dự án nên chia chức năng thành 3 mức: bắt buộc, nên làm, và nâng cao. Mục tiêu là chứng minh công nghệ/microservices, không làm nghiệp vụ quá rộng.
+Mức
+Chức năng
+Lý do
+Bắt buộc
+Xem missions, stations, badges
+Tương đương dữ liệu nền/catalog; dễ seed data.
+Bắt buộc
+Submit eco action
+Luồng nghiệp vụ chính để kích hoạt gRPC, Redis, RabbitMQ.
+Bắt buộc
+Xác minh action bằng gRPC policy
+Chứng minh sync communication nội bộ.
+Bắt buộc
+Cộng điểm và lưu reward ledger
+Service lõi để áp dụng DDD/Clean Architecture.
+Bắt buộc
+Leaderboard tuần/tháng
+Dùng Redis Sorted Set và read model.
+Nên làm
+Cấp huy hiệu khi đạt mốc
+Làm domain Reward hấp dẫn hơn.
+Nên làm
+Chứng nhận Top Green Student
+Thưởng cho người trong BXH, tạo điểm sáng khi demo.
+Nên làm
+Moderator review action nghi ngờ
+Có trạng thái nghiệp vụ và rule xử lý rõ hơn.
+Nâng cao
+Redeem reward/voucher mock
+Có thể thêm nếu còn thời gian, không bắt buộc.
+Nâng cao
+Outbox Pattern
+Tăng chất lượng microservices nếu muốn đạt điểm cao.
+3.1. Cơ chế thưởng, chứng nhận và bảng xếp hạng
+Loại thưởng
+Điều kiện
+Service xử lý
+Huy hiệu Green Starter
+Hoàn thành action xanh đầu tiên
+Reward Ledger
+Huy hiệu Recycling Hero
+Tái chế >= 10 lần
+Reward Ledger
+Huy hiệu Clean Campus
+Tham gia >= 3 cleanup events
+Reward Ledger
+Chứng nhận Top Green Student - Weekly
+Top 10 leaderboard tuần
+Recognition Service
+Chứng nhận Green Ambassador - Monthly
+Top 3 leaderboard tháng
+Recognition Service
+Voucher mock
+Đạt 500 điểm hoặc top mùa
+Recognition Service
+Khuyến nghị: nên thêm Recognition Service để cấp chứng nhận PDF hoặc chứng nhận số. Đây là chức năng thú vị, dễ demo, nhưng vẫn tập trung vào microservices: Leaderboard publish event kết thúc mùa, Recognition consume event, tạo certificate, lưu file vào MinIO, lưu metadata vào database riêng, rồi publish CertificateIssuedEvent.
+4. Kiến trúc tổng quan
+React Web / EcoQuest UI        |        vSpring Cloud Gateway        |        +--> Green Catalog Service       ---> PostgreSQL catalog_db        |        +--> Eco Action Service          ---> MongoDB action_db + Redis        |          |        |          +-- gRPC --> Verification Policy Service ---> PostgreSQL/H2 policy_db        |        +--> Reward Ledger Service       ---> PostgreSQL reward_db        |        +--> Leaderboard Service         ---> Redis + PostgreSQL leaderboard_db        |        +--> Recognition Service         ---> PostgreSQL recognition_db + MinIO                   ^                   |              RabbitMQ Event Bus
+Thành phần
+Vai trò
+React Web
+Giao diện cho Student, Moderator, Admin.
+Spring Cloud Gateway
+Route request, CORS, rate limit, correlation id. Không chứa business logic.
+Green Catalog
+Quản lý nhiệm vụ xanh, trạm xanh, huy hiệu mẫu.
+Eco Action
+Nhận hành động xanh, lưu draft/cache, gọi policy, publish event.
+Verification Policy
+gRPC service tính hợp lệ, điểm đề xuất, manual review.
+Reward Ledger
+Quản lý ví điểm, transaction, huy hiệu; áp dụng DDD/Clean Architecture.
+Leaderboard
+Cập nhật BXH từ event, dùng Redis Sorted Set.
+Recognition
+Phát chứng nhận/top reward; sinh PDF và lưu MinIO.
+RabbitMQ
+Event bus cho workflow liên service.
+Redis
+Cache draft/idempotency/ranking.
+MinIO
+Object storage lưu certificate file hoặc mock evidence file.
+5. Công nghệ sử dụng
+5.1. Backend
+Nhóm
+Công nghệ
+Ngôn ngữ
+Java 21
+Framework
+Spring Boot 3
+API Gateway
+Spring Cloud Gateway
+REST API
+Spring Web
+gRPC
+grpc-java hoặc Spring Boot gRPC
+Messaging
+RabbitMQ + Spring AMQP
+Cache
+Redis + Spring Data Redis
+Database access
+Spring Data JPA/Hibernate, Spring Data MongoDB
+Migration
+Flyway
+Validation
+Jakarta Bean Validation
+Mapping
+MapStruct
+Health check
+Spring Boot Actuator
+API docs
+OpenAPI/Swagger
+Resilience
+Resilience4j cho retry, timeout, circuit breaker ở gRPC/HTTP client
+Build
+Maven multi-module
+5.2. Frontend
+Nhóm
+Công nghệ
+Framework
+React + Vite
+UI
+Tailwind CSS hoặc Bootstrap
+API client
+Axios
+Server state
+React Query
+Routing
+React Router
+Role demo
+Student, Moderator, Admin
+5.3. Database và infrastructure
+Thành phần
+Công nghệ
+Ghi chú
+Green Catalog DB
+PostgreSQL
+Dữ liệu nhiệm vụ, stations, badge definitions.
+Eco Action DB
+MongoDB
+Action có metadata linh hoạt, evidence URL, status.
+Policy DB
+PostgreSQL hoặc H2
+Rule xác minh, điểm, daily limit.
+Reward DB
+PostgreSQL
+Wallet, transactions, badge achievements.
+Leaderboard DB
+PostgreSQL
+Snapshot BXH, season history.
+Recognition DB
+PostgreSQL
+Certificate metadata, reward claim.
+Cache
+Redis
+Draft, idempotency, leaderboard sorted set.
+Message broker
+RabbitMQ
+Publish/subscribe integration events.
+Object storage
+MinIO
+Lưu certificate PDF, mock evidence files.
+Local orchestration
+Docker Compose
+Chạy toàn bộ hệ thống.
+6. Phân rã service và database ownership
+Service
+Nhiệm vụ
+DB sở hữu
+Kiến trúc nội bộ
+Green Catalog Service
+Quản lý mission, station, badge definitions
+PostgreSQL catalog_db
+Vertical Slice + CQRS nhẹ
+Eco Action Service
+Nhận action xanh, draft, submit, moderation
+MongoDB action_db + Redis
+Vertical Slice + gRPC client + event publisher
+Verification Policy gRPC Service
+Xác minh rule, điểm, daily limit, manual review
+PostgreSQL/H2 policy_db
+Internal gRPC service
+Reward Ledger Service
+Ví điểm, transaction, badge achievements
+PostgreSQL reward_db
+Clean Architecture + DDD
+Leaderboard Service
+BXH tuần/tháng, rank user, season close
+Redis + PostgreSQL leaderboard_db
+CQRS read model + event consumer
+Recognition Service
+Chứng nhận, voucher mock, reward claim
+PostgreSQL recognition_db + MinIO
+Event consumer + certificate generator
+6.1. Green Catalog Service
+Quản lý missions: loại nhiệm vụ, điểm cơ bản, yêu cầu evidence, thời hạn.
+Quản lý green stations: địa điểm, QR code, loại trạm, trạng thái hoạt động.
+Quản lý badge definitions: mã huy hiệu, điều kiện đạt, mô tả hiển thị.
+green-catalog-service/  src/main/java/com/ecoquest/catalog/    missions/create/    missions/getall/    missions/update/    stations/create/    stations/getnearby/    badges/create/    badges/getall/    infrastructure/
+6.2. Eco Action Service
+Nhận draft action, lưu tạm trong Redis để user có thể hoàn tất sau.
+Submit action: kiểm tra input, chống submit trùng bằng idempotency key, gọi gRPC policy.
+Nếu accepted thì publish EcoActionAcceptedEvent; nếu nghi ngờ thì lưu PENDING_REVIEW.
+Không tự cộng điểm; điểm thuộc Reward Ledger Service.
+eco-action-service/  src/main/java/com/ecoquest/action/    submitaction/      SubmitEcoActionCommand.java      SubmitEcoActionHandler.java      SubmitEcoActionController.java    draftaction/    reviewaction/    queryactions/    grpcclient/    messaging/    persistence/
+6.3. Verification Policy gRPC Service
+Rule engine đơn giản: action type, station, evidence, daily limit, base points.
+Chỉ expose gRPC internal, không public trực tiếp qua Gateway.
+Trả về accepted/rejected/requiresManualReview + suggestedPoints + reason.
+service VerificationPolicyService {  rpc EvaluateAction(EvaluateActionRequest) returns (EvaluateActionResponse);}message EvaluateActionRequest {  string userId = 1;  string missionId = 2;  string stationId = 3;  string actionType = 4;  string evidenceUrl = 5;}message EvaluateActionResponse {  bool accepted = 1;  bool requiresManualReview = 2;  int32 suggestedPoints = 3;  string reason = 4;}
+6.4. Reward Ledger Service
+Service lõi, nên đầu tư nhất để chứng minh Clean Architecture + DDD.
+Consume EcoActionAcceptedEvent, tạo RewardTransaction, cộng điểm vào RewardWallet aggregate.
+Kiểm tra điều kiện unlock badge, publish PointsGrantedEvent và BadgeUnlockedEvent.
+reward-ledger-service/  reward-domain/    model/RewardWallet.java    model/RewardTransaction.java    model/BadgeAchievement.java    valueobject/StudentId.java    valueobject/Points.java    valueobject/BadgeCode.java    event/PointsGrantedDomainEvent.java    event/BadgeUnlockedDomainEvent.java  reward-application/    command/grantpoints/    command/adjustpoints/    query/getwallet/    consumer/EcoActionAcceptedEventConsumer.java  reward-infrastructure/    persistence/    messaging/  reward-api/    controller/
+6.5. Leaderboard Service
+Consume PointsGrantedEvent để update Redis Sorted Set.
+Cung cấp endpoint top tuần, top tháng, rank user.
+Cuối mùa/tuần/tháng, tạo snapshot vào PostgreSQL và publish LeaderboardSeasonClosedEvent.
+# Redis Sorted Set exampleZADD ecoquest:leaderboard:weekly 120 SV001ZADD ecoquest:leaderboard:weekly 90 SV002ZREVRANGE ecoquest:leaderboard:weekly 0 9 WITHSCORES
+6.6. Recognition Service - chứng nhận và phần thưởng
+Consume LeaderboardSeasonClosedEvent để biết Top 3/Top 10.
+Tạo certificate PDF: Top Green Student, Green Ambassador, Recycling Hero.
+Lưu file vào MinIO, lưu metadata vào PostgreSQL riêng.
+Expose endpoint để user xem/chia sẻ/download certificate.
+Có thể thêm reward claim mock: voucher cafe, điểm rèn luyện, giấy chứng nhận tham gia phong trào.
+7. Use case và các luồng hoạt động
+7.1. Use case theo actor
+Actor
+Use case
+Student
+Xem missions/stations; submit action; xem điểm; xem huy hiệu; xem leaderboard; nhận chứng nhận.
+Moderator
+Xem action cần duyệt; approve/reject action nghi ngờ; thêm ghi chú.
+Admin
+Quản lý missions, stations, policy rules, mùa leaderboard, reward/certificate templates.
+System
+Xác minh action, publish/consume event, cộng điểm, update leaderboard, cấp chứng nhận.
+7.2. Luồng 1 - Xem nhiệm vụ xanh
+1. Student mở EcoQuest Web.2. Web gọi API Gateway: GET /catalog/missions.3. Gateway route đến Green Catalog Service.4. Green Catalog đọc catalog_db và trả missions/stations/badges.5. Web hiển thị nhiệm vụ xanh.
+7.3. Luồng 2 - Submit hành động xanh
+1. Student chọn mission "Recycle Bottle".2. Student scan QR station A1 hoặc nhập station code demo.3. Web gửi draft đến Eco Action Service.4. Eco Action lưu draft/session vào Redis.5. Student bấm Submit.6. Eco Action kiểm tra idempotency key để tránh submit trùng.7. Eco Action gọi Verification Policy Service qua gRPC.8. Policy trả accepted=true, suggestedPoints=10.9. Eco Action lưu action vào MongoDB.10. Eco Action publish EcoActionAcceptedEvent lên RabbitMQ.
+7.4. Luồng 3 - Cộng điểm, mở huy hiệu, cập nhật leaderboard
+1. Reward Ledger consume EcoActionAcceptedEvent.2. Reward Ledger tạo RewardTransaction.3. RewardWallet aggregate cộng điểm.4. Reward Ledger kiểm tra điều kiện unlock badge.5. Reward Ledger lưu wallet/transaction/badge vào reward_db.6. Reward Ledger publish PointsGrantedEvent và BadgeUnlockedEvent.7. Leaderboard consume PointsGrantedEvent và update Redis Sorted Set.8. Frontend gọi Leaderboard Service để xem rank mới.
+7.5. Luồng 4 - Kết thúc tuần/tháng và cấp chứng nhận
+1. Admin hoặc scheduled job gọi POST /leaderboards/seasons/{id}/close.2. Leaderboard Service lấy top N từ Redis Sorted Set.3. Leaderboard lưu snapshot vào leaderboard_db.4. Leaderboard publish LeaderboardSeasonClosedEvent.5. Recognition Service consume event.6. Recognition Service tạo certificate PDF cho Top 3/Top 10.7. Recognition Service upload certificate vào MinIO.8. Recognition Service lưu metadata vào recognition_db.9. User vào Web để xem/download giấy chứng nhận.
+7.6. Luồng 5 - Moderator duyệt action nghi ngờ
+1. Verification Policy trả requiresManualReview=true.2. Eco Action lưu action với status=PENDING_REVIEW.3. Moderator mở màn hình review.4. Moderator approve hoặc reject.5. Nếu approve, Eco Action publish EcoActionAcceptedEvent.6. Nếu reject, Eco Action publish EcoActionRejectedEvent.7. Reward Ledger chỉ cộng điểm khi có accepted event.
+8. Event, gRPC và API endpoint mẫu
+8.1. Integration events
+Event
+Producer
+Consumer
+Ý nghĩa
+EcoActionAcceptedEvent
+Eco Action
+Reward Ledger
+Action hợp lệ, được cộng điểm.
+EcoActionRejectedEvent
+Eco Action
+Recognition/Notification optional
+Action không hợp lệ.
+PointsGrantedEvent
+Reward Ledger
+Leaderboard
+Điểm đã được cộng.
+BadgeUnlockedEvent
+Reward Ledger
+Recognition optional
+User mở khóa huy hiệu.
+LeaderboardSeasonClosedEvent
+Leaderboard
+Recognition
+Kết thúc mùa, cấp chứng nhận/top reward.
+CertificateIssuedEvent
+Recognition
+Notification optional
+Chứng nhận đã phát hành.
+{  "eventId": "f1a4b4ad-37b7-4e8d-a893-8c2f001",  "eventType": "EcoActionAcceptedEvent",  "actionId": "ACT-2026-0001",  "studentId": "SV001",  "missionId": "MISSION-RECYCLE-01",  "stationId": "STATION-A1",  "actionType": "RECYCLE_BOTTLE",  "points": 10,  "occurredOn": "2026-06-22T10:30:00"}
+8.2. API endpoint mẫu
+Service
+Endpoint mẫu
+Green Catalog
+GET /catalog/missions; POST /catalog/missions; GET /catalog/stations; GET /catalog/badges
+Eco Action
+POST /actions/drafts; POST /actions/submit; GET /actions/user/{studentId}; PUT /actions/{id}/approve
+Reward Ledger
+GET /rewards/wallets/{studentId}; GET /rewards/wallets/{studentId}/transactions; POST /rewards/adjust
+Leaderboard
+GET /leaderboards/weekly; GET /leaderboards/monthly; GET /leaderboards/users/{studentId}/rank; POST /leaderboards/seasons/{id}/close
+Recognition
+GET /recognitions/certificates/user/{studentId}; GET /recognitions/certificates/{id}; POST /recognitions/rewards/{id}/claim
+9. Bố cục project
+ecoquest-campus-microservices/  api-gateway/    ecoquest-api-gateway/  building-blocks/    common/      cqrs/      exception/      validation/      logging/      correlation/    messaging/      events/        EcoActionAcceptedEvent.java        PointsGrantedEvent.java        BadgeUnlockedEvent.java        LeaderboardSeasonClosedEvent.java        CertificateIssuedEvent.java      rabbitmq/    grpc-contracts/      verification-policy.proto  services/    green-catalog-service/    eco-action-service/    verification-policy-grpc-service/    reward-ledger-service/      reward-domain/      reward-application/      reward-infrastructure/      reward-api/    leaderboard-service/    recognition-service/  web-apps/    ecoquest-web/  docker-compose.yml  docker-compose.override.yml  README.md  pom.xml
+Nguyên tắc Building Blocks
+• Được share: base command/query interfaces, base exception, validation error model, correlation id, integration event contracts, RabbitMQ helper, gRPC proto contracts.
+• Không được share: domain entity, aggregate, repository, database model, business service của từng microservice.
+• Mục tiêu là tái sử dụng hạ tầng chung, không làm coupling domain giữa các service.
+10. Docker Compose, port mapping và cách chạy
+Thành phần
+Port
+EcoQuest Web
+3000
+API Gateway
+8080
+Green Catalog Service
+8081
+Eco Action Service
+8082
+Verification Policy gRPC
+9090
+Reward Ledger Service
+8083
+Leaderboard Service
+8084
+Recognition Service
+8085
+PostgreSQL Catalog
+5432
+PostgreSQL Policy
+5433
+PostgreSQL Reward
+5434
+PostgreSQL Leaderboard
+5435
+PostgreSQL Recognition
+5436
+MongoDB Action
+27017
+Redis
+6379
+RabbitMQ
+5672
+RabbitMQ Management UI
+15672
+MinIO API
+9000
+MinIO Console
+9001
+10.1. Lệnh chạy
+# Build backendmvn clean package -DskipTests# Build frontendcd web-apps/ecoquest-webnpm installnpm run buildcd ../..# Chạy toàn bộ hệ thốngdocker compose up -d --build# Kiểm tra containerdocker compose ps# Xem log flow chínhdocker compose logs -f eco-action-servicedocker compose logs -f reward-ledger-servicedocker compose logs -f leaderboard-servicedocker compose logs -f recognition-service
+10.2. URL kiểm tra
+Frontend:              http://localhost:3000API Gateway:           http://localhost:8080Catalog health:        http://localhost:8081/actuator/healthEco Action health:     http://localhost:8082/actuator/healthReward health:         http://localhost:8083/actuator/healthLeaderboard health:    http://localhost:8084/actuator/healthRecognition health:    http://localhost:8085/actuator/healthRabbitMQ UI:           http://localhost:15672    guest / guestMinIO Console:         http://localhost:9001     minioadmin / minioadmin
+11. Demo, trình bày báo cáo và checklist tránh distributed monolith
+11.1. Demo flow nên quay/chụp
+Chạy docker compose ps để chứng minh toàn bộ service, database, Redis, RabbitMQ, MinIO đang chạy.
+Mở EcoQuest Web, xem danh sách missions/stations từ Green Catalog Service.
+Student tạo draft action, kiểm tra Redis có draft/idempotency key.
+Student submit action, xem log Eco Action gọi Verification Policy gRPC.
+Mở RabbitMQ UI xem EcoActionAcceptedEvent được publish/consume.
+Reward Ledger tạo transaction và cộng điểm vào wallet.
+Leaderboard cập nhật rank từ PointsGrantedEvent.
+Admin close season, Recognition Service tạo certificate cho top BXH và upload MinIO.
+Student xem/download chứng nhận trên Web.
+11.2. Bố cục slide/báo cáo
+Slide
+Nội dung
+1
+Tên đề tài, vấn đề, ý tưởng game hóa hành động xanh.
+2
+Mục tiêu: tập trung microservices, không tập trung chức năng phức tạp.
+3
+Kiến trúc tổng quan: Web -> Gateway -> Services -> DB/Redis/RabbitMQ/MinIO.
+4
+Service decomposition và database ownership.
+5
+Công nghệ Java/Spring Boot, React, PostgreSQL, MongoDB, Redis, RabbitMQ, gRPC, Docker.
+6
+Luồng submit action: Redis -> gRPC -> DB -> RabbitMQ.
+7
+Luồng cộng điểm: Reward Ledger DDD -> Leaderboard -> Recognition.
+8
+Clean Architecture + DDD trong Reward Ledger.
+9
+Chống distributed monolith: database riêng, không join DB chéo, không share domain entity.
+10
+Demo và kết quả chạy.
+11.3. Checklist đạt 70-80% tầm microservices của EShopMicroservices
+Tiêu chí
+EcoQuest
+Ghi chú
+Nhiều service độc lập theo bounded context
+Đạt
+6 backend services.
+Mỗi service có database riêng
+Đạt
+Không shared database.
+API Gateway
+Đạt
+Spring Cloud Gateway.
+Frontend gọi Gateway
+Đạt
+React chỉ gọi gateway.
+REST API
+Đạt
+Public endpoints qua Gateway.
+gRPC sync nội bộ
+Đạt
+Eco Action -> Verification Policy.
+RabbitMQ async messaging
+Đạt
+Action -> Reward -> Leaderboard/Recognition.
+Redis cache
+Đạt
+Draft, idempotency, leaderboard.
+CQRS
+Đạt
+Command/query handlers theo use case.
+Vertical Slice
+Đạt
+Catalog, Action, Leaderboard.
+Clean Architecture + DDD
+Đạt
+Reward Ledger.
+Docker Compose
+Đạt
+Toàn bộ services + infra.
+Health check
+Đạt
+Spring Boot Actuator.
+Chống distributed monolith
+Đạt nếu tuân thủ
+Không DB chéo, không share entity, không transaction xuyên service.
+11.4. Các lỗi tuyệt đối tránh
+Lỗi
+Vì sao sai
+Cách làm đúng
+Tất cả service dùng chung DB
+Coupling dữ liệu, biến thành distributed monolith
+Mỗi service database/schema riêng, chỉ giao tiếp qua API/event.
+Reward đọc trực tiếp action_db
+Phá ownership dữ liệu
+Reward nhận EcoActionAcceptedEvent.
+Leaderboard query reward_db
+Read model phụ thuộc DB service khác
+Leaderboard tự cập nhật từ PointsGrantedEvent.
+Gateway tính điểm hoặc cấp chứng nhận
+Gateway chứa business logic
+Gateway chỉ route/filter/rate limit.
+Share domain entity giữa services
+Coupling compile-time
+Chỉ share integration event contract.
+Eco Action gọi Reward sync để cộng điểm
+Coupling runtime, dễ lỗi dây chuyền
+Publish event qua RabbitMQ.
+Một transaction ghi nhiều DB
+Distributed transaction khó và dễ lỗi
+Eventual consistency; nếu nâng cao dùng Outbox Pattern.
+Service deploy chung một app
+Không độc lập deploy
+Mỗi service container/process riêng.
+12. Lộ trình triển khai đề xuất
+Giai đoạn
+Công việc
+Kết quả
+1
+Tạo mono-repo, API Gateway, Docker Compose cơ bản
+Gateway, Web, DB, Redis, RabbitMQ chạy.
+2
+Green Catalog Service
+CRUD missions/stations/badges + seed data.
+3
+Verification Policy gRPC Service
+EvaluateAction gRPC chạy độc lập.
+4
+Eco Action Service
+Draft Redis, submit action, gRPC call, publish event.
+5
+Reward Ledger Service
+Consume event, DDD aggregate, wallet/transaction/badge.
+6
+Leaderboard Service
+Consume PointsGrantedEvent, Redis Sorted Set, top/rank endpoint.
+7
+Recognition Service
+Close season event, certificate metadata, MinIO upload/mock PDF.
+8
+Frontend + demo script
+Luồng end-to-end hoàn chỉnh.
+Bản tối thiểu nếu thiếu thời gian
+• Có thể làm 5 service trước: Green Catalog, Eco Action, Verification Policy gRPC, Reward Ledger, Leaderboard.
+• Recognition Service nên làm nếu có thời gian vì tạo điểm sáng: cấp chứng nhận cho top BXH.
+• Notification Service không bắt buộc; nếu thêm thì chỉ consume event và hiển thị thông báo cơ bản.
+13. Tài liệu tham khảo nội bộ
+EShopMicroservices-HDTH.pdf - Hướng dẫn thực hành EShopMicroservices, kiến trúc mẫu, công nghệ và yêu cầu demo.
+Week 02 - Microservices Architectures - Part2.pdf - Khái niệm microservices, distributed monolith và thách thức microservices.
+Week 10 - First Microservice Catalog.API with Vertical Slice Architecture and CQRS.pdf - Vertical Slice, CQRS, microservice đầu tiên.
+Week 11-12 - Microservices Async Communication with RabbitMQ & MassTransit.pdf - Async communication, publish/subscribe, RabbitMQ, event-driven workflow.
+Week 06/07 - DDD, Domain Events, Data Management - Các khái niệm DDD, domain events, data isolation.
+Kết luận: EcoQuest Campus Microservices là đề tài đủ khác biệt, thú vị và có khả năng thể hiện 80-85% mức độ microservices của project thực hành mẫu. Chức năng nghiệp vụ vừa phải, nhưng công nghệ và kiến trúc đủ đầy: Gateway, service độc lập, database riêng, Redis, gRPC, RabbitMQ, CQRS, Vertical Slice, Clean Architecture, DDD, Docker Compose và certificate reward cho top leaderboard.

@@ -1,0 +1,404 @@
+services:
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    ports:
+      - "${API_GATEWAY_PORT:-8080}:8080"
+    environment:
+      IDENTITY_URI: http://identity-access-service:8086
+      CATALOG_URI: http://green-catalog-service:8081
+      ACTION_URI: http://eco-action-service:8082
+      REWARD_URI: http://reward-ledger-service:8083
+      LEADERBOARD_URI: http://leaderboard-service:8084
+      RECOGNITION_URI: http://recognition-service:8085
+      REPORT_URI: http://report-service:8087
+      NOTIFICATION_URI: http://notification-service:8088
+    depends_on:
+      identity-access-service:
+        condition: service_started
+      green-catalog-service:
+        condition: service_started
+      eco-action-service:
+        condition: service_started
+      reward-ledger-service:
+        condition: service_started
+      leaderboard-service:
+        condition: service_started
+      recognition-service:
+        condition: service_started
+      report-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+
+  identity-access-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.identity
+    ports:
+      - "${IDENTITY_PORT:-8086}:8086"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://identity-db:5432/identity_db
+      SPRING_DATASOURCE_USERNAME: ecoquest
+      SPRING_DATASOURCE_PASSWORD: ecoquest
+      SPRING_RABBITMQ_HOST: rabbitmq
+      IDENTITY_JWT_SECRET: ${IDENTITY_JWT_SECRET:-ecoquest-dev-secret-change-me}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:3000}
+      IDENTITY_MAIL_ENABLED: ${IDENTITY_MAIL_ENABLED:-false}
+      IDENTITY_MAIL_FROM: ${IDENTITY_MAIL_FROM:-no-reply@ecoquest.local}
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_AUTH: ${SMTP_AUTH:-false}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    depends_on:
+      identity-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+  green-catalog-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.catalog
+    ports:
+      - "${CATALOG_PORT:-8081}:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://catalog-db:5432/catalog_db
+      SPRING_DATASOURCE_USERNAME: ecoquest
+      SPRING_DATASOURCE_PASSWORD: ecoquest
+      SPRING_RABBITMQ_HOST: rabbitmq
+      IDENTITY_JWT_SECRET: ${IDENTITY_JWT_SECRET:-ecoquest-dev-secret-change-me}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    depends_on:
+      catalog-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+  eco-action-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.action
+    ports:
+      - "${ACTION_PORT:-8082}:8082"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://action-db:27017/action_db
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_RABBITMQ_HOST: rabbitmq
+      POLICY_GRPC_ADDRESS: static://verification-policy-grpc-service:9090
+      CATALOG_BASE_URL: http://green-catalog-service:8081
+      IDENTITY_JWT_SECRET: ${IDENTITY_JWT_SECRET:-ecoquest-dev-secret-change-me}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    depends_on:
+      action-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      verification-policy-grpc-service:
+        condition: service_started
+      green-catalog-service:
+        condition: service_started
+      minio:
+        condition: service_started
+
+  verification-policy-grpc-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.policy
+    ports:
+      - "${POLICY_GRPC_PORT:-9090}:9090"
+      - "${POLICY_HTTP_PORT:-8090}:8090"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://policy-db:5432/policy_db
+      SPRING_DATASOURCE_USERNAME: ecoquest
+      SPRING_DATASOURCE_PASSWORD: ecoquest
+      IDENTITY_JWT_SECRET: ${IDENTITY_JWT_SECRET:-ecoquest-dev-secret-change-me}
+    depends_on:
+      policy-db:
+        condition: service_healthy
+
+  reward-ledger-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.reward
+    ports:
+      - "${REWARD_PORT:-8083}:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://reward-db:5432/reward_db
+      SPRING_DATASOURCE_USERNAME: ecoquest
+      SPRING_DATASOURCE_PASSWORD: ecoquest
+      SPRING_RABBITMQ_HOST: rabbitmq
+      IDENTITY_JWT_SECRET: ${IDENTITY_JWT_SECRET:-ecoquest-dev-secret-change-me}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    depends_on:
+      reward-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+  leaderboard-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.leaderboard
+    ports:
+      - "${LEADERBOARD_PORT:-8084}:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://leaderboard-db:5432/leaderboard_db
+      SPRING_DATASOURCE_USERNAME: ecoquest
+      SPRING_DATASOURCE_PASSWORD: ecoquest
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_RABBITMQ_HOST: rabbitmq
+      IDENTITY_JWT_SECRET: ${IDENTITY_JWT_SECRET:-ecoquest-dev-secret-change-me}
+    depends_on:
+      leaderboard-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  recognition-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.recognition
+    ports:
+      - "${RECOGNITION_PORT:-8085}:8085"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://recognition-db:5432/recognition_db
+      SPRING_DATASOURCE_USERNAME: ecoquest
+      SPRING_DATASOURCE_PASSWORD: ecoquest
+      SPRING_RABBITMQ_HOST: rabbitmq
+      IDENTITY_JWT_SECRET: ${IDENTITY_JWT_SECRET:-ecoquest-dev-secret-change-me}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    depends_on:
+      recognition-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+  report-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.report
+    ports:
+      - "${REPORT_PORT:-8087}:8087"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://report-db:5432/report_db
+      SPRING_DATASOURCE_USERNAME: ecoquest
+      SPRING_DATASOURCE_PASSWORD: ecoquest
+      SPRING_RABBITMQ_HOST: rabbitmq
+      IDENTITY_JWT_SECRET: ${IDENTITY_JWT_SECRET:-ecoquest-dev-secret-change-me}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    depends_on:
+      report-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.notification
+    ports:
+      - "${NOTIFICATION_PORT:-8088}:8088"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://notification-db:5432/notification_db
+      SPRING_DATASOURCE_USERNAME: ecoquest
+      SPRING_DATASOURCE_PASSWORD: ecoquest
+      SPRING_RABBITMQ_HOST: rabbitmq
+      IDENTITY_JWT_SECRET: ${IDENTITY_JWT_SECRET:-ecoquest-dev-secret-change-me}
+    depends_on:
+      notification-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  ecoquest-web:
+    build:
+      context: web-apps/ecoquest-web
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    depends_on:
+      api-gateway:
+        condition: service_started
+
+  catalog-db:
+    image: postgres:16-alpine
+    ports:
+      - "${CATALOG_DB_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: catalog_db
+      POSTGRES_USER: ecoquest
+      POSTGRES_PASSWORD: ecoquest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecoquest -d catalog_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  policy-db:
+    image: postgres:16-alpine
+    ports:
+      - "${POLICY_DB_PORT:-5433}:5432"
+    environment:
+      POSTGRES_DB: policy_db
+      POSTGRES_USER: ecoquest
+      POSTGRES_PASSWORD: ecoquest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecoquest -d policy_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  reward-db:
+    image: postgres:16-alpine
+    ports:
+      - "${REWARD_DB_PORT:-5434}:5432"
+    environment:
+      POSTGRES_DB: reward_db
+      POSTGRES_USER: ecoquest
+      POSTGRES_PASSWORD: ecoquest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecoquest -d reward_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  leaderboard-db:
+    image: postgres:16-alpine
+    ports:
+      - "${LEADERBOARD_DB_PORT:-5435}:5432"
+    environment:
+      POSTGRES_DB: leaderboard_db
+      POSTGRES_USER: ecoquest
+      POSTGRES_PASSWORD: ecoquest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecoquest -d leaderboard_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  recognition-db:
+    image: postgres:16-alpine
+    ports:
+      - "${RECOGNITION_DB_PORT:-5436}:5432"
+    environment:
+      POSTGRES_DB: recognition_db
+      POSTGRES_USER: ecoquest
+      POSTGRES_PASSWORD: ecoquest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecoquest -d recognition_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  identity-db:
+    image: postgres:16-alpine
+    ports:
+      - "${IDENTITY_DB_PORT:-5437}:5432"
+    environment:
+      POSTGRES_DB: identity_db
+      POSTGRES_USER: ecoquest
+      POSTGRES_PASSWORD: ecoquest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecoquest -d identity_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  report-db:
+    image: postgres:16-alpine
+    ports:
+      - "${REPORT_DB_PORT:-5438}:5432"
+    environment:
+      POSTGRES_DB: report_db
+      POSTGRES_USER: ecoquest
+      POSTGRES_PASSWORD: ecoquest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecoquest -d report_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  notification-db:
+    image: postgres:16-alpine
+    ports:
+      - "${NOTIFICATION_DB_PORT:-5439}:5432"
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: ecoquest
+      POSTGRES_PASSWORD: ecoquest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecoquest -d notification_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  action-db:
+    image: mongo:7
+    ports:
+      - "${ACTION_DB_PORT:-27017}:27017"
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_UI_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin

@@ -1,0 +1,50 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: eco-action-service
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/action_db}
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: guest
+    password: guest
+
+identity:
+  jwt-secret: ${IDENTITY_JWT_SECRET:ecoquest-dev-secret-change-me}
+
+catalog:
+  base-url: ${CATALOG_BASE_URL:http://localhost:8081}
+
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  evidence-bucket: ${MINIO_EVIDENCE_BUCKET:ecoquest-evidence}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      policyService:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 5s
+
+grpc:
+  client:
+    policy:
+      address: ${POLICY_GRPC_ADDRESS:static://localhost:9090}
+      negotiationType: plaintext
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

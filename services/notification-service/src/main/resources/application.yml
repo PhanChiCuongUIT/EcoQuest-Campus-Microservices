@@ -1,0 +1,25 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: notification-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5439/notification_db}
+    username: ${SPRING_DATASOURCE_USERNAME:ecoquest}
+    password: ${SPRING_DATASOURCE_PASSWORD:ecoquest}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+
+identity:
+  jwt-secret: ${IDENTITY_JWT_SECRET:ecoquest-dev-secret-change-me}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

@@ -1,0 +1,53 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ecoquest-api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+      routes:
+        - id: identity
+          uri: ${IDENTITY_URI:http://localhost:8086}
+          predicates:
+            - Path=/auth/**
+        - id: catalog
+          uri: ${CATALOG_URI:http://localhost:8081}
+          predicates:
+            - Path=/catalog/**
+        - id: actions
+          uri: ${ACTION_URI:http://localhost:8082}
+          predicates:
+            - Path=/actions/**
+        - id: rewards
+          uri: ${REWARD_URI:http://localhost:8083}
+          predicates:
+            - Path=/rewards/**
+        - id: leaderboards
+          uri: ${LEADERBOARD_URI:http://localhost:8084}
+          predicates:
+            - Path=/leaderboards/**
+        - id: recognitions
+          uri: ${RECOGNITION_URI:http://localhost:8085}
+          predicates:
+            - Path=/recognitions/**
+        - id: reports
+          uri: ${REPORT_URI:http://localhost:8087}
+          predicates:
+            - Path=/reports/**
+        - id: notifications
+          uri: ${NOTIFICATION_URI:http://localhost:8088}
+          predicates:
+            - Path=/notifications/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway

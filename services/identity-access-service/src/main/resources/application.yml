@@ -1,0 +1,52 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: identity-access-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5437/identity_db}
+    username: ${SPRING_DATASOURCE_USERNAME:ecoquest}
+    password: ${SPRING_DATASOURCE_PASSWORD:ecoquest}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 0
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:false}
+          starttls:
+            enable: ${SMTP_STARTTLS:false}
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+
+identity:
+  jwt-secret: ${IDENTITY_JWT_SECRET:ecoquest-dev-secret-change-me}
+  access-token-ttl-seconds: ${IDENTITY_ACCESS_TOKEN_TTL_SECONDS:86400}
+  reset-token-ttl-minutes: ${IDENTITY_RESET_TOKEN_TTL_MINUTES:30}
+  verification-token-ttl-minutes: ${IDENTITY_VERIFICATION_TOKEN_TTL_MINUTES:1440}
+  frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
+  mail:
+    enabled: ${IDENTITY_MAIL_ENABLED:false}
+    from: ${IDENTITY_MAIL_FROM:no-reply@ecoquest.local}
+
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  avatar-bucket: ${MINIO_AVATAR_BUCKET:ecoquest-avatars}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
