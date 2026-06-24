@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.ecoquest.grpc.policy";
+option java_outer_classname = "VerificationPolicyProto";
+
+service VerificationPolicyService {
+  rpc EvaluateAction(EvaluateActionRequest) returns (EvaluateActionResponse);
+}
+
+message EvaluateActionRequest {
+  string userId = 1;
+  string missionId = 2;
+  string stationId = 3;
+  string actionType = 4;
+  string evidenceUrl = 5;
+  int32 submittedToday = 6;
+}
+
+message EvaluateActionResponse {
+  bool accepted = 1;
+  bool requiresManualReview = 2;
+  int32 suggestedPoints = 3;
+  string reason = 4;
+}

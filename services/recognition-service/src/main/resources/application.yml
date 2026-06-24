@@ -1,0 +1,34 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: recognition-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5436/recognition_db}
+    username: ${SPRING_DATASOURCE_USERNAME:ecoquest}
+    password: ${SPRING_DATASOURCE_PASSWORD:ecoquest}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: guest
+    password: guest
+
+identity:
+  jwt-secret: ${IDENTITY_JWT_SECRET:ecoquest-dev-secret-change-me}
+
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket: ${MINIO_BUCKET:ecoquest-certificates}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

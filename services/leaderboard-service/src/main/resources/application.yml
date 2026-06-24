@@ -1,0 +1,32 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: leaderboard-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5435/leaderboard_db}
+    username: ${SPRING_DATASOURCE_USERNAME:ecoquest}
+    password: ${SPRING_DATASOURCE_PASSWORD:ecoquest}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: guest
+    password: guest
+
+identity:
+  jwt-secret: ${IDENTITY_JWT_SECRET:ecoquest-dev-secret-change-me}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
