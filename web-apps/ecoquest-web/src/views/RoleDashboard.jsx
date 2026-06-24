@@ -17,8 +17,10 @@ export function ModeratorDashboard({ studentId, onSubmitMission }) {
   useEffect(() => {
     Promise.all([getPendingReview(), getReports('OPEN')])
       .then(([actions, reports]) => {
-        setReviewCount(actions.filter(item => item.status === 'PENDING_REVIEW').length);
-        setOpenReports(reports.length);
+        const actionList = Array.isArray(actions) ? actions : [];
+        const reportList = Array.isArray(reports) ? reports : [];
+        setReviewCount(actionList.filter(item => item.status === 'PENDING_REVIEW').length);
+        setOpenReports(reportList.length);
       })
       .catch(() => {});
   }, []);
@@ -51,13 +53,17 @@ export function AdminDashboard() {
       getManagedMissions(),
       getReportAnalyticsSummary('monthly'),
     ]).then(([users, actions, reports, missions, analytics]) => {
+      const userList = Array.isArray(users) ? users : [];
+      const actionList = Array.isArray(actions) ? actions : [];
+      const reportList = Array.isArray(reports) ? reports : [];
+      const missionList = Array.isArray(missions) ? missions : [];
       setData({
-        users: users.length,
-        pending: actions.filter(item => item.status === 'PENDING_REVIEW').length,
-        reports: reports.length,
-        missions: missions.length,
-        accepted: analytics.acceptedActions || 0,
-        points: analytics.totalPoints || 0,
+        users: userList.length,
+        pending: actionList.filter(item => item.status === 'PENDING_REVIEW').length,
+        reports: reportList.length,
+        missions: missionList.length,
+        accepted: analytics?.acceptedActions || 0,
+        points: analytics?.totalPoints || 0,
       });
     }).catch(() => {});
   }, []);

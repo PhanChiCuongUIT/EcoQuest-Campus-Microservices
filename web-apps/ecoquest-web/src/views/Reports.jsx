@@ -36,7 +36,9 @@ export default function Reports() {
   const targetOptions = reportTargetOptions(user?.role);
   const [form, setForm] = useState({ targetType: targetOptions[0]?.[0] || 'USER', targetId: '', reason: '', evidenceUrl: '' });
 
-  const load = () => (canReview ? getReports() : getMyReports()).then(setReports).catch(() => setReports([]));
+  const load = () => (canReview ? getReports() : getMyReports())
+    .then(items => setReports(Array.isArray(items) ? items : []))
+    .catch(() => setReports([]));
   useEffect(() => { load(); }, [canReview]);
   useEffect(() => {
     if (user?.role !== 'ADMIN') return;

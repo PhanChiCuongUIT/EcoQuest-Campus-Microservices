@@ -24,9 +24,10 @@ export default function TopBar({ title, studentId, setStudentId, theme, toggleTh
     let cancelled = false;
     getNotifications()
       .then(items => {
+        const list = Array.isArray(items) ? items : [];
         if (!cancelled) {
-          setNotifications(items || []);
-          setUnread((items || []).filter(n => !n.read).length);
+          setNotifications(list);
+          setUnread(list.filter(n => !n.read).length);
         }
       })
       .catch(() => {});
@@ -52,8 +53,9 @@ export default function TopBar({ title, studentId, setStudentId, theme, toggleTh
     setNotificationOpen(true);
     try {
       const items = await getNotifications();
-      setNotifications(items || []);
-      setUnread((items || []).filter(n => !n.read).length);
+      const list = Array.isArray(items) ? items : [];
+      setNotifications(list);
+      setUnread(list.filter(n => !n.read).length);
     } catch {
       // The existing list remains available while the backend reconnects.
     }
