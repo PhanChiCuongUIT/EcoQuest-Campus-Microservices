@@ -16,6 +16,8 @@ export default defineConfig({
       '/rewards':      { target: gatewayTarget, changeOrigin: true },
       '/leaderboards': { target: gatewayTarget, changeOrigin: true },
       '/recognitions': { target: gatewayTarget, changeOrigin: true },
+      '/reports':      { target: gatewayTarget, changeOrigin: true },
+      '/notifications': { target: gatewayTarget, changeOrigin: true },
     },
   },
 });
