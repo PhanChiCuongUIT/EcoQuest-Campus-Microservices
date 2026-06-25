@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Leaf, Eye, EyeOff, Mail, Lock, User, Hash, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { authForgotPassword, authResetPassword, verifyEmail } from '../api/ecoquestApi.js';
+import { loginErrorMessage } from '../utils/authErrors.js';
 
 /* ─── Shared logo header ─────────────────────────────────────── */
 function AuthLogo() {
@@ -133,9 +134,7 @@ function LoginForm({ onSwitch, onForgot }) {
       await login(email.trim(), password);
       // AuthProvider will update user state → App re-renders → Dashboard shown
     } catch (err) {
-      const status = err?.response?.status;
-      if (status === 401) setError('Invalid email or password.');
-      else setError('Login failed. Make sure the backend is running.');
+      setError(loginErrorMessage(err));
     } finally { setLoading(false); }
   };
 

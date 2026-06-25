@@ -2,7 +2,7 @@ import React from 'react';
 import {
   LayoutDashboard, Leaf, Wallet, BarChart3, Award,
   ShieldCheck, Settings, Lock, FileText, LogOut,
-  Flag, User, Users,
+  Flag, User, Users, ChartNoAxesCombined,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
@@ -26,16 +26,17 @@ const NAV_BY_ROLE = {
   Moderator: [
     { id: 'dashboard',    label: 'Dashboard',      Icon: LayoutDashboard },
     { id: 'review',       label: 'Review Queue',   Icon: ShieldCheck },
+    { id: 'catalog',      label: 'My Mission Catalog', Icon: Leaf },
     { id: 'reports',      label: 'Reports',        Icon: Flag },
     { id: 'leaderboard',  label: 'Leaderboard',    Icon: BarChart3 },
-    { id: 'catalog',      label: 'My Mission Catalog', Icon: Leaf },
     { id: 'profile',      label: 'Profile',        Icon: User },
   ],
   Admin: [
     { id: 'dashboard',    label: 'Dashboard',      Icon: LayoutDashboard },
+    { id: 'analytics',    label: 'Analytics',        Icon: ChartNoAxesCombined },
+    { id: 'reports',      label: 'Reports',          Icon: Flag },
     { id: 'catalog',      label: 'Catalog',         Icon: Settings },
     { id: 'users',        label: 'Users',           Icon: Users },
-    { id: 'reports',      label: 'Reports & Analytics', Icon: Flag },
     { id: 'policy',       label: 'Policy Rules',    Icon: Lock },
     { id: 'adjust',       label: 'Adjust Points',   Icon: FileText },
     { id: 'profile',      label: 'Profile',         Icon: User },

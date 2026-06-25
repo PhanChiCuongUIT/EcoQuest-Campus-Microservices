@@ -18,3 +18,11 @@ interface CertificateAnalyticsRepository extends JpaRepository<CertificateAnalyt
 
     long countByStudentId(String studentId);
 }
+
+interface MissionAnalyticsRepository extends JpaRepository<MissionAnalyticsRecord, String> {
+    long countByCreatedOnBetween(Instant from, Instant to);
+}
+
+interface UserAnalyticsRepository extends JpaRepository<UserAnalyticsRecord, String> {
+    long countByRegisteredOnBetween(Instant from, Instant to);
+}

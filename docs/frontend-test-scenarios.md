@@ -1,6 +1,6 @@
 # EcoQuest Frontend Test Scenarios
 
-Updated: 2026-06-25
+Updated: 2026-06-26
 
 ## Chuẩn bị
 
@@ -28,7 +28,7 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Current automated unit tests: 7/7 pass.
+Current automated unit tests: 9/9 pass.
 
 - student không thấy pending/rejected mission;
 - chỉ active mission được submit;
@@ -37,6 +37,7 @@ Current automated unit tests: 7/7 pass.
 - report target options follow Student/Moderator rules;
 - manual point adjustment supports deductions but never a negative wallet;
 - upload validation enforces file type, size, and non-empty content.
+- reporting ranges are ordered and cannot include future periods.
 
 ## Kịch bản E2E bắt buộc
 
@@ -86,7 +87,7 @@ Admin:
 
 - thấy Admin và Moderator management view;
 - không có Student submit view;
-- Admin panel chỉ có Dashboard, Catalog, Users, Reports/Analytics, Policy, Adjust Points, Profile;
+- Admin panel chỉ có Dashboard, Catalog, Users, Reports, Analytics, Policy, Adjust Points, Profile;
 - quản lý users/catalog/policy/reward/season;
 - mọi forbidden API phải hiển thị feedback `403`, không giả success.
 
@@ -186,11 +187,55 @@ Admin:
 
 ### 14. Dashboard và analytics
 
-1. Student: points, rank, badges, certificates, missions joined; chart trạng thái submit và submit theo mission.
-2. Moderator: pending/accepted/rejected review, open reports, own mission và chart status.
-3. Admin: users theo role, mission lifecycle, action outcomes/types, points, badges, certificates, reports.
-4. Reports weekly/monthly/yearly/all hiển thị `badgesGranted`, `certificatesIssued`.
-5. Student lookup hiển thị points hiện tại, badge count, certificate count.
+1. Student: points, rank, badges, certificates, missions joined; donut trạng thái submit, cột theo mission và miền hoạt động 7 ngày.
+2. Moderator: pending/accepted/rejected review, open reports, own mission; donut review, cột mission lifecycle và miền workload 7 ngày.
+3. Admin Dashboard: users theo role, mission lifecycle, action outcomes, points và workload bằng biểu đồ tròn/cột/miền.
+4. Admin sidebar có mục `Analytics` riêng, không gộp trong trang xử lý Reports.
+5. Analytics weekly/monthly/yearly hiển thị `submittedActions`, `missionsCreated`, `usersRegistered`, `totalPoints`, `badgesGranted`, `certificatesIssued`.
+6. Student lookup hiển thị action, accepted/rejected, points hiện tại, badge count và certificate count.
+7. Tạo user/mission mới rồi chờ event; Analytics tăng số tương ứng mà không đọc DB service khác.
+8. Mở phần official reporting periods:
+   - `weekly`: chọn năm, chọn `fromWeek/toWeek`; không chọn được tuần tương lai.
+   - `monthly`: chọn năm, chọn `fromMonth/toMonth`; không chọn được tháng tương lai.
+   - `yearly`: nhập `fromYear/toYear`; `fromYear <= toYear` và `toYear` không vượt năm hiện tại.
+9. Chọn một dòng kỳ báo cáo trong bảng, ví dụ `W01 2026`, `FEB 2026` hoặc `2025`; bấm `Export ... PDF` và trình duyệt tải PDF một kỳ cụ thể như `ecoquest-analytics-w01-2026.pdf`, backend trả `application/pdf` và `Content-Disposition: attachment`.
+10. Student outcome report:
+   - Chế độ `All students` hiển thị bảng toàn bộ student theo cùng reporting range.
+   - Chế độ `One student` chọn student từ danh sách, select dài không đè lên nút `View student`, số action/points/badge/certificate đổi theo range.
+11. Gọi API thủ công với future year/month/week hoặc `fromYear > toYear` phải trả `400`.
+
+### 15. Login feedback và trợ giúp
+
+1. Sai email hoặc mật khẩu hiển thị `Invalid email or password`, không hiển thị lỗi backend chung.
+2. Tài khoản chưa verify hướng dẫn mở hoặc gửi lại email xác minh.
+3. Tài khoản `INACTIVE`/`BANNED` hiển thị đúng trạng thái và lý do từ Admin.
+4. Tắt Gateway để kiểm tra lỗi kết nối; bật lại để kiểm tra lỗi server không bị nhầm với sai mật khẩu.
+5. Mở `Policy & privacy` và `Application guide`; tiêu đề và nội dung phải khác nhau, đóng/mở độc lập.
+
+### 17. Policy Rules CRUD
+
+1. Admin mở Policy Rules qua direct port `8090`.
+2. Bấm `Add rule`/`New policy rule`, modal overlay mở ra và focus vào form.
+3. Thêm rule mới trong modal; rule xuất hiện trong bảng.
+4. Edit points/evidence/station/daily limit/active bằng `PUT`.
+5. Delete rule đang active phải bị chặn hoặc trả `409`.
+6. Set `active=false`, sau đó delete rule thành công.
+7. Gateway `/policies/rules` vẫn không public; UI chỉ gọi direct Policy service.
+
+### 18. Dashboard resilient loading
+
+1. Đăng nhập Student/Moderator/Admin ngay sau khi stack vừa start.
+2. Nếu một endpoint chậm hoặc lỗi tạm thời, dashboard vẫn hiển thị các metric/chart load được và chỉ hiện warning banner.
+3. Refresh thủ công sau vài giây phải cập nhật dữ liệu còn thiếu, không hiện màn trắng.
+
+### 16. Report target picker và admin self-protection
+
+1. Student mở Reports -> New report -> Target type USER: danh sách user hiện theo tên/email/student ID, không nhập raw ID.
+2. Target type MISSION: danh sách mission hiện theo title/action/status, chọn một mission rồi submit report.
+3. Moderator mở Reports -> New report -> Target type ACTION: danh sách action review hiện theo student/mission/status.
+4. Admin mở Campus Reports: hàng report hiển thị tên/tiêu đề target, ID chỉ nằm ở dòng phụ.
+5. Admin mở User Management: account đang đăng nhập có badge `Current admin`, không đổi role/status/delete được.
+6. Admin đổi role một Moderator khác xuống Student, đăng nhập lại account đó và kiểm tra chỉ còn Student panel.
 
 ## Responsive/mobile
 

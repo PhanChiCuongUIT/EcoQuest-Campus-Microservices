@@ -86,6 +86,11 @@ class IdentityController {
         return identityService.listUsers(authorization);
     }
 
+    @GetMapping("/report-targets/users")
+    List<ReportTargetUser> reportTargetUsers(@RequestHeader(name = "Authorization", required = false) String authorization) {
+        return identityService.reportTargetUsers(authorization);
+    }
+
     @PutMapping("/users/{id}/role")
     UserProfile updateUserRole(@RequestHeader(name = "Authorization", required = false) String authorization,
                                @PathVariable String id,

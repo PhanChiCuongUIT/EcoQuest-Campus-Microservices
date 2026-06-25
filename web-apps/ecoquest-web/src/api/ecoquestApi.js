@@ -54,6 +54,7 @@ export const deleteStation = (id) => client.delete(`/catalog/stations/${id}`).th
 
 export const getBadgeDefs = () => client.get('/catalog/badges').then(r => r.data);
 export const createBadgeDef = (data) => client.post('/catalog/badges', data).then(r => r.data);
+export const updateBadgeDef = (code, data) => client.put(`/catalog/badges/${code}`, data).then(r => r.data);
 export const deleteBadgeDef = (code) => client.delete(`/catalog/badges/${code}`).then(r => r.data);
 
 // ── Actions ───────────────────────────────────────────────────
@@ -153,6 +154,14 @@ export const updatePolicyRule = (actionType, data) =>
   axios.put(`${POLICY_BASE}/policies/rules/${actionType}`, data, {
     headers: { Authorization: `Bearer ${localStorage.getItem('eq-access-token') || ''}` },
   }).then(r => r.data);
+export const createPolicyRule = (data) =>
+  axios.post(`${POLICY_BASE}/policies/rules`, data, {
+    headers: { Authorization: `Bearer ${localStorage.getItem('eq-access-token') || ''}` },
+  }).then(r => r.data);
+export const deletePolicyRule = (actionType) =>
+  axios.delete(`${POLICY_BASE}/policies/rules/${actionType}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem('eq-access-token') || ''}` },
+  }).then(r => r.data);
 
 // Reports
 export const createReport = (data) => client.post('/reports', data).then(r => r.data);
@@ -165,8 +174,70 @@ export const uploadReportEvidence = (data) =>
   client.post('/reports/evidence', data).then(r => r.data);
 export const getReportAnalyticsSummary = (period = 'weekly') =>
   client.get(`/reports/analytics/summary?period=${period}`).then(r => r.data);
-export const getStudentAnalytics = (studentId) =>
-  client.get(`/reports/analytics/students/${studentId}`).then(r => r.data);
+export const getReportAnalyticsSeries = (period = 'weekly', options = {}) => {
+  const params = new URLSearchParams({ period });
+  if (options.year) params.set('year', options.year);
+  if (options.fromWeek) params.set('fromWeek', options.fromWeek);
+  if (options.toWeek) params.set('toWeek', options.toWeek);
+  if (options.fromMonth) params.set('fromMonth', options.fromMonth);
+  if (options.toMonth) params.set('toMonth', options.toMonth);
+  if (options.fromYear) params.set('fromYear', options.fromYear);
+  if (options.toYear) params.set('toYear', options.toYear);
+  return client.get(`/reports/analytics/series?${params.toString()}`).then(r => r.data);
+};
+const appendAnalyticsRangeParams = (params, options = {}) => {
+  if (options.period) params.set('period', options.period);
+  if (options.year) params.set('year', options.year);
+  if (options.week) params.set('week', options.week);
+  if (options.month) params.set('month', options.month);
+  if (options.fromWeek) params.set('fromWeek', options.fromWeek);
+  if (options.toWeek) params.set('toWeek', options.toWeek);
+  if (options.fromMonth) params.set('fromMonth', options.fromMonth);
+  if (options.toMonth) params.set('toMonth', options.toMonth);
+  if (options.fromYear) params.set('fromYear', options.fromYear);
+  if (options.toYear) params.set('toYear', options.toYear);
+};
+export const getStudentAnalytics = (studentId, options = {}) => {
+  const params = new URLSearchParams();
+  appendAnalyticsRangeParams(params, options);
+  const query = params.toString();
+  return client.get(`/reports/analytics/students/${studentId}${query ? `?${query}` : ''}`).then(r => r.data);
+};
+export const getStudentAnalyticsOutcomes = (options = {}) => {
+  const params = new URLSearchParams();
+  appendAnalyticsRangeParams(params, options);
+  return client.get(`/reports/analytics/students?${params.toString()}`).then(r => r.data);
+};
+export const downloadReportAnalytics = async (period = 'weekly', options = {}) => {
+  const params = new URLSearchParams({ period });
+  if (options.scope) params.set('scope', options.scope);
+  if (options.year) params.set('year', options.year);
+  if (options.week) params.set('week', options.week);
+  if (options.month) params.set('month', options.month);
+  if (options.fromWeek) params.set('fromWeek', options.fromWeek);
+  if (options.toWeek) params.set('toWeek', options.toWeek);
+  if (options.fromMonth) params.set('fromMonth', options.fromMonth);
+  if (options.toMonth) params.set('toMonth', options.toMonth);
+  if (options.fromYear) params.set('fromYear', options.fromYear);
+  if (options.toYear) params.set('toYear', options.toYear);
+  const response = await client.get(`/reports/analytics/export?${params.toString()}`, { responseType: 'blob' });
+  const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  const suffix = options.scope === 'series'
+    ? 'series'
+    : options.week
+      ? `w${String(options.week).padStart(2, '0')}-${options.year}`
+      : options.month
+        ? `${String(options.month).padStart(2, '0')}-${options.year}`
+        : options.year || period;
+  link.download = `ecoquest-analytics-${period}-${suffix}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+};
 
 // Notifications
 export const getNotifications = () => client.get('/notifications').then(r => r.data);
@@ -195,6 +266,7 @@ export const resendVerification = (email) =>
 export const updateMyProfile = (data) => client.put('/auth/me/profile', data).then(r => r.data);
 export const uploadAvatar = (data) => client.post('/auth/me/avatar', data).then(r => r.data);
 export const getUsers = () => client.get('/auth/users').then(r => r.data);
+export const getReportTargetUsers = () => client.get('/auth/report-targets/users').then(r => r.data);
 export const updateUserRole = (id, role) =>
   client.put(`/auth/users/${id}/role`, { role }).then(r => r.data);
 export const updateUserStatus = (id, status, reason) =>

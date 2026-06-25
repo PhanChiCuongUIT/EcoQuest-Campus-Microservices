@@ -47,6 +47,26 @@ class CertificateAnalyticsRecord {
     public Instant occurredOn;
 }
 
+@Entity
+class MissionAnalyticsRecord {
+    @Id
+    public String missionId;
+    public String title;
+    public String status;
+    public String createdByUserId;
+    public Instant createdOn;
+    public Instant updatedOn;
+}
+
+@Entity
+class UserAnalyticsRecord {
+    @Id
+    public String userId;
+    public String role;
+    public String studentId;
+    public Instant registeredOn;
+}
+
 record AnalyticsSummary(
         String period,
         Instant from,
@@ -60,8 +80,37 @@ record AnalyticsSummary(
         long rejectedReports,
         long badgesGranted,
         long certificatesIssued,
+        long missionsCreated,
+        long usersRegistered,
         List<ActionTypeMetric> actionTypes,
         List<StudentMetric> topStudents
+) {
+}
+
+record AnalyticsSeries(
+        String period,
+        int year,
+        Integer fromYear,
+        Integer toYear,
+        List<AnalyticsBucket> buckets
+) {
+}
+
+record AnalyticsBucket(
+        String label,
+        Instant from,
+        Instant to,
+        long submittedActions,
+        long acceptedActions,
+        long rejectedActions,
+        int totalPoints,
+        long openReports,
+        long acceptedReports,
+        long rejectedReports,
+        long badgesGranted,
+        long certificatesIssued,
+        long missionsCreated,
+        long usersRegistered
 ) {
 }
 
@@ -81,5 +130,17 @@ record StudentAnalytics(
         long certificateCount,
         long reportsSubmitted,
         List<ActionTypeMetric> actionTypes
+) {
+}
+
+record StudentOutcome(
+        String studentId,
+        long actionCount,
+        long acceptedActions,
+        long rejectedActions,
+        int totalPoints,
+        long badgeCount,
+        long certificateCount,
+        long reportsSubmitted
 ) {
 }

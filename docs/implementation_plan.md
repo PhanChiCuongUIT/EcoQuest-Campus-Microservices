@@ -610,6 +610,7 @@ Code, Name, Description, Required Points, Actions
 - Text inputs, number inputs, toggle switches, textareas, select dropdowns
 - Validation with inline errors
 - `POST /catalog/missions`, `POST /catalog/stations`, `POST /catalog/badges`
+- `PUT /catalog/badges/{code}` for editing badge definitions
 
 ---
 
@@ -823,6 +824,8 @@ Codex backend review resolved the implementation-blocking issues:
    - `DELETE /catalog/missions/{id}`
    - `DELETE /catalog/stations/{id}`
    - `DELETE /catalog/badges/{code}`
+   - `GET /reports/analytics/export?period=weekly|monthly|yearly` for current-period Admin PDF export
+   - `GET /reports/analytics/export?period=weekly&year=2026&week=18`, `period=monthly&year=2026&month=2`, or `period=yearly&year=2025` for selected historical period export
    - Frontend can implement real delete for Admin Catalog. Use a confirmation dialog before calling delete.
 2. Policy Admin direct API remains local-only and intentionally not routed through Gateway:
    - `GET http://localhost:8090/policies/rules`

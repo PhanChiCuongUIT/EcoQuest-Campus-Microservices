@@ -1,7 +1,8 @@
+# syntax=docker/dockerfile:1
 FROM node:24-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN --mount=type=cache,id=ecoquest-npm,target=/root/.npm npm install
 COPY . .
 RUN npm run build
 

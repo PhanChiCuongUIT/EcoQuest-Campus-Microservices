@@ -5,6 +5,7 @@ import MissionCard from '../components/MissionCard.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import AsyncBanner from '../components/AsyncBanner.jsx';
+import { AreaChart, ColumnChart, DonutChart } from '../components/DashboardCharts.jsx';
 import {
   getWallet, getStudentRank, getUnlockedBadges,
   getCertificates, getMissions, getUserActions,
@@ -23,31 +24,6 @@ function formatDate(iso) {
   try { return new Date(iso).toLocaleString(); } catch { return '—'; }
 }
 
-function MiniBarChart({ title, rows, empty = 'No activity yet.' }) {
-  const max = Math.max(1, ...rows.map(row => Number(row.value) || 0));
-
-  return (
-    <div className="mini-chart-card">
-      <div className="mini-chart-header">
-        <strong>{title}</strong>
-      </div>
-      <div className="mini-chart-body">
-        {rows.length === 0 ? (
-          <p className="muted-copy">{empty}</p>
-        ) : rows.map(row => (
-          <div className="mini-chart-row" key={row.label}>
-            <span>{row.label}</span>
-            <div className="mini-chart-track">
-              <i style={{ width: `${Math.max(8, (Number(row.value) || 0) / max * 100)}%` }} />
-            </div>
-            <strong>{row.value}</strong>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function StudentDashboard({ studentId, onSubmitMission, featuredOnly = true }) {
   const [wallet, setWallet]     = useState(null);
   const [rank, setRank]         = useState(null);
@@ -62,21 +38,26 @@ export default function StudentDashboard({ studentId, onSubmitMission, featuredO
   const load = useCallback(async (id) => {
     if (!id) return;
     setLoading(true); setError(null);
-    try {
-      const [w, r, b, c, m, a] = await Promise.all([
-        getWallet(id),
-        getStudentRank(id, 'weekly').catch(() => null),
-        getUnlockedBadges(id),
-        getCertificates(id),
-        getMissions(),
-        getUserActions(id),
-      ]);
-      setWallet(w); setRank(r); setBadges(b);
-      setCerts(c); setMissions(visibleMissions(m));
-      setActions([...a].sort((x, y) => new Date(y.submittedAt) - new Date(x.submittedAt)));
-    } catch {
-      setError('Could not load dashboard. Make sure the backend stack is running.');
-    } finally { setLoading(false); }
+    const results = await Promise.allSettled([
+      getWallet(id),
+      getStudentRank(id, 'weekly'),
+      getUnlockedBadges(id),
+      getCertificates(id),
+      getMissions(),
+      getUserActions(id),
+    ]);
+    const valueAt = (index, fallback) => results[index].status === 'fulfilled' ? results[index].value : fallback;
+    const failed = results.filter(result => result.status === 'rejected').length;
+    setWallet(valueAt(0, { totalPoints: 0 }));
+    setRank(valueAt(1, null));
+    setBadges(valueAt(2, []));
+    setCerts(valueAt(3, []));
+    setMissions(visibleMissions(valueAt(4, [])));
+    setActions([...valueAt(5, [])].sort((x, y) => new Date(y.submittedAt) - new Date(x.submittedAt)));
+    if (failed > 0) {
+      setError('Some dashboard data is temporarily unavailable. Showing the parts that loaded successfully.');
+    }
+    setLoading(false);
   }, []);
 
   useEffect(() => { load(studentId); }, [studentId, load]);
@@ -113,8 +94,6 @@ export default function StudentDashboard({ studentId, onSubmitMission, featuredO
     </div>
   );
 
-  if (error) return <AsyncBanner type="warning" message={error} />;
-
   const rankDisplay = rank?.rank ? `#${rank.rank}` : '—';
 
   const joinedMissions = new Set(actions.map(action => action.missionId).filter(Boolean)).size;
@@ -132,9 +111,24 @@ export default function StudentDashboard({ studentId, onSubmitMission, featuredO
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([label, value]) => ({ label, value }));
+  const activityRows = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date();
+    day.setHours(0, 0, 0, 0);
+    day.setDate(day.getDate() - (6 - index));
+    const next = new Date(day);
+    next.setDate(next.getDate() + 1);
+    return {
+      label: day.toLocaleDateString([], { weekday: 'short' }),
+      value: actions.filter(action => {
+        const submittedAt = new Date(action.submittedAt);
+        return Number.isFinite(submittedAt.getTime()) && submittedAt >= day && submittedAt < next;
+      }).length,
+    };
+  });
 
   return (
     <div>
+      {error && <AsyncBanner type="warning" message={error} onDismiss={() => setError(null)} />}
       {asyncBanner && (
         <AsyncBanner
           type="info"
@@ -180,9 +174,10 @@ export default function StudentDashboard({ studentId, onSubmitMission, featuredO
         />
       </div>
 
-      <div className="dashboard-chart-grid">
-        <MiniBarChart title="Submission status" rows={statusRows} />
-        <MiniBarChart title="Submissions by mission" rows={missionRows} />
+      <div className="dashboard-visual-grid">
+        <DonutChart title="Submission outcomes" rows={statusRows} centerLabel="Submissions" />
+        <ColumnChart title="Submissions by mission" rows={missionRows} />
+        <AreaChart title="Seven-day participation" rows={activityRows} valueLabel="Submitted actions" />
       </div>
 
       {/* ── Missions ── */}

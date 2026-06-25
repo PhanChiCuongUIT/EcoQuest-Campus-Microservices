@@ -20,8 +20,8 @@ export function allowedUiRoles(backendRole) {
 
 export const PANEL_VIEWS_BY_ROLE = {
   Student: ['dashboard', 'missions', 'wallet', 'leaderboard', 'certificates', 'reports', 'profile'],
-  Moderator: ['dashboard', 'review', 'reports', 'leaderboard', 'catalog', 'profile'],
-  Admin: ['dashboard', 'catalog', 'users', 'reports', 'policy', 'adjust', 'profile'],
+  Moderator: ['dashboard', 'review', 'catalog', 'reports', 'leaderboard', 'profile'],
+  Admin: ['dashboard', 'analytics', 'reports', 'catalog', 'users', 'policy', 'adjust', 'profile'],
 };
 
 export function panelViewsForRole(role) {

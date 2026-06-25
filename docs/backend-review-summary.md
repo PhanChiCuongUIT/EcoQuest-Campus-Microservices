@@ -1,6 +1,6 @@
 # EcoQuest Backend Review Summary
 
-Updated: 2026-06-25
+Updated: 2026-06-26
 
 ## Kết luận
 
@@ -47,7 +47,7 @@ Identity, Report và Notification là các bounded context bổ sung ngoài 6 se
 
 ### Catalog và Action
 
-- 8 missions, 5 stations có ảnh, 6 badge definitions.
+- 12 missions, 7 stations có ảnh, 6 badge definitions.
 - Mission workflow `PENDING -> ACTIVE/REJECTED/CANCELLED/COMPLETED`.
 - Mission mới luôn pending; Admin quyết định status.
 - Student chỉ thấy mission có trạng thái công khai; management view thấy toàn bộ.
@@ -72,7 +72,9 @@ Identity, Report và Notification là các bounded context bổ sung ngoài 6 se
 
 - Student/Moderator tạo report và xem report của mình.
 - Moderator/Admin xem/filter/review report.
-- Report analytics dùng read model riêng consume action accepted/rejected, points granted, badge unlocked và certificate issued; có API summary tuần/tháng/năm/all và student analytics.
+- Report analytics dùng read model riêng consume action accepted/rejected, points granted, badge unlocked, certificate issued, mission status và user registration; có API summary tuần/tháng/năm/all, series theo range tuần/tháng/năm không cho future period, all-student outcome report, student analytics và export PDF attachment cho kỳ hiện tại hoặc kỳ được chọn trong quá khứ.
+- Identity email templates attach the real EcoQuest PNG logo inline by CID, so branded verification/reset/status emails do not depend on external or localhost image URLs.
+- Policy service owns rule create/update/delete; delete remains guarded by inactive-only validation.
 - Notification inbox, mark read, read-all và SSE endpoint.
 - Notification từ action accepted/rejected, badge unlocked, certificate issued, mission status changed, report created/reviewed, user reported và user status changed.
 - Admin có thể tạo notification theo user/student/role.
@@ -136,8 +138,9 @@ Kết quả sau patch mới nhất:
 - `docker compose config --quiet`: **PASS**.
 - Backend smoke test: **PASS**.
 - RabbitMQ queue drain after smoke: **PASS**.
-- Post-smoke log scan for `ERROR|Exception|Assertion failed|Timed out`: **PASS**.
-- Frontend unit tests: **7/7 PASS**.
+- Post-smoke log scan for `ERROR|Exception|Assertion failed|Timed out`: **PASS** after warm-up; earlier Gateway connection-refused logs only occurred while Identity was still starting.
+- Frontend unit tests: **9/9 PASS**.
+- Frontend production build after Policy modal, Student outcome layout, and dashboard partial-loading fixes: **PASS**.
 - Frontend Vite build: **PASS**.
 
 ## Đánh giá mức hoàn thiện

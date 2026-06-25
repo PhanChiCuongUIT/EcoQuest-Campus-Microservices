@@ -1,6 +1,6 @@
 # EcoQuest Campus Frontend Handoff
 
-Updated: 2026-06-25
+Updated: 2026-06-26
 
 Tài liệu này là source-of-truth cho agent frontend. Agent có thể đọc file này cùng các file được liệt kê bên dưới để code/review/test UI mà không cần quét backend source hoặc database.
 
@@ -63,7 +63,7 @@ Role inheritance và panel navigation:
 
 - Backend `STUDENT`: chỉ cho UI role `Student`.
 - Backend `MODERATOR`: cho UI role `Student`, `Moderator`; Moderator panel chỉ có Dashboard, Review, Reports, Leaderboard, own Catalog, Profile.
-- Backend `ADMIN`: cho UI role `Moderator`, `Admin`; Admin panel chỉ có Dashboard, Catalog, Users, Reports/Analytics, Policy, Adjust Points, Profile.
+- Backend `ADMIN`: cho UI role `Moderator`, `Admin`; Admin panel chỉ có Dashboard, Catalog, Users, Reports, Analytics, Policy, Adjust Points, Profile.
 
 UI role switcher chỉ đổi navigation/view; backend token vẫn là authority. Forbidden action phải hiển thị lỗi `403`, không fake success.
 
@@ -250,6 +250,7 @@ Avatar upload request:
 - `DELETE /catalog/stations/{id}` - Admin
 - `GET /catalog/badges`
 - `POST /catalog/badges` - Admin
+- `PUT /catalog/badges/{code}` - Admin
 - `DELETE /catalog/badges/{code}` - Admin
 
 Mission object:
@@ -447,17 +448,32 @@ Certificate:
 }
 ```
 
-Download returns `application/pdf` and opens inline.
+Download returns `application/pdf` as an authenticated attachment. Frontend must request it as a blob with the bearer token instead of opening the protected URL directly.
 
 ## Report API
 
 - `POST /reports` - Student/Moderator
+- `GET /auth/report-targets/users` - Student/Moderator/Admin, minimal active user list for report target picker
 - `GET /reports/mine` - Student/Moderator
 - `GET /reports` - Moderator/Admin
 - `GET /reports?status=OPEN`
 - `PUT /reports/{id}/review` - Moderator/Admin
-- `GET /reports/analytics/summary?period=weekly` - Admin
+- `GET /reports/analytics/summary?period=weekly` - Admin, current rolling weekly summary
+- `GET /reports/analytics/summary?period=weekly&year=2026&week=18` - Admin, selected ISO week summary
+- `GET /reports/analytics/summary?period=monthly&year=2026&month=2` - Admin, selected month summary
+- `GET /reports/analytics/summary?period=yearly&year=2025` - Admin, selected year summary
+- `GET /reports/analytics/series?period=weekly&year=2026` - Admin, all ISO weeks intersecting selected year
+- `GET /reports/analytics/series?period=weekly&year=2026&fromWeek=18&toWeek=22` - Admin, selected non-future week range
+- `GET /reports/analytics/series?period=monthly&year=2026` - Admin, all 12 months
+- `GET /reports/analytics/series?period=monthly&year=2026&fromMonth=2&toMonth=6` - Admin, selected non-future month range
+- `GET /reports/analytics/series?period=yearly&fromYear=2025&toYear=2026` - Admin, one bucket per year
 - `GET /reports/analytics/students/{studentId}` - Admin
+- `GET /reports/analytics/students?period=weekly&year=2026&fromWeek=18&toWeek=22` - Admin, all student outcomes for selected range
+- `GET /reports/analytics/export?period=weekly` - Admin, returns current single-period `application/pdf` attachment
+- `GET /reports/analytics/export?period=weekly&year=2026&week=18` - Admin, exports one selected ISO week using the polished single-period PDF layout
+- `GET /reports/analytics/export?period=monthly&year=2026&month=2` - Admin, exports one selected month using the polished single-period PDF layout
+- `GET /reports/analytics/export?period=yearly&year=2025` - Admin, exports one selected year using the polished single-period PDF layout
+- `GET /reports/analytics/export?period=weekly&scope=series&year=2026` - Admin, optional all-period series PDF; current UI should prefer selected-period export
 
 Create report:
 
@@ -469,6 +485,12 @@ Create report:
   "evidenceUrl": "/actions/evidence/..."
 }
 ```
+
+Frontend should not ask users to type raw target IDs for normal report creation. Use target pickers:
+
+- USER: load `/auth/report-targets/users`, show display name/email/student ID, submit the selected `id`.
+- MISSION: load `/catalog/missions`, show title/action type/status, submit selected mission `id`.
+- ACTION: for Moderator report flow, load `/actions/review`, show student/mission/status, submit selected action `id`.
 
 Review:
 
@@ -528,7 +550,9 @@ Backend currently creates notifications for action accepted/rejected, badge unlo
 Policy is intentionally not routed through Gateway.
 
 - `GET http://localhost:8090/policies/rules`
+- `POST http://localhost:8090/policies/rules`
 - `PUT http://localhost:8090/policies/rules/{actionType}`
+- `DELETE http://localhost:8090/policies/rules/{actionType}` - inactive rules only; active rules return `409`
 
 Request:
 
@@ -545,6 +569,11 @@ Request:
 
 Requires Admin bearer token in the `Authorization` header. Mark UI as "Local only".
 
+Create/delete notes:
+
+- `POST` creates a new action type rule and returns `409` if it already exists.
+- `DELETE` is intentionally guarded: set `active=false` with `PUT` first, then delete. This keeps Policy ownership local while reducing accidental breakage for active mission action types.
+
 ## Required UI Views
 
 Already expected or implemented:
@@ -559,7 +588,8 @@ Already expected or implemented:
 8. Admin Catalog: mission CRUD/status workflow, station image upload/preview, badge CRUD.
 9. Admin Policy: direct local policy rules.
 10. Profile: display name/avatar upload.
-11. Reports: create report, mine, review queue, Admin analytics weekly/monthly/yearly/all.
+11. Reports: create report, mine, and review queue.
+12. Admin Analytics: dedicated sidebar page with weekly/monthly/yearly actions, missions, users, points, badges, certificates, top students, action types, and student lookup.
 12. Admin Users: role/status/delete.
 13. Notifications: unread count/inbox/read/read-all; SSE via `accessToken` query optional.
 14. Admin Adjust Points.
@@ -577,12 +607,13 @@ Already expected or implemented:
 
 ## Verification Status
 
-Last verified on 2026-06-25:
+Last verified on 2026-06-26:
 
 - Full Maven reactor 14/14 modules: pass.
 - `docker compose config --quiet`: pass.
 - Backend smoke test: pass.
 - RabbitMQ after smoke: all queues drained to 0 messages and have consumers.
-- RabbitMQ exposes 16 queues; all drained to 0 messages with one consumer after smoke.
-- Frontend unit tests after latest UI/API changes: 7/7 pass.
+- RabbitMQ exposes 18 queues; all drained to 0 messages with one consumer after smoke.
+- Frontend unit tests after latest UI/API changes: 9/9 pass.
+- Policy rule creation uses a modal overlay; dashboards render partial data while a backend service is warming up; Identity emails attach the real EcoQuest logo inline by CID.
 - Frontend production build after latest UI/API changes: pass.

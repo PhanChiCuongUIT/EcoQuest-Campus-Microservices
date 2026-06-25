@@ -37,10 +37,10 @@ test('panel navigation does not leak student pages into moderator or admin panel
     'dashboard', 'missions', 'wallet', 'leaderboard', 'certificates', 'reports', 'profile',
   ]);
   assert.deepEqual(panelViewsForRole('Moderator'), [
-    'dashboard', 'review', 'reports', 'leaderboard', 'catalog', 'profile',
+    'dashboard', 'review', 'catalog', 'reports', 'leaderboard', 'profile',
   ]);
   assert.deepEqual(panelViewsForRole('Admin'), [
-    'dashboard', 'catalog', 'users', 'reports', 'policy', 'adjust', 'profile',
+    'dashboard', 'analytics', 'reports', 'catalog', 'users', 'policy', 'adjust', 'profile',
   ]);
   assert.equal(panelViewsForRole('Moderator').includes('wallet'), false);
   assert.equal(panelViewsForRole('Admin').includes('certificates'), false);

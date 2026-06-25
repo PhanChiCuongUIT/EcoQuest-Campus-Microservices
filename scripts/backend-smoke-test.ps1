@@ -278,6 +278,17 @@ Assert-True ($avatarDownload.StatusCode -eq 200) "Uploaded avatar should be down
 Assert-True ($avatarDownload.Headers["Content-Type"] -match "image/png") "Uploaded avatar should preserve content type"
 $users = @(Invoke-ApiList -Uri "$Gateway/auth/users")
 Assert-True (Has-ItemWithValue $users "email" $newAuthEmail) "Admin should list users"
+$adminSelfRoleStatus = Get-StatusCode -Method "PUT" -Uri "$Gateway/auth/users/$($adminMe.id)/role" -Body @{ role = "STUDENT" }
+Assert-True ($adminSelfRoleStatus -eq 409) "Admin should not be able to change their own role"
+$adminSelfStatusCode = Get-StatusCode -Method "PUT" -Uri "$Gateway/auth/users/$($adminMe.id)/status" -Body @{
+    status = "INACTIVE"
+    reason = "E2E self-protection check"
+}
+Assert-True ($adminSelfStatusCode -eq 409) "Admin should not be able to inactive their own account"
+$script:DefaultHeaders = $newLoginHeaders
+$reportTargetUsers = @(Invoke-ApiList -Uri "$Gateway/auth/report-targets/users")
+Assert-True (Has-ItemWithValue $reportTargetUsers "email" "admin@ecoquest.local") "Report target user lookup should expose active users by name/email for report UI"
+$script:DefaultHeaders = $adminHeaders
 $promoted = Invoke-Api -Method "PUT" -Uri "$Gateway/auth/users/$($newLogin.user.id)/role" -Body @{ role = "MODERATOR" }
 Assert-True ($promoted.role -eq "MODERATOR") "Admin should promote student to moderator"
 $inactive = Invoke-Api -Method "PUT" -Uri "$Gateway/auth/users/$($newLogin.user.id)/status" -Body @{
@@ -302,12 +313,15 @@ Write-Step "Checking Catalog missions/stations/badges"
 $missions = @(Invoke-ApiList -Uri "$Gateway/catalog/missions")
 $stations = @(Invoke-ApiList -Uri "$Gateway/catalog/stations")
 $badges = @(Invoke-ApiList -Uri "$Gateway/catalog/badges")
-Assert-True ($missions.Count -ge 8) "Catalog should have expanded seeded missions"
-Assert-True ($stations.Count -ge 5) "Catalog should have expanded seeded stations"
+Assert-True ($missions.Count -ge 10) "Catalog should have at least ten seeded missions"
+Assert-True ($stations.Count -ge 7) "Catalog should have expanded seeded stations"
 Assert-True ($badges.Count -ge 6) "Catalog should have expanded seeded badges"
 Assert-True (Has-ItemWithValue $missions "id" "MISSION-CHECKIN-01") "Catalog should include green check-in mission"
 Assert-True (Has-ItemWithValue $missions "id" "MISSION-TRASH-01") "Catalog should include report trash mission"
+Assert-True (Has-ItemWithValue $missions "id" "MISSION-COMPOST-01") "Catalog should include compost mission"
+Assert-True (Has-ItemWithValue $missions "id" "MISSION-EWASTE-01") "Catalog should include e-waste mission"
 Assert-True (Has-ItemWithValue $stations "id" "STATION-B2") "Catalog should include refill station"
+Assert-True (Has-ItemWithValue $stations "id" "STATION-G7") "Catalog should include e-waste station"
 Assert-True (Has-ItemWithValue $badges "code" "CAMPUS_GUARDIAN") "Catalog should include high-tier badge"
 Assert-True (Has-Item $missions { param($m) $m.id -eq "MISSION-RECYCLE-01" -and $m.status -eq "ACTIVE" }) "Seeded missions should expose ACTIVE status"
 Assert-True (Has-Item $missions { param($m) $m.id -eq "MISSION-RECYCLE-01" -and $m.stationRequired -eq $true }) "Recycle mission should require a station"
@@ -344,9 +358,34 @@ $policyNoAuthStatus = Get-StatusCode -Uri "$Policy/policies/rules"
 Assert-True ($policyNoAuthStatus -eq 401) "Policy admin API should require a bearer token on direct port"
 $script:DefaultHeaders = $adminHeaders
 $policyRules = @(Invoke-ApiList -Uri "$Policy/policies/rules")
-Assert-True ($policyRules.Count -ge 8) "Policy admin API should expose expanded seeded rules directly"
+Assert-True ($policyRules.Count -ge 12) "Policy admin API should expose expanded seeded rules directly"
 Assert-True (Has-ItemWithValue $policyRules "actionType" "GREEN_CHECKIN") "Policy rules should include GREEN_CHECKIN"
 Assert-True (Has-ItemWithValue $policyRules "actionType" "WATER_REFILL") "Policy rules should include WATER_REFILL"
+Assert-True (Has-ItemWithValue $policyRules "actionType" "COMPOST_WASTE") "Policy rules should include COMPOST_WASTE"
+Assert-True (Has-ItemWithValue $policyRules "actionType" "EWASTE_DROPOFF") "Policy rules should include EWASTE_DROPOFF"
+$policyCrudActionType = "E2E_POLICY_CRUD_$authRunId".ToUpper().Replace("-", "_")
+$createdPolicy = Invoke-Api -Method "POST" -Uri "$Policy/policies/rules" -Body @{
+    actionType = $policyCrudActionType
+    basePoints = 7
+    evidenceRequired = $true
+    stationRequired = $false
+    dailyLimit = 2
+    active = $true
+}
+Assert-True ($createdPolicy.actionType -eq $policyCrudActionType) "Policy admin POST should create a new rule"
+$deleteActivePolicyStatus = Get-StatusCode -Method "DELETE" -Uri "$Policy/policies/rules/$policyCrudActionType"
+Assert-True ($deleteActivePolicyStatus -eq 409) "Policy admin DELETE should reject active rules"
+$updatedPolicy = Invoke-Api -Method "PUT" -Uri "$Policy/policies/rules/$policyCrudActionType" -Body @{
+    actionType = $policyCrudActionType
+    basePoints = 7
+    evidenceRequired = $true
+    stationRequired = $false
+    dailyLimit = 2
+    active = $false
+}
+Assert-True ($updatedPolicy.active -eq $false) "Policy admin PUT should deactivate a rule"
+$deleteInactivePolicyStatus = Get-StatusCode -Method "DELETE" -Uri "$Policy/policies/rules/$policyCrudActionType"
+Assert-True ($deleteInactivePolicyStatus -eq 200) "Policy admin DELETE should remove inactive rules"
 
 $runId = (Get-Date -Format "yyyyMMddHHmmss") + "-" + (Get-Random)
 $studentAccepted = "SV_E2E_ACCEPTED_$runId"
@@ -427,6 +466,16 @@ $createdBadges = @(Invoke-ApiList -Uri "$Gateway/catalog/badges")
 Assert-True (Has-ItemWithValue $createdMissions "id" $tempMissionId) "Catalog mission create should persist temp mission"
 Assert-True (Has-ItemWithValue $createdStations "id" $tempStationId) "Catalog station create should persist temp station"
 Assert-True (Has-ItemWithValue $createdBadges "code" $tempBadgeCode) "Catalog badge create should persist temp badge"
+$updatedBadge = Invoke-Api -Method "PUT" -Uri "$Gateway/catalog/badges/$tempBadgeCode" -Body @{
+    code = $tempBadgeCode
+    name = "E2E Updated Temporary Badge"
+    description = "Temporary badge updated by smoke test."
+    requiredPoints = 8888
+    criteriaType = "POINTS"
+    actionType = $null
+    requiredCount = 0
+}
+Assert-True ($updatedBadge.requiredPoints -eq 8888) "Catalog badge update should persist changes"
 $tempMission = $createdMissions | Where-Object { $_.id -eq $tempMissionId } | Select-Object -First 1
 Assert-True ($tempMission.status -eq "PENDING") "Newly created mission should start as PENDING"
 $script:DefaultHeaders = $studentAcceptedHeaders
@@ -508,6 +557,13 @@ Assert-True (Has-ItemWithValue $adminManagedMissions "id" $moderatorMissionId) "
 $approvedModeratorMission = Invoke-Api -Method "PUT" -Uri "$Gateway/catalog/missions/$moderatorMissionId/status?status=ACTIVE"
 Assert-True ($approvedModeratorMission.status -eq "ACTIVE") "Admin should approve moderator-created mission"
 Assert-True ((Get-StatusCode -Method "DELETE" -Uri "$Gateway/catalog/missions/$moderatorMissionId") -eq 200) "Admin should clean up moderator-owned temp mission"
+$demotedModerator = Invoke-Api -Method "PUT" -Uri "$Gateway/auth/users/$($promotedModeratorLogin.user.id)/role" -Body @{ role = "STUDENT" }
+Assert-True ($demotedModerator.role -eq "STUDENT") "Admin should demote a moderator account to student when the account has a student ID"
+$demotedLogin = Invoke-ApiWithHeaders -Method "POST" -Uri "$Gateway/auth/login" -Headers @{} -Body @{
+    email = $newAuthEmail
+    password = "EcoQuest@456"
+}
+Assert-True ($demotedLogin.user.role -eq "STUDENT") "Demoted moderator should receive Student role on a fresh token"
 $script:DefaultHeaders = $studentAcceptedHeaders
 $studentCloseSeasonStatus = Get-StatusCode -Method "POST" -Uri "$Gateway/leaderboards/seasons/RBAC-DENIED-$runId/close?type=weekly&winners=1"
 Assert-True ($studentCloseSeasonStatus -eq 403) "Student should not close leaderboard seasons"
@@ -710,17 +766,65 @@ Assert-True ($checkinWallet.totalPoints -eq 5) "Expanded seeded action should fl
 $script:DefaultHeaders = $adminHeaders
 Wait-Until -Message "Report analytics read model to consume action events" -Attempts 45 -DelaySeconds 2 -Condition {
     $summary = Invoke-Api -Uri "$Gateway/reports/analytics/summary?period=weekly"
-    return ($summary.acceptedActions -ge 3) -and ($summary.totalPoints -ge 30)
+    return ($summary.acceptedActions -ge 3) `
+        -and ($summary.totalPoints -ge 30) `
+        -and ($summary.missionsCreated -ge 1) `
+        -and ($summary.usersRegistered -ge 1)
 }
 $analyticsSummary = Invoke-Api -Uri "$Gateway/reports/analytics/summary?period=weekly"
 Assert-True ($analyticsSummary.acceptedActions -ge 3) "Report analytics should count accepted actions"
 Assert-True ($analyticsSummary.totalPoints -ge 30) "Report analytics should aggregate granted points"
+Assert-True ($analyticsSummary.missionsCreated -ge 1) "Report analytics should count mission creation events"
+Assert-True ($analyticsSummary.usersRegistered -ge 1) "Report analytics should count user registration events"
 Assert-True ($null -ne $analyticsSummary.topStudents) "Report analytics contract should expose topStudents for the admin UI"
 Assert-True ($null -ne $analyticsSummary.badgesGranted) "Report analytics should expose badge totals"
 Assert-True ($null -ne $analyticsSummary.certificatesIssued) "Report analytics should expose certificate totals"
 $studentAnalytics = Invoke-Api -Uri "$Gateway/reports/analytics/students/$studentAccepted"
 Assert-True ($studentAnalytics.actionCount -ge 1) "Student analytics should include accepted student's actions"
 Assert-True ($studentAnalytics.totalPoints -ge 10) "Student analytics should include accepted student's points"
+$weeklySeries = Invoke-Api -Uri "$Gateway/reports/analytics/series?period=weekly&year=$((Get-Date).Year)"
+Assert-True ($weeklySeries.buckets.Count -ge 1 -and $weeklySeries.buckets.Count -le 53) "Weekly analytics series should include only available non-future weeks in the selected year"
+$weeklyRangeSeries = Invoke-Api -Uri "$Gateway/reports/analytics/series?period=weekly&year=$((Get-Date).Year)&fromWeek=1&toWeek=1"
+Assert-True ($weeklyRangeSeries.buckets.Count -eq 1) "Weekly analytics series should support fromWeek/toWeek range selection"
+$monthlySeries = Invoke-Api -Uri "$Gateway/reports/analytics/series?period=monthly&year=$((Get-Date).Year)"
+Assert-True ($monthlySeries.buckets.Count -ge 1 -and $monthlySeries.buckets.Count -le (Get-Date).Month) "Monthly analytics series should include only non-future months in the current year"
+$monthlyRangeSeries = Invoke-Api -Uri "$Gateway/reports/analytics/series?period=monthly&year=$((Get-Date).Year)&fromMonth=1&toMonth=1"
+Assert-True ($monthlyRangeSeries.buckets.Count -eq 1) "Monthly analytics series should support fromMonth/toMonth range selection"
+$yearlySeries = Invoke-Api -Uri "$Gateway/reports/analytics/series?period=yearly&fromYear=$((Get-Date).Year - 1)&toYear=$((Get-Date).Year)"
+Assert-True ($yearlySeries.buckets.Count -ge 2) "Yearly analytics series should include each year in the selected range"
+$futureYear = (Get-Date).Year + 1
+$futureYearSeriesStatus = Get-StatusCode -Uri "$Gateway/reports/analytics/series?period=yearly&fromYear=$futureYear&toYear=$futureYear"
+Assert-True ($futureYearSeriesStatus -eq 400) "Analytics series should reject future years"
+$reversedYearSeriesStatus = Get-StatusCode -Uri "$Gateway/reports/analytics/series?period=yearly&fromYear=$((Get-Date).Year)&toYear=$((Get-Date).Year - 1)"
+Assert-True ($reversedYearSeriesStatus -eq 400) "Analytics series should reject reversed year ranges"
+$futureMonthExportStatus = Get-StatusCode -Uri "$Gateway/reports/analytics/export?period=monthly&year=$((Get-Date).Year)&month=12"
+if ((Get-Date).Month -lt 12) {
+    Assert-True ($futureMonthExportStatus -eq 400) "Analytics export should reject future months in the current year"
+}
+$studentOutcomeSeries = Invoke-ApiList -Uri "$Gateway/reports/analytics/students?period=weekly&year=$((Get-Date).Year)&fromWeek=1&toWeek=1"
+Assert-True ($studentOutcomeSeries.Count -ge 1) "Student outcome report should expose all students for the selected reporting range"
+$analyticsPdf = Invoke-WebRequest -UseBasicParsing -Uri "$Gateway/reports/analytics/export?period=weekly" -Headers $adminHeaders
+Assert-True ($analyticsPdf.StatusCode -eq 200) "Report analytics PDF export should return 200"
+Assert-True (($analyticsPdf.Headers["Content-Type"] -join ";") -like "application/pdf*") "Report analytics export should be application/pdf"
+Assert-True (($analyticsPdf.Headers["Content-Disposition"] -join ";") -like "*attachment*ecoquest-analytics-weekly.pdf*") "Report analytics export should be an attachment PDF"
+$analyticsSeriesPdf = Invoke-WebRequest -UseBasicParsing -Uri "$Gateway/reports/analytics/export?period=weekly&scope=series&year=$((Get-Date).Year)" -Headers $adminHeaders
+Assert-True ($analyticsSeriesPdf.StatusCode -eq 200) "Report analytics series PDF export should return 200"
+Assert-True (($analyticsSeriesPdf.Headers["Content-Type"] -join ";") -like "application/pdf*") "Report analytics series export should be application/pdf"
+Assert-True (($analyticsSeriesPdf.Headers["Content-Disposition"] -join ";") -like "*attachment*ecoquest-analytics-weekly-series.pdf*") "Report analytics series export should be an attachment PDF"
+$selectedWeeklyPdf = Invoke-WebRequest -UseBasicParsing -Uri "$Gateway/reports/analytics/export?period=weekly&year=$((Get-Date).Year)&week=1" -Headers $adminHeaders
+Assert-True ($selectedWeeklyPdf.StatusCode -eq 200) "Selected weekly analytics PDF export should return 200"
+Assert-True (($selectedWeeklyPdf.Headers["Content-Type"] -join ";") -like "application/pdf*") "Selected weekly analytics export should be application/pdf"
+Assert-True (($selectedWeeklyPdf.Headers["Content-Disposition"] -join ";") -like "*attachment*ecoquest-analytics-w01-$((Get-Date).Year).pdf*") "Selected weekly analytics export should use the selected week filename"
+$selectedMonthlyPdf = Invoke-WebRequest -UseBasicParsing -Uri "$Gateway/reports/analytics/export?period=monthly&year=$((Get-Date).Year)&month=2" -Headers $adminHeaders
+Assert-True ($selectedMonthlyPdf.StatusCode -eq 200) "Selected monthly analytics PDF export should return 200"
+Assert-True (($selectedMonthlyPdf.Headers["Content-Type"] -join ";") -like "application/pdf*") "Selected monthly analytics export should be application/pdf"
+Assert-True (($selectedMonthlyPdf.Headers["Content-Disposition"] -join ";") -like "*attachment*ecoquest-analytics-feb-$((Get-Date).Year).pdf*") "Selected monthly analytics export should use the selected month filename"
+$selectedYearlyPdf = Invoke-WebRequest -UseBasicParsing -Uri "$Gateway/reports/analytics/export?period=yearly&year=$((Get-Date).Year - 1)" -Headers $adminHeaders
+Assert-True ($selectedYearlyPdf.StatusCode -eq 200) "Selected yearly analytics PDF export should return 200"
+Assert-True (($selectedYearlyPdf.Headers["Content-Type"] -join ";") -like "application/pdf*") "Selected yearly analytics export should be application/pdf"
+Assert-True (($selectedYearlyPdf.Headers["Content-Disposition"] -join ";") -like "*attachment*ecoquest-analytics-$((Get-Date).Year - 1).pdf*") "Selected yearly analytics export should use the selected year filename"
+$seededActions = @(Invoke-ApiList -Uri "$Gateway/actions/user/SV001")
+Assert-True ($seededActions.Count -ge 3) "Demo seed should expose multiple SV001 submit actions"
 
 Write-Step "Checking unsupported action rejection"
 $unsupportedMissionId = "MISSION-E2E-UNSUPPORTED-$runId"

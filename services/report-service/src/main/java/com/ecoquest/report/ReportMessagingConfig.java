@@ -15,6 +15,8 @@ class ReportMessagingConfig {
     static final String POINTS_GRANTED_QUEUE = "report.points-granted";
     static final String BADGE_UNLOCKED_QUEUE = "report.badge-unlocked";
     static final String CERTIFICATE_ISSUED_QUEUE = "report.certificate-issued";
+    static final String MISSION_STATUS_CHANGED_QUEUE = "report.mission-status-changed";
+    static final String USER_REGISTERED_QUEUE = "report.user-registered";
 
     @Bean
     Queue reportActionAcceptedQueue() {
@@ -42,6 +44,16 @@ class ReportMessagingConfig {
     }
 
     @Bean
+    Queue reportMissionStatusChangedQueue() {
+        return new Queue(MISSION_STATUS_CHANGED_QUEUE, true);
+    }
+
+    @Bean
+    Queue reportUserRegisteredQueue() {
+        return new Queue(USER_REGISTERED_QUEUE, true);
+    }
+
+    @Bean
     Binding bindReportActionAccepted(Queue reportActionAcceptedQueue, TopicExchange ecoQuestExchange) {
         return BindingBuilder.bind(reportActionAcceptedQueue).to(ecoQuestExchange).with(EcoQuestRabbit.ACTION_ACCEPTED);
     }
@@ -64,5 +76,15 @@ class ReportMessagingConfig {
     @Bean
     Binding bindReportCertificateIssued(Queue reportCertificateIssuedQueue, TopicExchange ecoQuestExchange) {
         return BindingBuilder.bind(reportCertificateIssuedQueue).to(ecoQuestExchange).with(EcoQuestRabbit.CERTIFICATE_ISSUED);
+    }
+
+    @Bean
+    Binding bindReportMissionStatusChanged(Queue reportMissionStatusChangedQueue, TopicExchange ecoQuestExchange) {
+        return BindingBuilder.bind(reportMissionStatusChangedQueue).to(ecoQuestExchange).with(EcoQuestRabbit.MISSION_STATUS_CHANGED);
+    }
+
+    @Bean
+    Binding bindReportUserRegistered(Queue reportUserRegisteredQueue, TopicExchange ecoQuestExchange) {
+        return BindingBuilder.bind(reportUserRegisteredQueue).to(ecoQuestExchange).with(EcoQuestRabbit.USER_REGISTERED);
     }
 }

@@ -21,6 +21,7 @@ import Profile           from './views/Profile.jsx';
 import AdminUsers        from './views/AdminUsers.jsx';
 import Missions          from './views/Missions.jsx';
 import { AdminDashboard, ModeratorDashboard } from './views/RoleDashboard.jsx';
+import AdminAnalytics from './views/AdminAnalytics.jsx';
 import { allowedUiRoles, panelViewsForRole } from './utils/accessRules.js';
 
 /* ── View Titles ─────────────────────────────────────────────── */
@@ -35,6 +36,7 @@ const VIEW_TITLES = {
   policy:       'Policy Rules',
   adjust:       'Adjust Points',
   reports:      'Reports',
+  analytics:    'System Analytics',
   profile:      'Profile',
   users:        'User Management',
   more:         'More',
@@ -114,9 +116,8 @@ function AppInner() {
     return <AuthGate />;
   }
 
-  /* ── Student ID selector only on student-scoped views ── */
-  const showStudentId = role === 'Student'
-    && ['dashboard', 'wallet', 'certificates'].includes(activeView);
+  /* Student panel uses the signed-in account context; admin lookups live inside admin tools. */
+  const showStudentId = false;
 
   const renderView = () => {
     switch (activeView) {
@@ -133,6 +134,7 @@ function AppInner() {
       case 'policy':       return <AdminPolicy />;
       case 'adjust':       return <AdminAdjust />;
       case 'reports':      return <Reports panelRole={role} />;
+      case 'analytics':    return <AdminAnalytics />;
       case 'profile':      return <Profile />;
       case 'users':        return <AdminUsers />;
       case 'more':         return (

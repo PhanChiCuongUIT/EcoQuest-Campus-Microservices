@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Lock, RefreshCw, Save, AlertTriangle } from 'lucide-react';
+import { Lock, RefreshCw, Save, AlertTriangle, Plus, Trash2 } from 'lucide-react';
 import EmptyState from '../components/EmptyState.jsx';
 import AsyncBanner from '../components/AsyncBanner.jsx';
+import Modal from '../components/Modal.jsx';
 import { useToast } from '../components/Toast.jsx';
-import { POLICY_BASE, getPolicyRules, updatePolicyRule } from '../api/ecoquestApi.js';
+import { useConfirm } from '../components/ConfirmDialog.jsx';
+import { POLICY_BASE, createPolicyRule, deletePolicyRule, getPolicyRules, updatePolicyRule } from '../api/ecoquestApi.js';
 
 function Toggle({ checked, onChange, id }) {
   return (
@@ -16,10 +18,20 @@ function Toggle({ checked, onChange, id }) {
 
 export default function AdminPolicy() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [rules, setRules]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
   const [editing, setEditing] = useState(null); // { actionType, form }
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newRule, setNewRule] = useState({
+    actionType: '',
+    basePoints: 10,
+    evidenceRequired: true,
+    stationRequired: false,
+    dailyLimit: 1,
+    active: true,
+  });
   const [saving, setSaving]   = useState(false);
 
   const load = useCallback(async () => {
@@ -49,6 +61,45 @@ export default function AdminPolicy() {
     } finally { setSaving(false); }
   };
 
+  const handleCreate = async () => {
+    if (!newRule.actionType.trim()) {
+      toast({ type: 'error', message: 'Action type is required' });
+      return;
+    }
+    setSaving(true);
+    try {
+      await createPolicyRule({ ...newRule, actionType: newRule.actionType.trim().toUpperCase() });
+      toast({ type: 'success', message: `Policy created: ${newRule.actionType.trim().toUpperCase()}` });
+      setNewRule({ actionType: '', basePoints: 10, evidenceRequired: true, stationRequired: false, dailyLimit: 1, active: true });
+      setCreateOpen(false);
+      load();
+    } catch (error) {
+      toast({ type: 'error', message: error.response?.data?.detail || 'Failed to create policy rule' });
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (rule) => {
+    if (rule.active) {
+      toast({ type: 'warning', message: 'Deactivate the rule before deleting it.' });
+      return;
+    }
+    const accepted = await confirm({
+      title: `Delete ${rule.actionType}?`,
+      message: 'Deleted policy rules make that action type unsupported until an Admin creates the rule again.',
+      confirmLabel: 'Delete rule',
+      tone: 'danger',
+    });
+    if (!accepted) return;
+    setSaving(true);
+    try {
+      await deletePolicyRule(rule.actionType);
+      toast({ type: 'success', message: `Policy deleted: ${rule.actionType}` });
+      load();
+    } catch (error) {
+      toast({ type: 'error', message: error.response?.data?.detail || 'Failed to delete policy rule' });
+    } finally { setSaving(false); }
+  };
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
@@ -61,12 +112,24 @@ export default function AdminPolicy() {
         <button className="btn btn-ghost btn-sm" onClick={load} style={{ marginLeft: 'auto' }}>
           <RefreshCw size={14} /> Refresh
         </button>
+        <button className="btn btn-primary btn-sm" onClick={() => setCreateOpen(true)}>
+          <Plus size={14} /> Add rule
+        </button>
       </div>
 
       {error && <AsyncBanner type="warning" message={error} />}
 
       {loading ? <div className="skeleton skeleton-card" /> : (
-        <div className="card">
+        <div className="card policy-rules-card">
+          <div className="policy-rules-intro">
+            <div>
+              <strong>Verification policy rules</strong>
+              <span>Each rule is owned by the Policy service and used by Action through internal gRPC validation.</span>
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={() => setCreateOpen(true)}>
+              <Plus size={14} /> New policy rule
+            </button>
+          </div>
           <div className="data-table-wrapper" style={{ overflowX: 'auto' }}>
             <table className="data-table">
               <thead>
@@ -134,9 +197,14 @@ export default function AdminPolicy() {
                               </button>
                             </>
                           ) : (
-                            <button className="btn btn-outline btn-sm" onClick={() => handleEdit(rule)}>
-                              <Lock size={13} /> Edit
-                            </button>
+                            <>
+                              <button className="btn btn-outline btn-sm" onClick={() => handleEdit(rule)}>
+                                <Lock size={13} /> Edit
+                              </button>
+                              <button className="btn btn-outline-danger btn-sm" onClick={() => handleDelete(rule)} disabled={rule.active || saving} title={rule.active ? 'Deactivate before deleting' : 'Delete inactive policy rule'}>
+                                <Trash2 size={13} /> Delete
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -148,6 +216,68 @@ export default function AdminPolicy() {
           </div>
         </div>
       )}
+
+      <Modal
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Add policy rule"
+        titleIcon={<Plus size={18} />}
+        size="lg"
+        footer={(
+          <>
+            <button className="btn btn-ghost" onClick={() => setCreateOpen(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleCreate} disabled={saving}>
+              <Plus size={15} /> {saving ? 'Creating...' : 'Create rule'}
+            </button>
+          </>
+        )}
+      >
+        <div className="policy-create-form">
+          <AsyncBanner
+            type="info"
+            message="Create only action types that Catalog missions can reference. Delete is allowed only after a rule is inactive."
+          />
+          <div className="form-group">
+            <label className="form-label" htmlFor="new-policy-action-type">Action type</label>
+            <input
+              id="new-policy-action-type"
+              className="form-input"
+              placeholder="REPAIR_REUSE_WORKSHOP"
+              value={newRule.actionType}
+              onChange={event => setNewRule(rule => ({ ...rule, actionType: event.target.value.toUpperCase().replace(/\s+/g, '_') }))}
+            />
+          </div>
+          <div className="form-row-2">
+            <div className="form-group">
+              <label className="form-label" htmlFor="new-policy-points">Base points</label>
+              <input
+                id="new-policy-points"
+                type="number"
+                className="form-input"
+                min="0"
+                value={newRule.basePoints}
+                onChange={event => setNewRule(rule => ({ ...rule, basePoints: Number(event.target.value) }))}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="new-policy-limit">Daily limit</label>
+              <input
+                id="new-policy-limit"
+                type="number"
+                className="form-input"
+                min="0"
+                value={newRule.dailyLimit}
+                onChange={event => setNewRule(rule => ({ ...rule, dailyLimit: Number(event.target.value) }))}
+              />
+            </div>
+          </div>
+          <div className="policy-toggle-grid">
+            <label><span>Evidence required</span><Toggle id="new-policy-evidence" checked={newRule.evidenceRequired} onChange={value => setNewRule(rule => ({ ...rule, evidenceRequired: value }))} /></label>
+            <label><span>Station required</span><Toggle id="new-policy-station" checked={newRule.stationRequired} onChange={value => setNewRule(rule => ({ ...rule, stationRequired: value }))} /></label>
+            <label><span>Active now</span><Toggle id="new-policy-active" checked={newRule.active} onChange={value => setNewRule(rule => ({ ...rule, active: value }))} /></label>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

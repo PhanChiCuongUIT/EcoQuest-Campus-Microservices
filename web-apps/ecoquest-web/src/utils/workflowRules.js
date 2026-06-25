@@ -21,3 +21,11 @@ export function validateUpload(file, { maxBytes, allowedTypes }) {
   if (file.size > maxBytes) return 'The file is too large.';
   return '';
 }
+
+export function isValidReportingRange({ period, year, from, to, currentYear, currentMonth, currentWeek }) {
+  if (from > to) return false;
+  if (period === 'yearly') return to <= currentYear;
+  if (year > currentYear) return false;
+  if (period === 'monthly') return year < currentYear || to <= currentMonth;
+  return year < currentYear || to <= currentWeek;
+}

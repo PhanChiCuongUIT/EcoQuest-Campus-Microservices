@@ -4,8 +4,10 @@ import { deleteBannedUser, getUsers, updateUserRole, updateUserStatus } from '..
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import { useToast } from '../components/Toast.jsx';
 import EmptyState from '../components/EmptyState.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function AdminUsers() {
+  const { user } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
   const [users, setUsers] = useState([]);
@@ -25,6 +27,10 @@ export default function AdminUsers() {
   }), [users, query, status, role]);
 
   const changeRole = async (account, nextRole) => {
+    if (account.id === user?.id) {
+      toast({ type: 'warning', message: 'You cannot change your own role' });
+      return;
+    }
     if (account.role === nextRole) return;
     const accepted = await confirm({
       title: 'Change account role?',
@@ -45,6 +51,10 @@ export default function AdminUsers() {
   };
 
   const changeStatus = async (account, nextStatus) => {
+    if (account.id === user?.id) {
+      toast({ type: 'warning', message: 'You cannot change your own account status' });
+      return;
+    }
     const reason = await confirm({
       title: `${nextStatus === 'BANNED' ? 'Ban' : nextStatus === 'ACTIVE' ? 'Activate' : 'Deactivate'} account?`,
       message: `${account.displayName} will be notified by email when SMTP is enabled.`,
@@ -66,6 +76,10 @@ export default function AdminUsers() {
   };
 
   const remove = async account => {
+    if (account.id === user?.id) {
+      toast({ type: 'warning', message: 'You cannot delete your own account' });
+      return;
+    }
     const accepted = await confirm({
       title: 'Permanently delete banned user?',
       message: `${account.email} will be removed from Identity service. This cannot be undone.`,
@@ -110,7 +124,7 @@ export default function AdminUsers() {
       {filtered.length === 0 ? <EmptyState icon={Users} title="No matching users" description="Change the current search or filters." /> : (
         <div className="user-management-list">
           {filtered.map(account => (
-            <article className="user-management-row" key={account.id}>
+            <article className={`user-management-row${account.id === user?.id ? ' is-self' : ''}`} key={account.id}>
               <img src={account.avatarUrl || '/logo.png'} alt="" />
               <div className="user-management-identity">
                 <strong>{account.displayName}</strong><span>{account.email}</span><code>{account.studentId || 'No student ID'}</code>
@@ -122,14 +136,15 @@ export default function AdminUsers() {
               <div className="user-management-actions">
                 <label>
                   <UserCog size={15} />
-                  <select value={account.role} onChange={event => changeRole(account, event.target.value)} disabled={busyId === account.id}>
+                  <select value={account.role} onChange={event => changeRole(account, event.target.value)} disabled={busyId === account.id || account.id === user?.id}>
                     <option value="STUDENT">Student</option><option value="MODERATOR">Moderator</option><option value="ADMIN">Admin</option>
                   </select>
                 </label>
-                {account.status !== 'ACTIVE' && <button className="btn btn-sm btn-outline" onClick={() => changeStatus(account, 'ACTIVE')}><ShieldCheck size={14} /> Activate</button>}
-                {account.status === 'ACTIVE' && <button className="btn btn-sm btn-outline" onClick={() => changeStatus(account, 'INACTIVE')}>Inactive</button>}
-                {account.status !== 'BANNED' && <button className="btn btn-sm btn-outline-danger" onClick={() => changeStatus(account, 'BANNED')}><Ban size={14} /> Ban</button>}
-                {account.status === 'BANNED' && <button className="btn btn-sm btn-danger" onClick={() => remove(account)}><Trash2 size={14} /> Delete</button>}
+                {account.id === user?.id && <span className="badge badge-neutral">Current admin</span>}
+                {account.id !== user?.id && account.status !== 'ACTIVE' && <button className="btn btn-sm btn-outline" onClick={() => changeStatus(account, 'ACTIVE')}><ShieldCheck size={14} /> Activate</button>}
+                {account.id !== user?.id && account.status === 'ACTIVE' && <button className="btn btn-sm btn-outline" onClick={() => changeStatus(account, 'INACTIVE')}>Inactive</button>}
+                {account.id !== user?.id && account.status !== 'BANNED' && <button className="btn btn-sm btn-outline-danger" onClick={() => changeStatus(account, 'BANNED')}><Ban size={14} /> Ban</button>}
+                {account.id !== user?.id && account.status === 'BANNED' && <button className="btn btn-sm btn-danger" onClick={() => remove(account)}><Trash2 size={14} /> Delete</button>}
               </div>
             </article>
           ))}

@@ -269,7 +269,7 @@ npm run build  # ✅ Build thành công, 0 errors
 - Role switch rules are enforced in both frontend utilities and backend RBAC: Student only Student; Moderator Student+Moderator; Admin Moderator+Admin.
 - Mission workflow is active-only for submission. Management views can show `PENDING`, `REJECTED`, `CANCELLED`, `COMPLETED`.
 - Latest backend alignment adds Catalog station image upload, Report evidence upload, Report analytics APIs, notification SSE with `accessToken` query, and dynamic Policy Admin base URL.
-- Frontend `Reports` now has an Admin analytics panel and report evidence upload; `TopBar` opens SSE for unread count; `AdminCatalog` can upload station image files without changing existing CRUD flow.
+- Frontend `Reports` gained report evidence upload; Admin analytics was later moved into its own sidebar page. `TopBar` opens SSE for unread count; `AdminCatalog` can upload station image files without changing existing CRUD flow.
 - Frontend API client includes Report, Notification, Profile, Admin Users and mission status endpoints.
 - Added frontend unit tests in `web-apps/ecoquest-web/test/accessRules.test.js` and `web-apps/ecoquest-web/test/workflowRules.test.js`; `npm.cmd test` passes 6/6.
 - Production build verified with `npm.cmd run build`; backend smoke and queue drain also pass after the latest backend alignment.
@@ -283,5 +283,43 @@ npm run build  # ✅ Build thành công, 0 errors
 - Added frontend deep-link handling for `/verify-email?token=...` and `/reset-password?token=...`.
 - Replaced the notification modal with a dropdown under the bell, including toggle, outside-click close, mark-all-read, SSE updates, and role-safe navigation.
 - Added distinct charts/metrics for Student, Moderator, and Admin dashboards.
-- Admin Reports/Analytics now displays points, badge and certificate event read models from Report service.
-- Latest verification: frontend tests 7/7, Vite build pass, backend full smoke pass, 16 RabbitMQ queues drained.
+- Admin Analytics displays points, badge and certificate event read models from Report service.
+- Latest verification: frontend tests 9/9, Vite build pass, backend full smoke pass, 18 RabbitMQ queues drained.
+
+# Update 2026-06-25 - Admin Analytics, Login Feedback, Help Content, Rich Charts
+
+- Split Policy & Privacy and Application Guide into two genuinely different information flows.
+- Added precise login feedback for invalid credentials, unverified email, inactive account, banned account, rate limit, network failure, and backend outage.
+- Added a standalone Admin `Analytics` sidebar page; `Reports` remains the moderation workflow for reported content/users/actions.
+- Added weekly/monthly/yearly system analytics for actions, missions created, users registered, points, badges, certificates, top students, action types, and per-student outcomes.
+- Added reusable donut, column, and area chart components and applied varied visualizations to Student, Moderator, and Admin dashboards.
+- Report analytics now consumes Catalog mission and Identity registration events through RabbitMQ; no frontend or reporting service reads another service database.
+
+# Update 2026-06-25 - Analytics Export, CRUD Fixes, Rich Seed Data
+
+- Admin Analytics now exports a polished PDF report through `GET /reports/analytics/export?period=...`; frontend downloads it as an authenticated blob.
+- Catalog badge management now has true REST update support via `PUT /catalog/badges/{code}` and the admin UI uses it when editing badges.
+- Seed data expanded to 12 missions, 7 stations, 12 policy rules, 8 student demo accounts, 24 seeded submit actions, reward wallets/badges, certificates, reports, and report analytics records across weekly/monthly/yearly windows.
+- Backend smoke now verifies seeded mission/policy counts, badge update, seeded SV001 actions, analytics PDF `application/pdf` attachment, and the existing full microservice flow.
+
+### 2026-06-25 - Report target and analytics series alignment
+
+- Removed the Student ID selector from Student-panel topbar pages so Dashboard, Wallet & Badges, and Certificates use the same topbar pattern as the rest of the app.
+- Reports now use searchable target pickers for users, missions, and review actions instead of asking users to type raw target IDs.
+- Admin User Management disables current-admin role/status/delete actions; backend also rejects self-mutation.
+- Admin Analytics now includes official period series: every week in a selected year, all twelve months in a selected year, and each year in a selected range. The table is used to choose a period; authenticated export downloads the selected week/month/year with the polished single-period PDF layout.
+- Sidebar order updated: Moderator keeps Review Queue and My Mission Catalog directly under Dashboard; Admin surfaces Analytics directly under Dashboard.
+
+### 2026-06-25 - Analytics Range Guards, Student Outcomes, Policy CRUD
+
+- Admin Analytics range picker now blocks future weeks/months/years and reversed year ranges; weekly/monthly reports use explicit from/to controls.
+- Student outcome report no longer overlaps controls, supports All students and One student modes, and follows the selected reporting range.
+- Moderator Review evidence thumbnails now fall back to an Open evidence link if a media URL cannot render inline.
+- Admin Policy Rules gained Add rule and guarded Delete rule UI; delete is enabled only after a rule is inactive.
+
+### 2026-06-26 - Policy Modal, Email Logo, Dashboard Resilience
+
+- Admin Policy Rules now creates new rules through a modal overlay instead of a cramped inline row.
+- Student outcome One Student lookup uses a dedicated responsive picker so long display names/student IDs no longer overlap the View student button.
+- Student, Moderator, and Admin dashboards render partial data when one backend endpoint is still warming up instead of failing the whole screen.
+- Identity branded emails now use the real EcoQuest PNG logo attached inline by CID.

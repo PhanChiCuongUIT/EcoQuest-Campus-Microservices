@@ -51,6 +51,14 @@ class CatalogSeeder {
                     "Submit evidence of biking to campus instead of motorized transport."));
             saveMissionIfMissing(missions, mission("MISSION-REFILL-01", "Bottle Refill", "WATER_REFILL", 8, false, true,
                     "Check in at a refill station using a reusable bottle."));
+            saveMissionIfMissing(missions, mission("MISSION-COMPOST-01", "Compost Organic Waste", "COMPOST_WASTE", 14, true, true,
+                    "Use the compost collection point for food scraps or organic waste."));
+            saveMissionIfMissing(missions, mission("MISSION-EWASTE-01", "E-waste Drop-off", "EWASTE_DROPOFF", 22, true, true,
+                    "Submit evidence after dropping small electronics at an approved e-waste station."));
+            saveMissionIfMissing(missions, mission("MISSION-PLASTIC-01", "Plastic-free Lunch", "PLASTIC_FREE_LUNCH", 16, true, false,
+                    "Document a lunch using reusable containers and no single-use plastic."));
+            saveMissionIfMissing(missions, mission("MISSION-CARPOOL-01", "Campus Carpool", "CARPOOL_TO_CAMPUS", 18, true, false,
+                    "Share a ride with classmates and submit transport evidence."));
 
             saveStationIfMissing(stations, station("STATION-A1", "Library Recycling Point", "QR-A1", "RECYCLING",
                     "Main Library", true, "/logo.png"));
@@ -62,6 +70,10 @@ class CatalogSeeder {
                     "Engineering Building", true, "/logo.png"));
             saveStationIfMissing(stations, station("STATION-E5", "Botanical Care Zone", "QR-E5", "TREE_CARE",
                     "Campus Garden", true, "/logo.png"));
+            saveStationIfMissing(stations, station("STATION-F6", "Cafeteria Compost Point", "QR-F6", "COMPOST",
+                    "Cafeteria Exit", true, "/logo.png"));
+            saveStationIfMissing(stations, station("STATION-G7", "E-waste Collection Box", "QR-G7", "EWASTE",
+                    "IT Helpdesk", true, "/logo.png"));
 
             saveBadge(badges, badge("GREEN_STARTER", "Green Starter", "Complete the first accepted eco action.", 10,
                     "POINTS", null, 0));

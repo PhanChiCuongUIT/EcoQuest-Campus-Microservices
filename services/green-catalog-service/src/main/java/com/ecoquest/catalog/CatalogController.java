@@ -72,7 +72,11 @@ class CatalogController {
         var principal = RoleAuthorizer.requireAnyRole(httpRequest, "MODERATOR", "ADMIN");
         mission.createdByUserId = principal.userId();
         mission.status = MissionStatus.PENDING;
-        return missions.save(mission);
+        var saved = missions.save(mission);
+        rabbit.convertAndSend(EcoQuestRabbit.EXCHANGE, EcoQuestRabbit.MISSION_STATUS_CHANGED,
+                new MissionStatusChangedEvent(UUID.randomUUID().toString(), Instant.now(), saved.id, saved.title,
+                        saved.status.name(), principal.userId(), saved.createdByUserId));
+        return saved;
     }
 
     @PutMapping("/missions/{id}")
@@ -178,6 +182,21 @@ class CatalogController {
     BadgeDefinition createBadge(@RequestBody BadgeDefinition badge, HttpServletRequest httpRequest) {
         RoleAuthorizer.requireRole(httpRequest, "ADMIN");
         return badges.save(badge);
+    }
+
+    @PutMapping("/badges/{code}")
+    BadgeDefinition updateBadge(@PathVariable String code, @RequestBody BadgeDefinition badge,
+                                HttpServletRequest httpRequest) {
+        RoleAuthorizer.requireRole(httpRequest, "ADMIN");
+        BadgeDefinition existing = badges.findById(code)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Badge not found."));
+        existing.name = badge.name;
+        existing.description = badge.description;
+        existing.requiredPoints = badge.requiredPoints;
+        existing.criteriaType = badge.criteriaType;
+        existing.actionType = badge.actionType;
+        existing.requiredCount = badge.requiredCount;
+        return badges.save(existing);
     }
 
     @DeleteMapping("/badges/{code}")
