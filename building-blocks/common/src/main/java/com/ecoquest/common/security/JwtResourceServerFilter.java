@@ -31,8 +31,7 @@ public class JwtResourceServerFilter extends OncePerRequestFilter {
                 || path.startsWith("/v3/api-docs")
                 || path.equals("/error")
                 || isPublicEvidenceDownload(request, path)
-                || isPublicMediaDownload(request, path)
-                || isPublicCertificateDownload(request, path);
+                || isPublicMediaDownload(request, path);
     }
 
     private boolean isPublicEvidenceDownload(HttpServletRequest request, String path) {
@@ -44,12 +43,6 @@ public class JwtResourceServerFilter extends OncePerRequestFilter {
                 && (path.startsWith("/auth/media/avatars/")
                 || path.startsWith("/catalog/stations/images/")
                 || path.startsWith("/reports/evidence/"));
-    }
-
-    private boolean isPublicCertificateDownload(HttpServletRequest request, String path) {
-        return HttpMethod.GET.matches(request.getMethod())
-                && path.startsWith("/recognitions/certificates/")
-                && path.endsWith("/download");
     }
 
     @Override
