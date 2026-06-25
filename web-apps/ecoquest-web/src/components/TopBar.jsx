@@ -19,7 +19,7 @@ export default function TopBar({
   const [notifications, setNotifications] = useState([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
+  const [infoModal, setInfoModal] = useState(null);
   const accountRef = useRef(null);
   const notificationRef = useRef(null);
 
@@ -226,10 +226,10 @@ export default function TopBar({
                 <button onClick={() => { onNavigate?.('profile'); setAccountOpen(false); }}>
                   <User size={16} /> Profile
                 </button>
-                <button onClick={() => { setHelpOpen(true); setAccountOpen(false); }}>
+                <button onClick={() => { setInfoModal('policy'); setAccountOpen(false); }}>
                   <Shield size={16} /> Policy & privacy
                 </button>
-                <button onClick={() => { setHelpOpen(true); setAccountOpen(false); }}>
+                <button onClick={() => { setInfoModal('guide'); setAccountOpen(false); }}>
                   <BookOpen size={16} /> Application guide
                 </button>
                 <div className="account-popover-divider" />
@@ -242,13 +242,32 @@ export default function TopBar({
         )}
       </div>
 
-      <Modal isOpen={helpOpen} onClose={() => setHelpOpen(false)} title="EcoQuest guide & policy" size="lg">
-        <div className="help-copy">
-          <h3>Using EcoQuest responsibly</h3>
-          <p>Submit only actions you performed and attach clear, relevant evidence. Moderators review pending evidence and reports; administrators manage policy, users, catalog, and system analytics.</p>
-          <h3>Privacy</h3>
-          <p>Uploaded evidence, avatars, station images, reports, points, badges, and certificates are stored by their owning microservice for the campus demonstration environment.</p>
-        </div>
+      <Modal
+        isOpen={Boolean(infoModal)}
+        onClose={() => setInfoModal(null)}
+        title={infoModal === 'policy' ? 'Policy & privacy' : 'Application guide'}
+        titleIcon={infoModal === 'policy' ? <Shield size={18} /> : <BookOpen size={18} />}
+        size="lg"
+      >
+        {infoModal === 'policy' ? (
+          <div className="help-copy">
+            <h3>Evidence and academic integrity</h3>
+            <p>Only submit sustainability actions you performed. Evidence must be relevant, clear, and must not expose private information about other people without permission.</p>
+            <h3>Data ownership</h3>
+            <p>Identity owns profiles and avatars; Catalog owns mission and station media; Action and Report own evidence; Reward owns points and badges; Recognition owns certificates and reward claims.</p>
+            <h3>Moderation and retention</h3>
+            <p>Moderators may review evidence and reports. Administrators manage accounts, policy and analytics. Contact the campus administrator if you need data corrected or an account decision reviewed.</p>
+          </div>
+        ) : (
+          <div className="help-copy">
+            <h3>Student workflow</h3>
+            <p>Choose an active mission, upload the required evidence, submit the action, then follow its accepted, pending review, or rejected status from Dashboard.</p>
+            <h3>Moderator workflow</h3>
+            <p>Review pending actions and reports, inspect evidence, and create missions in My Mission Catalog. New missions remain pending until an administrator approves them.</p>
+            <h3>Administrator workflow</h3>
+            <p>Manage catalog and users, maintain policy rules, adjust audited points, review reports, and inspect weekly, monthly, or yearly system analytics.</p>
+          </div>
+        )}
       </Modal>
     </header>
   );

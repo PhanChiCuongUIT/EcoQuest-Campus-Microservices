@@ -2,6 +2,7 @@ package com.ecoquest.identity;
 
 import jakarta.transaction.Transactional;
 import com.ecoquest.messaging.events.UserStatusChangedEvent;
+import com.ecoquest.messaging.events.UserRegisteredEvent;
 import com.ecoquest.messaging.rabbitmq.EcoQuestRabbit;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
@@ -88,6 +89,9 @@ class IdentityService {
         user.createdAt = now;
         user.updatedAt = now;
         users.save(user);
+        rabbit.convertAndSend(EcoQuestRabbit.EXCHANGE, EcoQuestRabbit.USER_REGISTERED,
+                new UserRegisteredEvent(UUID.randomUUID().toString(), Instant.now(), user.id, user.email,
+                        user.displayName, user.role.name(), user.studentId));
         var token = createVerificationToken(user);
         mailService.sendVerification(user.email, user.displayName, token.rawToken());
         return new AuthResponse(null, "Bearer", 0, userMapper.toProfile(user), token.rawToken(),
@@ -103,10 +107,19 @@ class IdentityService {
         if (!user.emailVerified) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Email must be verified before login.");
         }
-        if (user.status != UserStatus.ACTIVE || !user.active) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User account is not active.");
+        if (user.status == UserStatus.BANNED) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Account is banned." + statusReasonSuffix(user.statusReason));
+        }
+        if (user.status == UserStatus.INACTIVE || !user.active) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Account is inactive." + statusReasonSuffix(user.statusReason));
         }
         return toAuthResponse(user);
+    }
+
+    private String statusReasonSuffix(String reason) {
+        return reason == null || reason.isBlank() ? "" : " Reason: " + reason.trim();
     }
 
     @Transactional
@@ -219,9 +232,19 @@ class IdentityService {
         return users.findAll().stream().map(userMapper::toProfile).toList();
     }
 
+    List<ReportTargetUser> reportTargetUsers(String bearerToken) {
+        requireCurrentUser(bearerToken);
+        return users.findAll().stream()
+                .filter(account -> account.active && account.status == UserStatus.ACTIVE)
+                .map(account -> new ReportTargetUser(account.id, account.email, account.displayName,
+                        account.role.name(), account.studentId, account.avatarUrl))
+                .toList();
+    }
+
     @Transactional
     UserProfile updateUserRole(String bearerToken, String userId, UpdateUserRoleRequest request) {
-        requireAdmin(bearerToken);
+        var admin = requireAdmin(bearerToken);
+        rejectSelfMutation(admin, userId, "Admins cannot change their own role.");
         var user = users.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
         user.role = parseRole(request.role());
@@ -235,7 +258,8 @@ class IdentityService {
 
     @Transactional
     UserProfile updateUserStatus(String bearerToken, String userId, UpdateUserStatusRequest request) {
-        requireAdmin(bearerToken);
+        var admin = requireAdmin(bearerToken);
+        rejectSelfMutation(admin, userId, "Admins cannot change their own status.");
         var user = users.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
         user.status = parseStatus(request.status());
@@ -243,7 +267,8 @@ class IdentityService {
         user.statusReason = request.reason();
         user.updatedAt = Instant.now();
         users.save(user);
-        mailService.sendStatusChanged(user.email, user.displayName, user.status, request.reason());
+        mailService.sendStatusChanged(user.email, user.displayName, user.status, request.reason(),
+                admin.email, admin.displayName);
         rabbit.convertAndSend(EcoQuestRabbit.EXCHANGE, EcoQuestRabbit.USER_STATUS_CHANGED,
                 new UserStatusChangedEvent(UUID.randomUUID().toString(), Instant.now(), user.id, user.email,
                         user.displayName, user.role.name(), user.studentId, user.status.name(), request.reason()));
@@ -252,7 +277,8 @@ class IdentityService {
 
     @Transactional
     void deleteBannedUser(String bearerToken, String userId) {
-        requireAdmin(bearerToken);
+        var admin = requireAdmin(bearerToken);
+        rejectSelfMutation(admin, userId, "Admins cannot delete their own account.");
         var user = users.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
         if (user.status != UserStatus.BANNED) {
@@ -294,6 +320,12 @@ class IdentityService {
             return UserStatus.valueOf(status.trim().toUpperCase(Locale.ROOT));
         } catch (Exception ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status.");
+        }
+    }
+
+    private void rejectSelfMutation(UserAccount admin, String userId, String message) {
+        if (admin.id.equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, message);
         }
     }
 

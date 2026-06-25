@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, History, Search, Wallet, Zap } from 'lucide-react';
-import { adjustPoints, getTransactions, getWallet } from '../api/ecoquestApi.js';
+import { adjustPoints, getTransactions, getUsers, getWallet } from '../api/ecoquestApi.js';
 import { useToast } from '../components/Toast.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import { canApplyPointAdjustment, projectedWalletBalance } from '../utils/workflowRules.js';
@@ -13,6 +13,8 @@ export default function AdminAdjust() {
   const [reason, setReason] = useState('');
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [studentQuery, setStudentQuery] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadingWallet, setLoadingWallet] = useState(false);
 
@@ -33,7 +35,22 @@ export default function AdminAdjust() {
     }
   };
 
-  useEffect(() => { inspect(); }, []);
+  useEffect(() => {
+    getUsers()
+      .then(items => {
+        const studentAccounts = (Array.isArray(items) ? items : [])
+          .filter(account => account.studentId && account.status === 'ACTIVE')
+          .sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
+        setStudents(studentAccounts);
+        const firstStudent = studentAccounts.find(account => account.studentId === studentId) || studentAccounts[0];
+        if (firstStudent?.studentId) {
+          setStudentId(firstStudent.studentId);
+        }
+      })
+      .catch(() => setStudents([]));
+  }, []);
+
+  useEffect(() => { inspect(); }, [studentId]);
 
   const handleAdjust = async () => {
     if (!studentId.trim() || points === 0 || !reason.trim()) return;
@@ -62,6 +79,11 @@ export default function AdminAdjust() {
 
   const projected = projectedWalletBalance(wallet?.totalPoints, points);
   const canApply = canApplyPointAdjustment(wallet?.totalPoints, points, reason);
+  const selectedStudent = students.find(account => account.studentId === studentId);
+  const filteredStudents = useMemo(() => {
+    const text = studentQuery.toLowerCase().trim();
+    return students.filter(account => `${account.displayName} ${account.email} ${account.studentId}`.toLowerCase().includes(text)).slice(0, 8);
+  }, [students, studentQuery]);
 
   return (
     <div>
@@ -71,11 +93,27 @@ export default function AdminAdjust() {
       <div className="adjust-layout">
         <section className="adjust-form-panel">
           <div className="student-wallet-search">
-            <div className="search-field"><Search size={16} /><input value={studentId} onChange={event => setStudentId(event.target.value.toUpperCase())} placeholder="Student ID" /></div>
+            <div className="search-field"><Search size={16} /><input value={studentQuery} onChange={event => setStudentQuery(event.target.value)} placeholder="Search student by name, email, or student ID" /></div>
             <button className="btn btn-outline" onClick={inspect} disabled={loadingWallet}>{loadingWallet ? 'Loading...' : 'Inspect wallet'}</button>
           </div>
+          <div className="target-picker-list compact">
+            {filteredStudents.map(account => (
+              <button
+                key={account.id}
+                type="button"
+                className={`target-picker-item${account.studentId === studentId ? ' selected' : ''}`}
+                onClick={() => {
+                  setStudentId(account.studentId);
+                  setStudentQuery(`${account.displayName} (${account.studentId})`);
+                }}
+              >
+                <img src={account.avatarUrl || '/logo.png'} alt="" />
+                <span><strong>{account.displayName}</strong><small>{account.email} | {account.studentId}</small></span>
+              </button>
+            ))}
+          </div>
           <div className="adjust-balance">
-            <div><Wallet size={18} /><span>Current balance</span><strong>{wallet?.totalPoints ?? 0}</strong></div>
+            <div><Wallet size={18} /><span>{selectedStudent?.displayName || studentId}</span><strong>{wallet?.totalPoints ?? 0}</strong></div>
             <div className={points < 0 ? 'negative' : ''}><Zap size={18} /><span>Projected balance</span><strong>{projected}</strong></div>
           </div>
           <div className="form-group">

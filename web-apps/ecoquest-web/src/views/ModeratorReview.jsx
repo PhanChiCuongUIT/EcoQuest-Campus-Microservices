@@ -32,6 +32,7 @@ export default function ModeratorReview() {
   
   // Selected image evidence for the lightbox modal
   const [selectedImage, setSelectedImage] = useState(null);
+  const [brokenEvidence, setBrokenEvidence] = useState({});
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -89,7 +90,13 @@ export default function ModeratorReview() {
   // Check if string is base64 image or image URL
   const isImageEvidence = (url) => {
     if (!url) return false;
-    return url.startsWith('data:image/') || url.match(/\.(jpeg|jpg|gif|png|webp)/i);
+    return url.startsWith('data:image/')
+      || url.startsWith('/actions/evidence/')
+      || url.match(/\.(jpeg|jpg|gif|png|webp)(\?|$)/i);
+  };
+  const evidenceSrc = (url) => {
+    if (!url) return '';
+    return url.startsWith('http') || url.startsWith('data:') || url.startsWith('/') ? url : `/${url}`;
   };
   const filteredQueue = queue.filter(item => {
     const haystack = `${item.studentId} ${item.missionId} ${item.actionType}`.toLowerCase();
@@ -185,7 +192,7 @@ export default function ModeratorReview() {
                 <div className="review-field-label">Evidence Material</div>
                 <div className="review-field-value">
                   {item.evidenceUrl ? (
-                    isImageEvidence(item.evidenceUrl) ? (
+                    isImageEvidence(item.evidenceUrl) && !brokenEvidence[item.id] ? (
                       /* Render inline thumbnail for images */
                       <div
                         style={{
@@ -200,14 +207,15 @@ export default function ModeratorReview() {
                           marginTop: 4,
                           transition: 'all 150ms ease',
                         }}
-                        onClick={() => setSelectedImage(item.evidenceUrl)}
+                        onClick={() => setSelectedImage(evidenceSrc(item.evidenceUrl))}
                         onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = 'var(--color-primary)'; }}
                         onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.borderColor = 'var(--color-border)'; }}
                         title="Click to zoom evidence photo"
                       >
                         <img
-                          src={item.evidenceUrl}
+                          src={evidenceSrc(item.evidenceUrl)}
                           alt="Evidence Thumbnail"
+                          onError={() => setBrokenEvidence(prev => ({ ...prev, [item.id]: true }))}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
                         <div style={{
@@ -223,9 +231,13 @@ export default function ModeratorReview() {
                       </div>
                     ) : (
                       /* Fallback links for non-image files */
-                      <a href={item.evidenceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
-                        View Attachment <ExternalLink size={12} />
-                      </a>
+                      <div className="evidence-fallback">
+                        <ImageIcon size={18} />
+                        <span>Preview unavailable</span>
+                        <a href={evidenceSrc(item.evidenceUrl)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
+                          Open evidence <ExternalLink size={12} />
+                        </a>
+                      </div>
                     )
                   ) : (
                     <span style={{ color: 'var(--color-danger-text)' }}>No evidence provided</span>

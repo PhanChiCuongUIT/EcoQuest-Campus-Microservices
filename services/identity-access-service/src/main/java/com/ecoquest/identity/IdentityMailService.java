@@ -2,6 +2,7 @@ package com.ecoquest.identity;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,9 @@ import java.nio.charset.StandardCharsets;
 
 @Service
 class IdentityMailService {
+    private static final String LOGO_CID = "ecoquestLogo";
+    private static final ClassPathResource EMAIL_LOGO = new ClassPathResource("email/ecoquest-logo.png");
+
     private final ObjectProvider<JavaMailSender> mailSender;
     private final boolean enabled;
     private final String from;
@@ -53,11 +57,15 @@ class IdentityMailService {
                 "If you did not request this reset, ignore this email and your password will remain unchanged.");
     }
 
-    void sendStatusChanged(String email, String displayName, UserStatus status, String reason) {
+    void sendStatusChanged(String email, String displayName, UserStatus status, String reason,
+                           String adminEmail, String adminDisplayName) {
         var reasonText = StringUtils.hasText(reason) ? reason.trim() : "No reason was provided by the administrator.";
+        var adminName = StringUtils.hasText(adminDisplayName) ? adminDisplayName.trim() : "campus administrator";
+        var adminContact = StringUtils.hasText(adminEmail) ? adminEmail.trim() : supportEmail;
         var supportText = status == UserStatus.ACTIVE
                 ? "Your account is active. You can sign in and continue using EcoQuest Campus."
-                : "If you think this change is incorrect, contact the campus admin or email %s for support.".formatted(supportEmail);
+                : "If you think this change is incorrect, contact %s at %s or email %s for support."
+                        .formatted(escape(adminName), escape(adminContact), escape(supportEmail));
         send(email, "Your EcoQuest account status changed",
                 "Account status changed to " + status.name(),
                 "Open EcoQuest",
@@ -84,6 +92,9 @@ class IdentityMailService {
             helper.setSubject(subject);
             helper.setText(toPlainText(headline, bodyHtml, actionUrl, footerNote),
                     htmlTemplate(headline, actionLabel, bodyHtml, actionUrl, footerNote));
+            if (EMAIL_LOGO.exists()) {
+                helper.addInline(LOGO_CID, EMAIL_LOGO, "image/png");
+            }
             sender.send(message);
         } catch (Exception ex) {
             throw new IllegalStateException("Could not send EcoQuest email.", ex);
@@ -91,7 +102,6 @@ class IdentityMailService {
     }
 
     private String htmlTemplate(String headline, String actionLabel, String bodyHtml, String actionUrl, String footerNote) {
-        var logoUrl = frontendBaseUrl + "/logo.png";
         return """
                 <!doctype html>
                 <html>
@@ -102,7 +112,8 @@ class IdentityMailService {
                         <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #dce8df;border-radius:18px;overflow:hidden;box-shadow:0 14px 35px rgba(13,71,54,0.12);">
                           <tr>
                             <td style="background:#0d4736;padding:26px 28px;text-align:center;">
-                              <img src="%s" alt="EcoQuest Campus" width="72" height="72" style="display:block;margin:0 auto 12px;border-radius:14px;object-fit:contain;background:#ffffff;padding:6px;">
+                              <img src="cid:%s" width="92" height="92" alt="EcoQuest Campus logo" style="display:block;width:92px;height:92px;object-fit:contain;margin:0 auto 12px;border-radius:20px;background:#ffffff;padding:8px;">
+                              <div style="font-size:12px;color:#d8f3e2;margin:0 0 6px;">EcoQuest Campus</div>
                               <div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:.3px;">EcoQuest Campus</div>
                               <div style="font-size:13px;color:#bde8cf;margin-top:4px;">Sustainability mission platform</div>
                             </td>
@@ -129,7 +140,7 @@ class IdentityMailService {
                   </table>
                 </body>
                 </html>
-                """.formatted(escapeAttribute(logoUrl), escape(headline), bodyHtml, escapeAttribute(actionUrl),
+                """.formatted(LOGO_CID, escape(headline), bodyHtml, escapeAttribute(actionUrl),
                 escape(actionLabel), escapeAttribute(actionUrl), escape(actionUrl), escape(footerNote),
                 escapeAttribute(supportEmail), escape(supportEmail));
     }

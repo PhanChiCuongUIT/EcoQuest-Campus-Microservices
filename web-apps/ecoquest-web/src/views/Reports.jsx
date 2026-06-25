@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, ExternalLink, FileImage, Filter, Flag, Plus, Search, Upload, UserSearch } from 'lucide-react';
+import { ExternalLink, FileImage, Filter, Flag, Plus, Search, Upload } from 'lucide-react';
 import {
   createReport,
+  getMissions,
   getMyReports,
-  getReportAnalyticsSummary,
+  getPendingReview,
+  getReportTargetUsers,
   getReports,
-  getStudentAnalytics,
   reviewReport,
   uploadReportEvidence,
 } from '../api/ecoquestApi.js';
@@ -26,14 +27,14 @@ export default function Reports({ panelRole }) {
   const canReview = effectiveRole === 'MODERATOR' || effectiveRole === 'ADMIN';
   const canCreate = effectiveRole === 'STUDENT' || (effectiveRole === 'MODERATOR' && Boolean(user?.studentId));
   const [reports, setReports] = useState([]);
-  const [period, setPeriod] = useState('weekly');
-  const [analytics, setAnalytics] = useState(null);
-  const [studentLookup, setStudentLookup] = useState('SV001');
-  const [studentAnalytics, setStudentAnalytics] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [targets, setTargets] = useState([]);
+  const [directoryTargets, setDirectoryTargets] = useState([]);
+  const [targetsLoading, setTargetsLoading] = useState(false);
+  const [targetQuery, setTargetQuery] = useState('');
   const targetOptions = useMemo(() => reportTargetOptions(effectiveRole), [effectiveRole]);
   const [form, setForm] = useState({ targetType: targetOptions[0]?.[0] || 'USER', targetId: '', reason: '', evidenceUrl: '' });
 
@@ -42,17 +43,106 @@ export default function Reports({ panelRole }) {
     .catch(() => setReports([]));
   useEffect(() => { load(); }, [canReview]);
   useEffect(() => {
-    setForm(current => ({ ...current, targetType: targetOptions[0]?.[0] || 'USER' }));
+    setForm(current => ({ ...current, targetType: targetOptions[0]?.[0] || 'USER', targetId: '' }));
   }, [targetOptions]);
   useEffect(() => {
-    if (effectiveRole !== 'ADMIN') return;
-    getReportAnalyticsSummary(period).then(setAnalytics).catch(() => setAnalytics(null));
-  }, [period, effectiveRole]);
+    let cancelled = false;
+    Promise.allSettled([getReportTargetUsers(), getMissions(), getPendingReview()]).then(results => {
+      if (cancelled) return;
+      const [userResult, missionResult, actionResult] = results;
+      const users = userResult.status === 'fulfilled' ? userResult.value : [];
+      const missions = missionResult.status === 'fulfilled' ? missionResult.value : [];
+      const actions = actionResult.status === 'fulfilled' ? actionResult.value : [];
+      setDirectoryTargets([
+        ...users.map(account => ({
+          id: account.id,
+          type: 'USER',
+          title: account.displayName || account.email,
+          subtitle: [account.email, account.studentId, account.role].filter(Boolean).join(' | '),
+          avatarUrl: account.avatarUrl,
+        })),
+        ...missions.map(mission => ({
+          id: mission.id,
+          type: 'MISSION',
+          title: mission.title || mission.id,
+          subtitle: [mission.actionType, mission.status, `${mission.basePoints ?? 0} pts`].filter(Boolean).join(' | '),
+          avatarUrl: mission.imageUrl,
+        })),
+        ...actions.map(action => ({
+          id: action.id,
+          type: 'ACTION',
+          title: `Submission by ${action.studentId}`,
+          subtitle: [action.missionId, action.status, action.actionType].filter(Boolean).join(' | '),
+          avatarUrl: null,
+        })),
+      ]);
+    });
+    return () => { cancelled = true; };
+  }, [reports.length]);
+  useEffect(() => {
+    let cancelled = false;
+    setTargetsLoading(true);
+    setTargetQuery('');
+    const loadTargets = async () => {
+      try {
+        let items = [];
+        if (form.targetType === 'USER') {
+          items = (await getReportTargetUsers()).map(account => ({
+            id: account.id,
+            title: account.displayName || account.email,
+            subtitle: [account.email, account.studentId, account.role].filter(Boolean).join(' | '),
+            avatarUrl: account.avatarUrl,
+          }));
+        } else if (form.targetType === 'MISSION') {
+          items = (await getMissions()).map(mission => ({
+            id: mission.id,
+            title: mission.title || mission.id,
+            subtitle: [mission.actionType, mission.status, `${mission.basePoints ?? 0} pts`].filter(Boolean).join(' | '),
+            avatarUrl: mission.imageUrl,
+          }));
+        } else if (form.targetType === 'ACTION') {
+          items = (await getPendingReview()).map(action => ({
+            id: action.id,
+            title: `Submission by ${action.studentId}`,
+            subtitle: [action.missionId, action.status, action.actionType].filter(Boolean).join(' | '),
+            avatarUrl: null,
+          }));
+        }
+        if (!cancelled) setTargets(items);
+      } catch {
+        if (!cancelled) setTargets([]);
+      } finally {
+        if (!cancelled) setTargetsLoading(false);
+      }
+    };
+    loadTargets();
+    return () => { cancelled = true; };
+  }, [form.targetType]);
+
+  const targetLabels = useMemo(() => {
+    const map = new Map();
+    directoryTargets.forEach(item => map.set(item.id, item));
+    targets.forEach(item => map.set(item.id, item));
+    reports.forEach(report => {
+      if (!map.has(report.targetId)) {
+        map.set(report.targetId, { id: report.targetId, title: report.targetId, subtitle: report.targetType });
+      }
+    });
+    return map;
+  }, [directoryTargets, targets, reports]);
 
   const filtered = useMemo(() => reports.filter(report => {
-    const haystack = `${report.targetType} ${report.targetId} ${report.reason} ${report.reporterStudentId || ''}`.toLowerCase();
+    const target = targetLabels.get(report.targetId);
+    const haystack = `${report.targetType} ${report.targetId} ${target?.title || ''} ${target?.subtitle || ''} ${report.reason} ${report.reporterStudentId || ''}`.toLowerCase();
     return haystack.includes(query.toLowerCase()) && (!statusFilter || report.status === statusFilter);
-  }), [reports, query, statusFilter]);
+  }), [reports, query, statusFilter, targetLabels]);
+
+  const filteredTargets = useMemo(() => {
+    const normalized = targetQuery.toLowerCase().trim();
+    return targets
+      .filter(item => `${item.title} ${item.subtitle} ${item.id}`.toLowerCase().includes(normalized))
+      .slice(0, 8);
+  }, [targets, targetQuery]);
 
   const submit = async () => {
     if (!form.targetId.trim() || !form.reason.trim()) return;
@@ -78,7 +168,7 @@ export default function Reports({ panelRole }) {
   const review = async (report, status) => {
     const note = await confirm({
       title: `${status === 'ACCEPTED' ? 'Accept' : 'Reject'} report?`,
-      message: `Review report about ${report.targetType.toLowerCase()} ${report.targetId}.`,
+      message: `Review report about ${report.targetType.toLowerCase()} ${targetLabels.get(report.targetId)?.title || report.targetId}.`,
       inputLabel: 'Moderation note',
       inputPlaceholder: 'Record the review decision',
       inputRequired: true,
@@ -121,74 +211,12 @@ export default function Reports({ panelRole }) {
     }
   };
 
-  const lookupStudent = async () => {
-    try {
-      setStudentAnalytics(await getStudentAnalytics(studentLookup.trim()));
-    } catch {
-      setStudentAnalytics(null);
-    }
-  };
-
   return (
     <div>
       <div className="page-intro">
-        <div><h2>{effectiveRole === 'ADMIN' ? 'Reports & Analytics' : 'Campus Reports'}</h2><p>{effectiveRole === 'ADMIN' ? 'Monitor sustainability outcomes and moderation reports.' : 'Report a user, mission, or action for campus review.'}</p></div>
+        <div><h2>Campus Reports</h2><p>{effectiveRole === 'ADMIN' ? 'Review reported users, missions and actions. System metrics are available in Analytics.' : 'Report a user, mission, or action for campus review.'}</p></div>
         {canCreate && <button className="btn btn-primary" onClick={() => setCreateOpen(true)}><Plus size={16} /> New report</button>}
       </div>
-
-      {effectiveRole === 'ADMIN' && (
-        <>
-          <section className="analytics-toolbar">
-            <div><BarChart3 size={18} /><strong>Activity analytics</strong></div>
-            <select className="form-select" value={period} onChange={event => setPeriod(event.target.value)}>
-              <option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="all">All time</option>
-            </select>
-          </section>
-          <div className="stats-grid">
-            <div className="stat-card"><span>Accepted actions</span><strong>{analytics?.acceptedActions ?? 0}</strong></div>
-            <div className="stat-card"><span>Rejected actions</span><strong>{analytics?.rejectedActions ?? 0}</strong></div>
-            <div className="stat-card"><span>Points granted</span><strong>{analytics?.totalPoints ?? 0}</strong></div>
-            <div className="stat-card"><span>Open reports</span><strong>{analytics?.openReports ?? 0}</strong></div>
-            <div className="stat-card"><span>Badges granted</span><strong>{analytics?.badgesGranted ?? 0}</strong></div>
-            <div className="stat-card"><span>Certificates issued</span><strong>{analytics?.certificatesIssued ?? 0}</strong></div>
-          </div>
-          <div className="analytics-grid">
-            <section className="card">
-              <div className="card-header"><h3 className="card-title">Top students</h3></div>
-              <div className="card-body metric-list">
-                {(analytics?.topStudents || []).slice(0, 8).map(student => (
-                  <div key={student.studentId}><strong>{student.studentId}</strong><span>{student.actionCount} actions</span><b>{student.points} pts</b></div>
-                ))}
-                {!analytics?.topStudents?.length && <p className="muted-copy">No activity for this period.</p>}
-              </div>
-            </section>
-            <section className="card">
-              <div className="card-header"><h3 className="card-title">Mission action types</h3></div>
-              <div className="card-body metric-list">
-                {(analytics?.actionTypes || []).map(metric => (
-                  <div key={metric.actionType}><strong>{metric.actionType}</strong><span>{metric.actionCount} actions</span><b>{metric.points} pts</b></div>
-                ))}
-              </div>
-            </section>
-          </div>
-          <section className="student-analytics-lookup">
-            <div><UserSearch size={18} /><strong>Student activity report</strong></div>
-            <div className="search-field"><Search size={15} /><input value={studentLookup} onChange={event => setStudentLookup(event.target.value.toUpperCase())} placeholder="Student ID" /></div>
-            <button className="btn btn-outline" onClick={lookupStudent}>View report</button>
-            {studentAnalytics && (
-              <div className="student-analytics-result">
-                <span><small>Actions</small><strong>{studentAnalytics.actionCount}</strong></span>
-                <span><small>Accepted</small><strong>{studentAnalytics.acceptedActions}</strong></span>
-                <span><small>Rejected</small><strong>{studentAnalytics.rejectedActions}</strong></span>
-                <span><small>Points</small><strong>{studentAnalytics.totalPoints}</strong></span>
-                <span><small>Badges</small><strong>{studentAnalytics.badgeCount ?? 0}</strong></span>
-                <span><small>Certificates</small><strong>{studentAnalytics.certificateCount ?? 0}</strong></span>
-                <span><small>Reports</small><strong>{studentAnalytics.reportsSubmitted}</strong></span>
-              </div>
-            )}
-          </section>
-        </>
-      )}
 
       <section className="report-queue">
         <div className="report-queue-header">
@@ -205,7 +233,11 @@ export default function Reports({ panelRole }) {
             {filtered.map(report => (
               <article className="report-row" key={report.id}>
                 <div className="report-type">{report.targetType}</div>
-                <div className="report-main"><strong>{report.targetId}</strong><p>{report.reason}</p><small>{new Date(report.createdAt).toLocaleString()} {report.reporterStudentId ? `by ${report.reporterStudentId}` : ''}</small></div>
+                <div className="report-main">
+                  <strong>{targetLabels.get(report.targetId)?.title || report.targetId}</strong>
+                  <p>{report.reason}</p>
+                  <small>{new Date(report.createdAt).toLocaleString()} {report.reporterStudentId ? `by ${report.reporterStudentId}` : ''} | ID: {report.targetId}</small>
+                </div>
                 <span className={`badge ${report.status === 'OPEN' ? 'badge-pending' : report.status === 'ACCEPTED' ? 'badge-accepted' : 'badge-rejected'}`}>{report.status}</span>
                 {report.evidenceUrl && <a className="btn btn-ghost btn-icon" href={report.evidenceUrl} target="_blank" rel="noreferrer" title="View evidence"><ExternalLink size={15} /></a>}
                 {canReview && report.status === 'OPEN' && (
@@ -236,9 +268,27 @@ export default function Reports({ panelRole }) {
             </select>
           </div>
           <div className="form-group">
-            <label className="form-label">Target ID</label>
-            <input className="form-input" value={form.targetId} onChange={event => setForm(current => ({ ...current, targetId: event.target.value }))} placeholder="Mission, user, or action ID" />
+            <label className="form-label">Report target</label>
+            <div className="search-field target-picker-search">
+              <Search size={15} />
+              <input value={targetQuery} onChange={event => setTargetQuery(event.target.value)} placeholder={`Search ${form.targetType.toLowerCase()} by name, email, title, or code`} />
+            </div>
           </div>
+        </div>
+        <div className="target-picker-list">
+          {targetsLoading && <div className="target-picker-empty">Loading targets...</div>}
+          {!targetsLoading && filteredTargets.length === 0 && <div className="target-picker-empty">No matching target found.</div>}
+          {!targetsLoading && filteredTargets.map(item => (
+            <button
+              key={item.id}
+              type="button"
+              className={`target-picker-item${form.targetId === item.id ? ' selected' : ''}`}
+              onClick={() => setForm(current => ({ ...current, targetId: item.id }))}
+            >
+              <img src={item.avatarUrl || '/logo.png'} alt="" />
+              <span><strong>{item.title}</strong><small>{item.subtitle || item.id}</small></span>
+            </button>
+          ))}
         </div>
         <div className="form-group">
           <label className="form-label">Reason</label>

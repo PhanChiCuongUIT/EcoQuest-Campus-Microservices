@@ -7,14 +7,15 @@ import { useConfirm } from '../components/ConfirmDialog.jsx';
 import {
   getManagedMissions, createMission, updateMission, updateMissionStatus, deleteMission,
   getStations, createStation, updateStation, uploadStationImage, deleteStation,
-  getBadgeDefs, createBadgeDef, deleteBadgeDef,
+  getBadgeDefs, createBadgeDef, updateBadgeDef, deleteBadgeDef,
 } from '../api/ecoquestApi.js';
 
 const ACTION_TYPES = [
   'RECYCLE_BOTTLE','CLEANUP_EVENT','GREEN_CHECKIN','REPORT_TRASH',
   'ENERGY_SAVING','TREE_CARE','BIKE_TO_CAMPUS','WATER_REFILL',
+  'COMPOST_WASTE','EWASTE_DROPOFF','PLASTIC_FREE_LUNCH','CARPOOL_TO_CAMPUS',
 ];
-const STATION_TYPES = ['RECYCLING','REFILL','CHECKIN','GENERAL'];
+const STATION_TYPES = ['RECYCLING','REFILL','CHECKIN','TREE_CARE','MOBILITY','COMPOST','EWASTE','GENERAL'];
 
 // Generic toggle switch
 function Toggle({ checked, onChange, id }) {
@@ -408,6 +409,7 @@ function BadgesTab({ toast }) {
 
   const handleSave = async () => {
     if (!form.code || !form.name) { toast({ type: 'warning', message: 'Code and Name are required' }); return; }
+    const existing = items.some(item => item.code === form.code);
     const accepted = await confirm({
       title: 'Save badge definition?',
       message: `${form.name} will become available to the reward rules.`,
@@ -416,7 +418,8 @@ function BadgesTab({ toast }) {
     if (!accepted) return;
     setSaving(true);
     try {
-      await createBadgeDef(form);
+      if (existing) await updateBadgeDef(form.code, form);
+      else await createBadgeDef(form);
       toast({ type: 'success', message: 'Badge saved' });
       resetForm(); setShowForm(false); load();
     } catch { toast({ type: 'error', message: 'Failed to save badge' }); }

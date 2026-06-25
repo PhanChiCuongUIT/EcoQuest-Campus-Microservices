@@ -12,6 +12,7 @@ public final class EcoQuestRabbit {
     public static final String USER_REPORT_CREATED = "report.user-report.created";
     public static final String USER_REPORT_REVIEWED = "report.user-report.reviewed";
     public static final String USER_STATUS_CHANGED = "identity.user.status-changed";
+    public static final String USER_REGISTERED = "identity.user.registered";
 
     private EcoQuestRabbit() {
     }

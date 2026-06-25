@@ -22,7 +22,7 @@ Spring Cloud Gateway (routing, CORS, correlation ID)
 RabbitMQ:
 Action -> Reward -> Leaderboard -> Recognition
 Action/Catalog/Identity/Report/Reward/Recognition -> Notification
-Action/Reward/Recognition -> Report analytics read model
+Action/Catalog/Identity/Reward/Recognition -> Report analytics read model
 ```
 
 The system currently has **9 microservices**. Each service owns its own data and business rules. The Gateway only routes traffic and does not contain domain logic. No service reads another service database directly.
@@ -50,7 +50,9 @@ The system currently has **9 microservices**. Each service owns its own data and
 7. Leaderboard consumes point events and updates Redis sorted sets.
 8. Admin closes a season; Recognition creates a PDF certificate in MinIO and publishes notification.
 9. Missing evidence/station can create `PENDING_REVIEW`; Moderator/Admin approve or reject. Moderators cannot review their own actions.
-10. Report service consumes action, points, badge, and certificate events into its own analytics read model and handles report create/review without reading other DBs.
+10. Report service consumes action, mission, user registration, points, badge, and certificate events into its own analytics read model and handles report create/review without reading other DBs.
+11. Admin analytics can show bounded week/month/year ranges without future periods; export downloads the selected week/month/year as the polished single-period PDF report.
+12. Policy Admin on direct port `8090` supports create/update/delete; deleting requires the rule to be inactive first so active mission action types are not accidentally made unsupported. The Admin UI creates rules through a modal overlay while the backend keeps all rule ownership inside the Policy service.
 
 Mission statuses: `PENDING`, `ACTIVE`, `REJECTED`, `CANCELLED`, `COMPLETED`. New missions are `PENDING`; only Admin changes mission status; only `ACTIVE` missions can be submitted.
 
@@ -68,9 +70,10 @@ Role inheritance:
 
 - `STUDENT`: Student panel only, self-owned data only.
 - `MODERATOR`: may switch to Student panel for self, but Moderator panel contains only Dashboard, Review, Reports, Leaderboard, own Mission Catalog, and Profile.
-- `ADMIN`: Admin + Moderator panels only. Admin panel contains Dashboard, Catalog, Users, Reports/Analytics, Policy, Adjust Points, and Profile; Admin cannot submit student actions.
+- `ADMIN`: Admin + Moderator panels only. Admin panel contains Dashboard, Catalog, Users, Reports, a separate weekly/monthly/yearly Analytics page, Policy, Adjust Points, and Profile; Admin cannot submit student actions.
 
 JWT is enforced by each owning service. The frontend role switcher only changes allowed panels and cannot elevate backend permissions.
+Identity also blocks admin self-mutation: an Admin cannot change their own role, inactive/ban themselves, or delete their own account. Demoting another Moderator to Student is allowed when that account has a `studentId`; the new role applies on the next login token.
 
 Email is local-token mode by default. To test real Gmail SMTP, copy `.env.example` to `.env` and set:
 
@@ -91,13 +94,26 @@ FRONTEND_BASE_URL=http://localhost:3000
 Use a Google App Password, not the normal Gmail password.
 Keep `IDENTITY_MAIL_HEALTH_ENABLED=false` when you only want local-token mode; set it to `true` with valid Gmail SMTP credentials when you want Actuator to verify the mail connection too.
 For Gmail, `IDENTITY_MAIL_FROM` should normally match `SMTP_USERNAME`. If the recipient opens email on a phone, set `FRONTEND_BASE_URL=http://<YOUR-PC-IPV4>:3000` so verify/reset links are reachable from that phone.
+Verification, password reset, and status-change emails use the real EcoQuest logo packaged inside Identity and attached inline with CID, so they do not depend on a `localhost` image URL.
 
 ## Seed Data
 
-- 8 missions: recycle, cleanup, green check-in, trash report, energy saving, tree care, bike to campus, bottle refill.
-- 5 stations with `imageUrl`; Admin can upload station images.
+- 12 missions: recycle, cleanup, green check-in, trash report, energy saving, tree care, bike to campus, bottle refill, compost waste, e-waste drop-off, plastic-free lunch, and campus carpool.
+- 7 stations with `imageUrl`; Admin can upload station images.
 - 6 badges; `RECYCLING_HERO` and `CLEANUP_CHAMPION` use action-count rules.
-- 8 policy rules.
+- 12 policy rules, one for each seeded action type.
+- 10 demo users: 8 students, 1 moderator, 1 admin. Demo password is `EcoQuest@123`.
+- 24 seeded submit actions across weekly/monthly/yearly windows, with accepted, pending-review, and rejected states.
+- Seeded Reward wallets/transactions/badges and Recognition certificates so dashboards and student pages are not empty after a fresh run.
+- Seeded Report analytics read-model data for weekly/monthly/yearly reports, including missions, submit actions, users, points, badges, certificates, and reports.
+
+To delete old local test data and reseed a clean demo dataset, run this from the repository root. This removes only this Compose project's containers/volumes, then recreates them:
+
+```powershell
+$env:API_GATEWAY_PORT='18080'
+docker compose down -v
+docker compose up -d --build
+```
 
 ## Run On Desktop
 
@@ -108,6 +124,19 @@ Copy-Item .env.example .env
 $env:API_GATEWAY_PORT='18080'
 docker compose up -d --build
 docker compose ps
+```
+
+For normal later starts, do not rebuild unchanged images:
+
+```powershell
+docker compose up -d
+```
+
+When only one service changed, rebuild only that service:
+
+```powershell
+docker compose build report-service
+docker compose up -d --no-deps report-service
 ```
 
 Open:
@@ -175,17 +204,69 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Latest verification on 2026-06-25:
+Latest verification on 2026-06-26 after the Policy modal, email logo, dashboard resilience, and Student outcome layout fixes:
 
-- Full Maven reactor 14/14 modules: PASS.
+- Targeted Maven reactor for Identity + Policy and dependencies: PASS.
 - `docker compose config --quiet`: PASS.
 - Backend smoke test: PASS.
-- RabbitMQ queues after smoke: 16 queues, 0 pending messages, 1 consumer each.
-- Post-smoke logs checked for `ERROR|Exception|Assertion failed|Timed out`: no matches.
-- Frontend unit tests: 7/7 PASS.
+- RabbitMQ queues after smoke: 18 queues, 0 pending messages, 1 consumer each.
+- Post-smoke logs for Identity, Policy, and Web checked for `ERROR|Exception|Failed|Caused by`: no matches.
+- Frontend unit tests: 9/9 PASS.
 - Frontend production build: PASS.
 
-Smoke currently covers auth/verify/reset/profile/user management, RBAC, moderator mission ownership, Catalog CRUD/workflow, station image upload, mission eligibility, Redis draft/idempotency, MinIO uploads, gRPC Policy, Action outbox/RabbitMQ, Reward/badges, Leaderboard, moderation, Report workflow, Report analytics including badge/certificate fields, Notification, daily limit, season close idempotency, authenticated certificate PDF attachment, reward claim voucher, and queue drain.
+Smoke currently covers auth/verify/reset/profile/user management, admin self-protection, Moderator -> Student demotion, report target lookup, RBAC, moderator mission ownership, Catalog CRUD/workflow including badge update, station image upload, seeded mission/policy counts, Policy Admin create/update/delete guard, seeded demo action visibility, mission eligibility, Redis draft/idempotency, MinIO uploads, gRPC Policy, Action outbox/RabbitMQ, Reward/badges, Leaderboard, moderation, Report workflow, Report analytics including mission/user/badge/certificate events, Admin analytics range guards + student outcome report + selected weekly/monthly/yearly PDF export, Notification, daily limit, season close idempotency, authenticated certificate PDF attachment, reward claim voucher, and queue drain. Frontend build verifies dashboard partial-loading code and the Policy add-rule modal.
+
+## Docker Storage Maintenance
+
+The backend Dockerfiles use shared BuildKit caches named `ecoquest-maven` and `ecoquest-npm`. This avoids downloading the same dependency repository independently for every service build.
+
+After replacing images with a newer build, remove resources that are no longer referenced by any container:
+
+```powershell
+docker builder prune -af
+docker container prune -f
+docker image prune -af
+docker volume prune -af
+docker network prune -f
+docker system df
+```
+
+These commands keep images, networks, and volumes still referenced by running containers. Always check `docker ps` first so EcoQuest and FreshTrace are running before pruning.
+
+Recommended routine:
+
+1. Use `docker compose up -d` for ordinary starts.
+2. Build only changed services with `docker compose build <service>`.
+3. Recreate only that service with `docker compose up -d --no-deps <service>`.
+4. After a stable release, run `docker builder prune -af` and `docker image prune -af`.
+5. Compact Docker Desktop's VHDX occasionally after pruning; pruning frees space inside Linux, while compaction returns it to Windows.
+
+To compact the VHDX on Windows, open **PowerShell as Administrator** after pruning. This temporarily stops Docker Desktop, compacts the file, then you can start Docker again:
+
+```powershell
+& "$env:ProgramFiles\Docker\Docker\DockerCli.exe" -Shutdown
+wsl --shutdown
+
+$script = @"
+select vdisk file="$env:LOCALAPPDATA\Docker\wsl\disk\docker_data.vhdx"
+attach vdisk readonly
+compact vdisk
+detach vdisk
+exit
+"@
+$script | Set-Content "$env:TEMP\docker-compact.diskpart" -Encoding ASCII
+diskpart /s "$env:TEMP\docker-compact.diskpart"
+Remove-Item "$env:TEMP\docker-compact.diskpart"
+
+Start-Process -FilePath "$env:ProgramFiles\Docker\Docker\Docker Desktop.exe" -WindowStyle Hidden
+```
+
+After Docker is back, start EcoQuest again from this repository:
+
+```powershell
+$env:API_GATEWAY_PORT='18080'
+docker compose up -d
+```
 
 ## Hardening Notes
 

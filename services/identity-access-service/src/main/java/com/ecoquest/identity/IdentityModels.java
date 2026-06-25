@@ -150,6 +150,10 @@ record UserProfile(String id, String email, String displayName, String role, Str
                    String status, boolean emailVerified, String avatarUrl) {
 }
 
+record ReportTargetUser(String id, String email, String displayName, String role, String studentId,
+                        String avatarUrl) {
+}
+
 record ForgotPasswordResponse(boolean emailKnown, String message, String resetToken, Instant expiresAt) {
 }
 

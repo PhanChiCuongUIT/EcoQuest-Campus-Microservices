@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, Flag, ShieldCheck, Target, Users } from 'lucide-react';
 import StatCard from '../components/StatCard.jsx';
+import { AreaChart, ColumnChart, DonutChart } from '../components/DashboardCharts.jsx';
 import {
   getManagedMissions,
   getPendingReview,
@@ -9,52 +10,38 @@ import {
   getUsers,
 } from '../api/ecoquestApi.js';
 
-function MiniBarChart({ title, rows, empty = 'No data yet.' }) {
-  const max = Math.max(1, ...rows.map(row => Number(row.value) || 0));
-  return (
-    <div className="mini-chart-card">
-      <div className="mini-chart-header">
-        <strong>{title}</strong>
-      </div>
-      <div className="mini-chart-body">
-        {rows.length === 0 ? (
-          <p className="muted-copy">{empty}</p>
-        ) : rows.map(row => (
-          <div className="mini-chart-row" key={row.label}>
-            <span>{row.label}</span>
-            <div className="mini-chart-track">
-              <i style={{ width: `${Math.max(8, (Number(row.value) || 0) / max * 100)}%` }} />
-            </div>
-            <strong>{row.value}</strong>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function dateTrend(items, dateField, days = 7) {
+  const now = new Date();
+  return Array.from({ length: days }, (_, index) => {
+    const day = new Date(now);
+    day.setHours(0, 0, 0, 0);
+    day.setDate(day.getDate() - (days - index - 1));
+    const next = new Date(day);
+    next.setDate(next.getDate() + 1);
+    return {
+      label: day.toLocaleDateString([], { weekday: 'short' }),
+      value: items.filter(item => {
+        const value = new Date(item?.[dateField]);
+        return Number.isFinite(value.getTime()) && value >= day && value < next;
+      }).length,
+    };
+  });
 }
 
 export function ModeratorDashboard() {
   const [data, setData] = useState({
-    pending: 0,
-    accepted: 0,
-    rejected: 0,
+    actions: [],
     reports: 0,
     missions: [],
   });
 
   useEffect(() => {
-    Promise.all([getPendingReview(), getReports('OPEN'), getManagedMissions()])
+    Promise.allSettled([getPendingReview(), getReports('OPEN'), getManagedMissions()])
       .then(([actions, reports, missions]) => {
-        const actionList = Array.isArray(actions) ? actions : [];
-        const reportList = Array.isArray(reports) ? reports : [];
-        const missionList = Array.isArray(missions) ? missions : [];
-        setData({
-          pending: actionList.filter(item => item.status === 'PENDING_REVIEW').length,
-          accepted: actionList.filter(item => item.status === 'ACCEPTED').length,
-          rejected: actionList.filter(item => item.status === 'REJECTED').length,
-          reports: reportList.length,
-          missions: missionList,
-        });
+        const actionList = actions.status === 'fulfilled' && Array.isArray(actions.value) ? actions.value : [];
+        const reportList = reports.status === 'fulfilled' && Array.isArray(reports.value) ? reports.value : [];
+        const missionList = missions.status === 'fulfilled' && Array.isArray(missions.value) ? missions.value : [];
+        setData({ actions: actionList, reports: reportList.length, missions: missionList });
       })
       .catch(() => {});
   }, []);
@@ -67,6 +54,12 @@ export function ModeratorDashboard() {
     }, {});
     return Object.entries(grouped).map(([label, value]) => ({ label, value }));
   }, [data.missions]);
+  const reviewRows = [
+    { label: 'Pending', value: data.actions.filter(item => item.status === 'PENDING_REVIEW').length, color: '#e0a526' },
+    { label: 'Accepted', value: data.actions.filter(item => item.status === 'ACCEPTED').length, color: '#1c7c54' },
+    { label: 'Rejected', value: data.actions.filter(item => item.status === 'REJECTED').length, color: '#d45d5d' },
+  ];
+  const pending = reviewRows[0].value;
 
   return (
     <div>
@@ -75,7 +68,7 @@ export function ModeratorDashboard() {
         <span>Review evidence, handle reports, and manage the missions you created without exposing student-only pages.</span>
       </div>
       <div className="stats-grid stats-grid-compact">
-        <StatCard icon={<ShieldCheck size={18} />} label="Actions to Review" value={data.pending}
+        <StatCard icon={<ShieldCheck size={18} />} label="Actions to Review" value={pending}
           iconBg="var(--color-warning-bg)" iconColor="var(--color-warning)" />
         <StatCard icon={<Flag size={18} />} label="Open Reports" value={data.reports}
           iconBg="var(--color-danger-bg)" iconColor="var(--color-danger)" />
@@ -83,16 +76,14 @@ export function ModeratorDashboard() {
           sub={`${data.missions.filter(m => m.status === 'PENDING').length} pending approval`}
           iconBg="var(--color-primary-light)" iconColor="var(--color-primary)" />
       </div>
-      <div className="dashboard-chart-grid">
-        <MiniBarChart
-          title="Review queue status"
-          rows={[
-            { label: 'Pending', value: data.pending },
-            { label: 'Accepted', value: data.accepted },
-            { label: 'Rejected', value: data.rejected },
-          ]}
+      <div className="dashboard-visual-grid">
+        <DonutChart title="Review decisions" rows={reviewRows} centerLabel="Reviews" />
+        <ColumnChart title="My mission lifecycle" rows={missionRows} />
+        <AreaChart
+          title="Seven-day review workload"
+          rows={dateTrend(data.actions, 'submittedAt')}
+          valueLabel="Submissions entering review"
         />
-        <MiniBarChart title="My mission status" rows={missionRows} />
       </div>
     </div>
   );
@@ -110,20 +101,25 @@ export function AdminDashboard() {
     certificates: 0,
     badges: 0,
     actionTypes: [],
+    summaries: [],
   });
 
   useEffect(() => {
-    Promise.all([
+    Promise.allSettled([
       getUsers(),
       getPendingReview(),
       getReports('OPEN'),
       getManagedMissions(),
-      getReportAnalyticsSummary('monthly'),
-    ]).then(([users, actions, reports, missions, analytics]) => {
-      const userList = Array.isArray(users) ? users : [];
-      const actionList = Array.isArray(actions) ? actions : [];
-      const reportList = Array.isArray(reports) ? reports : [];
-      const missionList = Array.isArray(missions) ? missions : [];
+      Promise.allSettled(['weekly', 'monthly', 'yearly'].map(period => getReportAnalyticsSummary(period))),
+    ]).then(([users, actions, reports, missions, summaries]) => {
+      const userList = users.status === 'fulfilled' && Array.isArray(users.value) ? users.value : [];
+      const actionList = actions.status === 'fulfilled' && Array.isArray(actions.value) ? actions.value : [];
+      const reportList = reports.status === 'fulfilled' && Array.isArray(reports.value) ? reports.value : [];
+      const missionList = missions.status === 'fulfilled' && Array.isArray(missions.value) ? missions.value : [];
+      const summaryValues = summaries.status === 'fulfilled'
+        ? summaries.value.map(result => result.status === 'fulfilled' ? result.value : {})
+        : [{}, {}, {}];
+      const analytics = summaryValues[1] || {};
       setData({
         users: userList,
         pending: actionList.filter(item => item.status === 'PENDING_REVIEW').length,
@@ -135,6 +131,7 @@ export function AdminDashboard() {
         certificates: analytics?.certificatesIssued ?? 0,
         badges: analytics?.badgesGranted ?? 0,
         actionTypes: analytics?.actionTypes || [],
+        summaries: summaryValues,
       });
     }).catch(() => {});
   }, []);
@@ -174,22 +171,24 @@ export function AdminDashboard() {
           sub={`${data.points} points granted`}
           iconBg="var(--color-success-bg)" iconColor="var(--color-success)" />
       </div>
-      <div className="dashboard-chart-grid">
-        <MiniBarChart title="Users by role" rows={userRows} />
-        <MiniBarChart title="Mission lifecycle" rows={missionRows} />
-        <MiniBarChart
+      <div className="dashboard-visual-grid">
+        <DonutChart
           title="Monthly action outcomes"
+          centerLabel="Actions"
           rows={[
-            { label: 'Accepted', value: data.accepted },
-            { label: 'Rejected', value: data.rejected },
-            { label: 'Pending', value: data.pending },
+            { label: 'Accepted', value: data.accepted, color: '#1c7c54' },
+            { label: 'Rejected', value: data.rejected, color: '#d45d5d' },
+            { label: 'Pending', value: data.pending, color: '#e0a526' },
           ]}
         />
-        <MiniBarChart
-          title="Action types"
-          rows={data.actionTypes.map(item => ({
-            label: item.actionType || item.type || 'Action',
-            value: item.actionCount ?? item.count ?? 0,
+        <ColumnChart title="Users by role" rows={userRows} />
+        <ColumnChart title="Mission lifecycle" rows={missionRows} />
+        <AreaChart
+          title="Sustainability activity"
+          valueLabel="Submitted actions by reporting window"
+          rows={['Weekly', 'Monthly', 'Yearly'].map((label, index) => ({
+            label,
+            value: data.summaries[index]?.submittedActions ?? 0,
           }))}
         />
       </div>

@@ -22,6 +22,13 @@ class IdentitySeeder implements CommandLineRunner {
     @Override
     public void run(String... args) {
         seed("student@ecoquest.local", "EcoQuest Student", UserRole.STUDENT, "SV001");
+        seed("student2@ecoquest.local", "Nguyen Minh Anh", UserRole.STUDENT, "SV002");
+        seed("student3@ecoquest.local", "Tran Bao Chau", UserRole.STUDENT, "SV003");
+        seed("student4@ecoquest.local", "Le Quang Huy", UserRole.STUDENT, "SV004");
+        seed("student5@ecoquest.local", "Pham Gia Han", UserRole.STUDENT, "SV005");
+        seed("student6@ecoquest.local", "Do Nhat Linh", UserRole.STUDENT, "SV006");
+        seed("student7@ecoquest.local", "Hoang Nam Phuong", UserRole.STUDENT, "SV007");
+        seed("student8@ecoquest.local", "Vu Thanh Dat", UserRole.STUDENT, "SV008");
         seed("moderator@ecoquest.local", "EcoQuest Moderator", UserRole.MODERATOR, "SVMOD001");
         seed("admin@ecoquest.local", "EcoQuest Admin", UserRole.ADMIN, null);
     }

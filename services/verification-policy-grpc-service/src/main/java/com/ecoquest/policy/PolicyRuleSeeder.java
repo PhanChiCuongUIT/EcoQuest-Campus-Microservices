@@ -17,6 +17,10 @@ class PolicyRuleSeeder {
             saveIfMissing(rules, rule("TREE_CARE", 25, true, true, 3));
             saveIfMissing(rules, rule("BIKE_TO_CAMPUS", 12, true, false, 2));
             saveIfMissing(rules, rule("WATER_REFILL", 8, false, true, 8));
+            saveIfMissing(rules, rule("COMPOST_WASTE", 14, true, true, 4));
+            saveIfMissing(rules, rule("EWASTE_DROPOFF", 22, true, true, 2));
+            saveIfMissing(rules, rule("PLASTIC_FREE_LUNCH", 16, true, false, 3));
+            saveIfMissing(rules, rule("CARPOOL_TO_CAMPUS", 18, true, false, 2));
         };
     }
 
