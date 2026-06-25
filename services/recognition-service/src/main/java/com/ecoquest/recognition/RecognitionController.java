@@ -1,11 +1,8 @@
 package com.ecoquest.recognition;
 
 import com.ecoquest.common.security.RoleAuthorizer;
-import io.minio.GetObjectArgs;
-import io.minio.MinioClient;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -21,15 +18,13 @@ import java.util.UUID;
 @RequestMapping("/recognitions")
 class RecognitionController {
     private final CertificateRepository certificates;
-    private final MinioClient minio;
-    private final String bucket;
+    private final CertificateService certificateService;
     private final RewardClaimRepository rewardClaims;
 
-    RecognitionController(CertificateRepository certificates, MinioClient minio,
-                          @Value("${minio.bucket}") String bucket, RewardClaimRepository rewardClaims) {
+    RecognitionController(CertificateRepository certificates, CertificateService certificateService,
+                          RewardClaimRepository rewardClaims) {
         this.certificates = certificates;
-        this.minio = minio;
-        this.bucket = bucket;
+        this.certificateService = certificateService;
         this.rewardClaims = rewardClaims;
     }
 
@@ -47,18 +42,17 @@ class RecognitionController {
     }
 
     @GetMapping("/certificates/{id}/download")
-    ResponseEntity<InputStreamResource> download(@PathVariable String id) throws Exception {
+    ResponseEntity<ByteArrayResource> download(@PathVariable String id, HttpServletRequest httpRequest) {
         CertificateRecord certificate = certificates.findById(id).orElseThrow();
-        InputStreamResource resource = new InputStreamResource(minio.getObject(GetObjectArgs.builder()
-                .bucket(bucket)
-                .object(certificate.objectKey)
-                .build()));
+        RoleAuthorizer.requireSelfOrAnyRole(httpRequest, certificate.studentId, "ADMIN");
+        byte[] pdf = certificateService.renderCertificatePdf(certificate);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         "inline; filename=\"ecoquest-%s.pdf\"".formatted(certificate.id))
                 .header(HttpHeaders.CACHE_CONTROL, "private, max-age=300")
-                .body(resource);
+                .contentLength(pdf.length)
+                .body(new ByteArrayResource(pdf));
     }
 
     @PostMapping("/rewards/{id}/claim")

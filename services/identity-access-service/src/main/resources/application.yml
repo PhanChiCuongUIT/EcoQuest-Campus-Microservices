@@ -46,6 +46,9 @@ minio:
   avatar-bucket: ${MINIO_AVATAR_BUCKET:ecoquest-avatars}
 
 management:
+  health:
+    mail:
+      enabled: ${IDENTITY_MAIL_HEALTH_ENABLED:${IDENTITY_MAIL_ENABLED:false}}
   endpoints:
     web:
       exposure:

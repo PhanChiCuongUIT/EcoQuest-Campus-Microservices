@@ -76,6 +76,7 @@ Email is local-token mode by default. To test real Gmail SMTP, copy `.env.exampl
 
 ```env
 IDENTITY_MAIL_ENABLED=true
+IDENTITY_MAIL_HEALTH_ENABLED=true
 IDENTITY_MAIL_FROM=your-account@gmail.com
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -86,6 +87,7 @@ SMTP_STARTTLS=true
 ```
 
 Use a Google App Password, not the normal Gmail password.
+Keep `IDENTITY_MAIL_HEALTH_ENABLED=false` when you only want local-token mode; set it to `true` with valid Gmail SMTP credentials when you want Actuator to verify the mail connection too.
 
 ## Seed Data
 

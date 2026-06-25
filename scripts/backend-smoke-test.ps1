@@ -838,7 +838,7 @@ Wait-Until -Message "Recognition to issue season certificate" -Attempts 45 -Dela
 $certificates = @(Invoke-ApiList -Uri "$Gateway/recognitions/certificates/user/$studentAccepted")
 $certificate = $certificates | Where-Object { $_.seasonId -eq $season } | Select-Object -First 1
 Assert-True ($null -ne $certificate) "Recognition should issue certificate for accepted student"
-$download = Invoke-WebRequest -Uri "$Gateway/recognitions/certificates/$($certificate.id)/download" -UseBasicParsing
+$download = Invoke-WebRequest -Uri "$Gateway/recognitions/certificates/$($certificate.id)/download" -Headers $script:DefaultHeaders -UseBasicParsing
 Assert-True ($download.StatusCode -eq 200) "Certificate download should return HTTP 200"
 Assert-True ($download.Headers["Content-Type"] -match "application/pdf") "Certificate download should be PDF"
 Assert-True ($download.Headers["Content-Disposition"] -match "inline") "Certificate PDF should be previewable inline"
