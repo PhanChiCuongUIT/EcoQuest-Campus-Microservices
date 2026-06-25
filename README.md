@@ -22,7 +22,7 @@ Spring Cloud Gateway (routing, CORS, correlation ID)
 RabbitMQ:
 Action -> Reward -> Leaderboard -> Recognition
 Action/Catalog/Identity/Report/Reward/Recognition -> Notification
-Action -> Report analytics read model
+Action/Reward/Recognition -> Report analytics read model
 ```
 
 The system currently has **9 microservices**. Each service owns its own data and business rules. The Gateway only routes traffic and does not contain domain logic. No service reads another service database directly.
@@ -50,7 +50,7 @@ The system currently has **9 microservices**. Each service owns its own data and
 7. Leaderboard consumes point events and updates Redis sorted sets.
 8. Admin closes a season; Recognition creates a PDF certificate in MinIO and publishes notification.
 9. Missing evidence/station can create `PENDING_REVIEW`; Moderator/Admin approve or reject. Moderators cannot review their own actions.
-10. Report service consumes action events into its own analytics read model and handles report create/review without reading other DBs.
+10. Report service consumes action, points, badge, and certificate events into its own analytics read model and handles report create/review without reading other DBs.
 
 Mission statuses: `PENDING`, `ACTIVE`, `REJECTED`, `CANCELLED`, `COMPLETED`. New missions are `PENDING`; only Admin changes mission status; only `ACTIVE` missions can be submitted.
 
@@ -67,8 +67,8 @@ Demo accounts use password `EcoQuest@123`:
 Role inheritance:
 
 - `STUDENT`: Student panel only, self-owned data only.
-- `MODERATOR`: Student panel for self + Moderator panel. Cannot self-review own action/report.
-- `ADMIN`: Admin + Moderator panels. Admin is not treated as Student and cannot submit student actions.
+- `MODERATOR`: may switch to Student panel for self, but Moderator panel contains only Dashboard, Review, Reports, Leaderboard, own Mission Catalog, and Profile.
+- `ADMIN`: Admin + Moderator panels only. Admin panel contains Dashboard, Catalog, Users, Reports/Analytics, Policy, Adjust Points, and Profile; Admin cannot submit student actions.
 
 JWT is enforced by each owning service. The frontend role switcher only changes allowed panels and cannot elevate backend permissions.
 
@@ -84,10 +84,13 @@ SMTP_USERNAME=your-account@gmail.com
 SMTP_PASSWORD=your-google-app-password
 SMTP_AUTH=true
 SMTP_STARTTLS=true
+IDENTITY_SUPPORT_EMAIL=cuong26.16.8@gmail.com
+FRONTEND_BASE_URL=http://localhost:3000
 ```
 
 Use a Google App Password, not the normal Gmail password.
 Keep `IDENTITY_MAIL_HEALTH_ENABLED=false` when you only want local-token mode; set it to `true` with valid Gmail SMTP credentials when you want Actuator to verify the mail connection too.
+For Gmail, `IDENTITY_MAIL_FROM` should normally match `SMTP_USERNAME`. If the recipient opens email on a phone, set `FRONTEND_BASE_URL=http://<YOUR-PC-IPV4>:3000` so verify/reset links are reachable from that phone.
 
 ## Seed Data
 
@@ -172,17 +175,17 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Latest verification on 2026-06-24:
+Latest verification on 2026-06-25:
 
 - Full Maven reactor 14/14 modules: PASS.
 - `docker compose config --quiet`: PASS.
 - Backend smoke test: PASS.
-- RabbitMQ queues after smoke: 13 queues, 0 pending messages, 1 consumer each.
+- RabbitMQ queues after smoke: 16 queues, 0 pending messages, 1 consumer each.
 - Post-smoke logs checked for `ERROR|Exception|Assertion failed|Timed out`: no matches.
-- Frontend unit tests: 6/6 PASS.
+- Frontend unit tests: 7/7 PASS.
 - Frontend production build: PASS.
 
-Smoke currently covers auth/verify/reset/profile/user management, RBAC, Catalog CRUD/workflow, station image upload, mission eligibility, Redis draft/idempotency, MinIO uploads, gRPC Policy, Action outbox/RabbitMQ, Reward/badges, Leaderboard, moderation, Report workflow, Report analytics, Notification, daily limit, season close idempotency, certificate PDF, reward claim voucher, and queue drain.
+Smoke currently covers auth/verify/reset/profile/user management, RBAC, moderator mission ownership, Catalog CRUD/workflow, station image upload, mission eligibility, Redis draft/idempotency, MinIO uploads, gRPC Policy, Action outbox/RabbitMQ, Reward/badges, Leaderboard, moderation, Report workflow, Report analytics including badge/certificate fields, Notification, daily limit, season close idempotency, authenticated certificate PDF attachment, reward claim voucher, and queue drain.
 
 ## Hardening Notes
 

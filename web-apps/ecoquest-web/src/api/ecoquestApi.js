@@ -118,9 +118,19 @@ export const getSeasonSnapshots = (seasonId) =>
 export const getCertificates = (studentId) =>
   client.get(`/recognitions/certificates/user/${studentId}`).then(r => r.data);
 
-export const downloadCertificate = (certId) => {
-  const url = `${BASE}/recognitions/certificates/${certId}/download`;
-  window.open(url, '_blank');
+export const downloadCertificate = async (certId) => {
+  const response = await client.get(`/recognitions/certificates/${certId}/download`, {
+    responseType: 'blob',
+  });
+  const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `ecoquest-certificate-${certId}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
 };
 
 export const claimReward = (rewardId, studentId, rewardName) =>

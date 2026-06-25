@@ -18,12 +18,13 @@ import { reportTargetOptions } from '../utils/workflowRules.js';
 
 const MAX_EVIDENCE_BYTES = 5 * 1024 * 1024;
 
-export default function Reports() {
+export default function Reports({ panelRole }) {
   const { user } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
-  const canReview = user?.role === 'MODERATOR' || user?.role === 'ADMIN';
-  const canCreate = user?.role === 'STUDENT' || user?.role === 'MODERATOR';
+  const effectiveRole = (panelRole || user?.role || 'STUDENT').toUpperCase();
+  const canReview = effectiveRole === 'MODERATOR' || effectiveRole === 'ADMIN';
+  const canCreate = effectiveRole === 'STUDENT' || (effectiveRole === 'MODERATOR' && Boolean(user?.studentId));
   const [reports, setReports] = useState([]);
   const [period, setPeriod] = useState('weekly');
   const [analytics, setAnalytics] = useState(null);
@@ -33,7 +34,7 @@ export default function Reports() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [uploading, setUploading] = useState(false);
-  const targetOptions = reportTargetOptions(user?.role);
+  const targetOptions = useMemo(() => reportTargetOptions(effectiveRole), [effectiveRole]);
   const [form, setForm] = useState({ targetType: targetOptions[0]?.[0] || 'USER', targetId: '', reason: '', evidenceUrl: '' });
 
   const load = () => (canReview ? getReports() : getMyReports())
@@ -41,9 +42,12 @@ export default function Reports() {
     .catch(() => setReports([]));
   useEffect(() => { load(); }, [canReview]);
   useEffect(() => {
-    if (user?.role !== 'ADMIN') return;
+    setForm(current => ({ ...current, targetType: targetOptions[0]?.[0] || 'USER' }));
+  }, [targetOptions]);
+  useEffect(() => {
+    if (effectiveRole !== 'ADMIN') return;
     getReportAnalyticsSummary(period).then(setAnalytics).catch(() => setAnalytics(null));
-  }, [period, user?.role]);
+  }, [period, effectiveRole]);
 
   const filtered = useMemo(() => reports.filter(report => {
     const haystack = `${report.targetType} ${report.targetId} ${report.reason} ${report.reporterStudentId || ''}`.toLowerCase();
@@ -128,11 +132,11 @@ export default function Reports() {
   return (
     <div>
       <div className="page-intro">
-        <div><h2>{user?.role === 'ADMIN' ? 'Reports & Analytics' : 'Campus Reports'}</h2><p>{user?.role === 'ADMIN' ? 'Monitor sustainability outcomes and moderation reports.' : 'Report a user, mission, or action for campus review.'}</p></div>
+        <div><h2>{effectiveRole === 'ADMIN' ? 'Reports & Analytics' : 'Campus Reports'}</h2><p>{effectiveRole === 'ADMIN' ? 'Monitor sustainability outcomes and moderation reports.' : 'Report a user, mission, or action for campus review.'}</p></div>
         {canCreate && <button className="btn btn-primary" onClick={() => setCreateOpen(true)}><Plus size={16} /> New report</button>}
       </div>
 
-      {user?.role === 'ADMIN' && (
+      {effectiveRole === 'ADMIN' && (
         <>
           <section className="analytics-toolbar">
             <div><BarChart3 size={18} /><strong>Activity analytics</strong></div>
@@ -145,6 +149,8 @@ export default function Reports() {
             <div className="stat-card"><span>Rejected actions</span><strong>{analytics?.rejectedActions ?? 0}</strong></div>
             <div className="stat-card"><span>Points granted</span><strong>{analytics?.totalPoints ?? 0}</strong></div>
             <div className="stat-card"><span>Open reports</span><strong>{analytics?.openReports ?? 0}</strong></div>
+            <div className="stat-card"><span>Badges granted</span><strong>{analytics?.badgesGranted ?? 0}</strong></div>
+            <div className="stat-card"><span>Certificates issued</span><strong>{analytics?.certificatesIssued ?? 0}</strong></div>
           </div>
           <div className="analytics-grid">
             <section className="card">
@@ -175,6 +181,8 @@ export default function Reports() {
                 <span><small>Accepted</small><strong>{studentAnalytics.acceptedActions}</strong></span>
                 <span><small>Rejected</small><strong>{studentAnalytics.rejectedActions}</strong></span>
                 <span><small>Points</small><strong>{studentAnalytics.totalPoints}</strong></span>
+                <span><small>Badges</small><strong>{studentAnalytics.badgeCount ?? 0}</strong></span>
+                <span><small>Certificates</small><strong>{studentAnalytics.certificateCount ?? 0}</strong></span>
                 <span><small>Reports</small><strong>{studentAnalytics.reportsSubmitted}</strong></span>
               </div>
             )}

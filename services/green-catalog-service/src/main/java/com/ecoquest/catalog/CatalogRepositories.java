@@ -6,6 +6,8 @@ import java.util.List;
 
 interface MissionRepository extends JpaRepository<Mission, String> {
     List<Mission> findByStatusIn(List<MissionStatus> statuses);
+
+    List<Mission> findByCreatedByUserId(String createdByUserId);
 }
 
 interface GreenStationRepository extends JpaRepository<GreenStation, String> {

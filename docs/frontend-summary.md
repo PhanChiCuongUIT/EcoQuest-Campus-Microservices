@@ -4,16 +4,18 @@ Tài liệu này tổng hợp toàn bộ hiện trạng hệ thống Frontend c�
 
 ---
 
-## Current Alignment Update - 2026-06-24
+## Current Alignment Update - 2026-06-25
 
 Backend alignment has changed since the earlier frontend notes:
 
 - Backend has 9 microservices, not 7: Identity, Catalog, Action, Policy, Reward, Leaderboard, Recognition, Report, Notification.
 - Register now requires email verification before login. Local mode exposes a verification token for testing; SMTP mode can send real Gmail messages when configured.
-- Role switching must be limited by backend role: Student only Student; Moderator Student+Moderator; Admin Moderator+Admin.
+- Role switching is limited by backend role: Student only Student; Moderator Student+Moderator; Admin Moderator+Admin. Each panel has isolated navigation, so Moderator/Admin panels do not duplicate Student pages.
 - Only `ACTIVE` missions can be submitted. Frontend must hide/disable non-active missions for Student flows.
 - Report, Report analytics, Notification SSE, Profile, Admin Users, mission status workflow, station `imageUrl`/image upload, evidence MinIO upload, and Moderator own-action protection are part of the current scope.
-- Current verification: `npm.cmd test` passes 6/6, `npm.cmd run build` passes, full backend smoke passes, Maven reactor 14/14 passes, and RabbitMQ queues drain to 0 messages after the smoke run.
+- Certificate download uses an authenticated blob request and saves a PDF attachment; email verify/reset links have dedicated frontend routes.
+- Notification is a dropdown under the bell with SSE, read-all, toggle and role-safe navigation.
+- Current verification: `npm.cmd test` passes 7/7, `npm.cmd run build` passes, full backend smoke passes, Maven builds pass, and all 16 RabbitMQ queues drain to 0 messages after the smoke run.
 
 For clean API contracts and test scenarios, use `docs/frontend-handoff.md` and `docs/frontend-test-scenarios.md`. Older text below is kept as historical frontend summary and may contain encoding artifacts from prior generation.
 

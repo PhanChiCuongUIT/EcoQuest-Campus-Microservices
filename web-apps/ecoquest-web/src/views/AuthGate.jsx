@@ -254,10 +254,10 @@ function RegisterForm({ onSwitch }) {
 /* ═══════════════════════════════════════════════════════════════
    FORGOT PASSWORD FORM
 ═══════════════════════════════════════════════════════════════ */
-function ForgotForm({ onBack }) {
-  const [step, setStep]         = useState('request'); // request | reset
+function ForgotForm({ onBack, initialToken = '' }) {
+  const [step, setStep]         = useState(initialToken ? 'reset' : 'request'); // request | reset
   const [email, setEmail]       = useState('');
-  const [resetToken, setResetToken] = useState('');
+  const [resetToken, setResetToken] = useState(initialToken);
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
@@ -341,11 +341,54 @@ function ForgotForm({ onBack }) {
   );
 }
 
+function VerifyEmailLink({ token, onBack }) {
+  const [status, setStatus] = useState('checking');
+  const [message, setMessage] = useState('Verifying your EcoQuest email...');
+
+  React.useEffect(() => {
+    if (!token) {
+      setStatus('error');
+      setMessage('Verification token is missing.');
+      return;
+    }
+    verifyEmail(token)
+      .then(() => {
+        setStatus('success');
+        setMessage('Email verified successfully. You can sign in now.');
+      })
+      .catch(() => {
+        setStatus('error');
+        setMessage('Verification failed. The link may be invalid or expired.');
+      });
+  }, [token]);
+
+  return (
+    <div>
+      <div className={`async-banner ${status === 'success' ? 'success' : status === 'error' ? 'warning' : 'info'}`} style={{ marginBottom: 'var(--space-4)' }}>
+        {message}
+      </div>
+      <button className="btn btn-primary w-full" onClick={onBack}>Back to Sign In</button>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════
    Main Auth Gate — manages which form to show
 ═══════════════════════════════════════════════════════════════ */
 export default function AuthGate() {
-  const [view, setView] = useState('login'); // login | register | forgot
+  const route = new URL(window.location.href);
+  const token = route.searchParams.get('token') || '';
+  const initialView = route.pathname.includes('verify-email')
+    ? 'verify'
+    : route.pathname.includes('reset-password')
+      ? 'forgot'
+      : 'login';
+  const [view, setView] = useState(initialView); // login | register | forgot | verify
+
+  const backToLogin = () => {
+    window.history.replaceState(null, '', window.location.origin + '/');
+    setView('login');
+  };
 
   return (
     <AuthCard>
@@ -364,7 +407,13 @@ export default function AuthGate() {
       {view === 'forgot' && (
         <>
           <h1 style={{ fontSize: 18, fontWeight: 700, marginBottom: 'var(--space-5)', textAlign: 'center' }}>Reset Password</h1>
-          <ForgotForm onBack={() => setView('login')} />
+          <ForgotForm onBack={backToLogin} initialToken={route.pathname.includes('reset-password') ? token : ''} />
+        </>
+      )}
+      {view === 'verify' && (
+        <>
+          <h1 style={{ fontSize: 18, fontWeight: 700, marginBottom: 'var(--space-5)', textAlign: 'center' }}>Verify Email</h1>
+          <VerifyEmailLink token={token} onBack={backToLogin} />
         </>
       )}
     </AuthCard>

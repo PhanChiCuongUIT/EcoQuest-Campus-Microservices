@@ -12,6 +12,9 @@ import org.springframework.context.annotation.Configuration;
 class ReportMessagingConfig {
     static final String ACTION_ACCEPTED_QUEUE = "report.eco-action-accepted";
     static final String ACTION_REJECTED_QUEUE = "report.eco-action-rejected";
+    static final String POINTS_GRANTED_QUEUE = "report.points-granted";
+    static final String BADGE_UNLOCKED_QUEUE = "report.badge-unlocked";
+    static final String CERTIFICATE_ISSUED_QUEUE = "report.certificate-issued";
 
     @Bean
     Queue reportActionAcceptedQueue() {
@@ -24,6 +27,21 @@ class ReportMessagingConfig {
     }
 
     @Bean
+    Queue reportPointsGrantedQueue() {
+        return new Queue(POINTS_GRANTED_QUEUE, true);
+    }
+
+    @Bean
+    Queue reportBadgeUnlockedQueue() {
+        return new Queue(BADGE_UNLOCKED_QUEUE, true);
+    }
+
+    @Bean
+    Queue reportCertificateIssuedQueue() {
+        return new Queue(CERTIFICATE_ISSUED_QUEUE, true);
+    }
+
+    @Bean
     Binding bindReportActionAccepted(Queue reportActionAcceptedQueue, TopicExchange ecoQuestExchange) {
         return BindingBuilder.bind(reportActionAcceptedQueue).to(ecoQuestExchange).with(EcoQuestRabbit.ACTION_ACCEPTED);
     }
@@ -31,5 +49,20 @@ class ReportMessagingConfig {
     @Bean
     Binding bindReportActionRejected(Queue reportActionRejectedQueue, TopicExchange ecoQuestExchange) {
         return BindingBuilder.bind(reportActionRejectedQueue).to(ecoQuestExchange).with(EcoQuestRabbit.ACTION_REJECTED);
+    }
+
+    @Bean
+    Binding bindReportPointsGranted(Queue reportPointsGrantedQueue, TopicExchange ecoQuestExchange) {
+        return BindingBuilder.bind(reportPointsGrantedQueue).to(ecoQuestExchange).with(EcoQuestRabbit.POINTS_GRANTED);
+    }
+
+    @Bean
+    Binding bindReportBadgeUnlocked(Queue reportBadgeUnlockedQueue, TopicExchange ecoQuestExchange) {
+        return BindingBuilder.bind(reportBadgeUnlockedQueue).to(ecoQuestExchange).with(EcoQuestRabbit.BADGE_UNLOCKED);
+    }
+
+    @Bean
+    Binding bindReportCertificateIssued(Queue reportCertificateIssuedQueue, TopicExchange ecoQuestExchange) {
+        return BindingBuilder.bind(reportCertificateIssuedQueue).to(ecoQuestExchange).with(EcoQuestRabbit.CERTIFICATE_ISSUED);
     }
 }

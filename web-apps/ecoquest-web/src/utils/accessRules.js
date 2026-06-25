@@ -17,3 +17,13 @@ export function allowedUiRoles(backendRole) {
   if (backendRole === 'MODERATOR') return ['Student', 'Moderator'];
   return ['Student'];
 }
+
+export const PANEL_VIEWS_BY_ROLE = {
+  Student: ['dashboard', 'missions', 'wallet', 'leaderboard', 'certificates', 'reports', 'profile'],
+  Moderator: ['dashboard', 'review', 'reports', 'leaderboard', 'catalog', 'profile'],
+  Admin: ['dashboard', 'catalog', 'users', 'reports', 'policy', 'adjust', 'profile'],
+};
+
+export function panelViewsForRole(role) {
+  return PANEL_VIEWS_BY_ROLE[role] || PANEL_VIEWS_BY_ROLE.Student;
+}

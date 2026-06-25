@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Zap, Trophy, Shield, Award, RefreshCw } from 'lucide-react';
+import { Zap, Trophy, Shield, Award, RefreshCw, Target } from 'lucide-react';
 import StatCard from '../components/StatCard.jsx';
 import MissionCard from '../components/MissionCard.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
@@ -21,6 +21,31 @@ function formatTime(iso) {
 function formatDate(iso) {
   if (!iso) return '—';
   try { return new Date(iso).toLocaleString(); } catch { return '—'; }
+}
+
+function MiniBarChart({ title, rows, empty = 'No activity yet.' }) {
+  const max = Math.max(1, ...rows.map(row => Number(row.value) || 0));
+
+  return (
+    <div className="mini-chart-card">
+      <div className="mini-chart-header">
+        <strong>{title}</strong>
+      </div>
+      <div className="mini-chart-body">
+        {rows.length === 0 ? (
+          <p className="muted-copy">{empty}</p>
+        ) : rows.map(row => (
+          <div className="mini-chart-row" key={row.label}>
+            <span>{row.label}</span>
+            <div className="mini-chart-track">
+              <i style={{ width: `${Math.max(8, (Number(row.value) || 0) / max * 100)}%` }} />
+            </div>
+            <strong>{row.value}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function StudentDashboard({ studentId, onSubmitMission, featuredOnly = true }) {
@@ -92,6 +117,22 @@ export default function StudentDashboard({ studentId, onSubmitMission, featuredO
 
   const rankDisplay = rank?.rank ? `#${rank.rank}` : '—';
 
+  const joinedMissions = new Set(actions.map(action => action.missionId).filter(Boolean)).size;
+  const statusRows = ['ACCEPTED', 'PENDING_REVIEW', 'REJECTED']
+    .map(status => ({
+      label: status.replace('_', ' '),
+      value: actions.filter(action => action.status === status).length,
+    }))
+    .filter(row => actions.length > 0 || row.value > 0);
+  const missionRows = Object.entries(actions.reduce((acc, action) => {
+    const label = missionMap[action.missionId] || action.missionId || 'Unknown mission';
+    acc[label] = (acc[label] || 0) + 1;
+    return acc;
+  }, {}))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([label, value]) => ({ label, value }));
+
   return (
     <div>
       {asyncBanner && (
@@ -130,6 +171,18 @@ export default function StudentDashboard({ studentId, onSubmitMission, featuredO
           value={certs.length}
           iconBg="var(--color-success-bg)" iconColor="var(--color-success)"
         />
+        <StatCard
+          icon={<Target size={18} />}
+          label="Missions Joined"
+          value={joinedMissions}
+          sub={`${actions.length} submissions`}
+          iconBg="var(--color-warning-bg)" iconColor="var(--color-warning)"
+        />
+      </div>
+
+      <div className="dashboard-chart-grid">
+        <MiniBarChart title="Submission status" rows={statusRows} />
+        <MiniBarChart title="Submissions by mission" rows={missionRows} />
       </div>
 
       {/* ── Missions ── */}

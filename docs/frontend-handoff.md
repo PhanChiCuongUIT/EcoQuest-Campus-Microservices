@@ -1,6 +1,6 @@
 # EcoQuest Campus Frontend Handoff
 
-Updated: 2026-06-24
+Updated: 2026-06-25
 
 Tài liệu này là source-of-truth cho agent frontend. Agent có thể đọc file này cùng các file được liệt kê bên dưới để code/review/test UI mà không cần quét backend source hoặc database.
 
@@ -59,13 +59,19 @@ Demo accounts, password `EcoQuest@123`:
 
 Register tạo user `STUDENT` chưa verify. Login trước verify bị chặn. Local mode trả `verificationToken` trong response để test; SMTP mode gửi email thật nếu `.env` bật Gmail SMTP.
 
-Role inheritance cho UI:
+Role inheritance và panel navigation:
 
 - Backend `STUDENT`: chỉ cho UI role `Student`.
-- Backend `MODERATOR`: cho UI role `Student`, `Moderator`.
-- Backend `ADMIN`: cho UI role `Moderator`, `Admin`.
+- Backend `MODERATOR`: cho UI role `Student`, `Moderator`; Moderator panel chỉ có Dashboard, Review, Reports, Leaderboard, own Catalog, Profile.
+- Backend `ADMIN`: cho UI role `Moderator`, `Admin`; Admin panel chỉ có Dashboard, Catalog, Users, Reports/Analytics, Policy, Adjust Points, Profile.
 
 UI role switcher chỉ đổi navigation/view; backend token vẫn là authority. Forbidden action phải hiển thị lỗi `403`, không fake success.
+
+Email deep links:
+
+- `/verify-email?token=...` mở màn xác nhận và gọi `POST /auth/verify-email`.
+- `/reset-password?token=...` mở trực tiếp bước đặt mật khẩu mới.
+- `FRONTEND_BASE_URL` trong backend phải là URL người nhận email truy cập được.
 
 ## Seed Data
 
@@ -131,6 +137,8 @@ All protected calls need:
 ```text
 Authorization: Bearer <accessToken>
 ```
+
+Certificate download cũng là protected API. Frontend phải gọi Axios/fetch dạng blob có header bearer rồi tạo object URL để download; không dùng `<a href="/recognitions/.../download">` trực tiếp.
 
 ## Identity API
 
@@ -569,11 +577,12 @@ Already expected or implemented:
 
 ## Verification Status
 
-Last verified on 2026-06-24:
+Last verified on 2026-06-25:
 
 - Full Maven reactor 14/14 modules: pass.
 - `docker compose config --quiet`: pass.
 - Backend smoke test: pass.
 - RabbitMQ after smoke: all queues drained to 0 messages and have consumers.
-- Frontend unit tests after latest UI/API changes: 6/6 pass.
+- RabbitMQ exposes 16 queues; all drained to 0 messages with one consumer after smoke.
+- Frontend unit tests after latest UI/API changes: 7/7 pass.
 - Frontend production build after latest UI/API changes: pass.

@@ -10,7 +10,9 @@ import {
 import Modal from './Modal.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 
-export default function TopBar({ title, studentId, setStudentId, theme, toggleTheme, onMenuClick, onNavigate }) {
+export default function TopBar({
+  title, studentId, setStudentId, theme, toggleTheme, onMenuClick, onNavigate, panelRole,
+}) {
   const { user, logout } = useAuth();
   const confirm = useConfirm();
   const [unread, setUnread] = useState(0);
@@ -19,6 +21,7 @@ export default function TopBar({ title, studentId, setStudentId, theme, toggleTh
   const [accountOpen, setAccountOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const accountRef = useRef(null);
+  const notificationRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,13 +47,16 @@ export default function TopBar({ title, studentId, setStudentId, theme, toggleTh
   useEffect(() => {
     const close = event => {
       if (!accountRef.current?.contains(event.target)) setAccountOpen(false);
+      if (!notificationRef.current?.contains(event.target)) setNotificationOpen(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
   const openInbox = async () => {
-    setNotificationOpen(true);
+    const nextOpen = !notificationOpen;
+    setNotificationOpen(nextOpen);
+    if (!nextOpen) return;
     try {
       const items = await getNotifications();
       const list = Array.isArray(items) ? items : [];
@@ -61,11 +67,35 @@ export default function TopBar({ title, studentId, setStudentId, theme, toggleTh
     }
   };
 
+  const viewFromNotificationLink = link => {
+    if (!link?.startsWith('/')) return null;
+    const first = link.replace(/^\/+/, '').split('/')[0];
+    const map = {
+      actions: 'dashboard',
+      'admin-catalog': 'catalog',
+      auth: 'profile',
+      catalog: 'catalog',
+      certificates: panelRole === 'Student' ? 'certificates' : 'dashboard',
+      leaderboard: 'leaderboard',
+      leaderboards: 'leaderboard',
+      missions: 'missions',
+      notifications: 'profile',
+      reports: 'reports',
+      rewards: panelRole === 'Student' ? 'wallet' : 'dashboard',
+      review: 'review',
+      users: 'users',
+      wallet: panelRole === 'Student' ? 'wallet' : 'dashboard',
+    };
+    return map[first] || first || null;
+  };
+
   const markRead = async notification => {
     if (!notification.read) await markNotificationRead(notification.id);
     setNotifications(items => items.map(item => item.id === notification.id ? { ...item, read: true } : item));
     setUnread(count => Math.max(0, count - (notification.read ? 0 : 1)));
-    if (notification.link?.startsWith('/')) onNavigate?.(notification.link.slice(1));
+    const targetView = viewFromNotificationLink(notification.link);
+    if (targetView) onNavigate?.(targetView);
+    setNotificationOpen(false);
   };
 
   const markAll = async () => {
@@ -118,24 +148,56 @@ export default function TopBar({ title, studentId, setStudentId, theme, toggleTh
           </div>
         )}
 
-        {/* Theme Toggle */}
-        <button
-          className="theme-toggle"
-          onClick={openInbox}
-          aria-label="Notifications"
-          title="Notifications"
-          type="button"
-          style={{ position: 'relative' }}
-        >
-          <Bell size={16} />
-          {unread > 0 && (
-            <span style={{
-              position: 'absolute', top: -4, right: -4, minWidth: 16, height: 16,
-              padding: '0 4px', borderRadius: 8, background: 'var(--color-danger)',
-              color: 'white', fontSize: 10, lineHeight: '16px', textAlign: 'center',
-            }}>{unread}</span>
+        <div className="notification-menu-wrap" ref={notificationRef}>
+          <button
+            className="theme-toggle"
+            onClick={openInbox}
+            aria-label="Notifications"
+            title="Notifications"
+            type="button"
+            aria-expanded={notificationOpen}
+            style={{ position: 'relative' }}
+          >
+            <Bell size={16} />
+            {unread > 0 && (
+              <span style={{
+                position: 'absolute', top: -4, right: -4, minWidth: 16, height: 16,
+                padding: '0 4px', borderRadius: 8, background: 'var(--color-danger)',
+                color: 'white', fontSize: 10, lineHeight: '16px', textAlign: 'center',
+              }}>{unread}</span>
+            )}
+          </button>
+          {notificationOpen && (
+            <div className="notification-popover" role="menu" aria-label="Notifications">
+              <div className="notification-popover-header">
+                <div>
+                  <strong>Notifications</strong>
+                  <span>{unread} unread</span>
+                </div>
+                <button className="btn btn-ghost btn-sm" onClick={markAll} disabled={unread === 0}>
+                  Mark all read
+                </button>
+              </div>
+              <div className="notification-list compact">
+                {notifications.length === 0 && <p className="muted-copy">No notifications yet.</p>}
+                {notifications.map(notification => (
+                  <button
+                    key={notification.id}
+                    className={`notification-item${notification.read ? '' : ' unread'}`}
+                    onClick={() => markRead(notification)}
+                    role="menuitem"
+                  >
+                    <span className="notification-dot" />
+                    <span>
+                      <strong>{notification.title}</strong>
+                      <small>{notification.message}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
-        </button>
+        </div>
 
         <button
           className="theme-toggle"
@@ -179,32 +241,6 @@ export default function TopBar({ title, studentId, setStudentId, theme, toggleTh
           </div>
         )}
       </div>
-
-      <Modal
-        isOpen={notificationOpen}
-        onClose={() => setNotificationOpen(false)}
-        title="Notifications"
-        titleIcon={<Bell size={18} color="var(--color-primary)" />}
-        size="lg"
-        footer={<button className="btn btn-outline" onClick={markAll} disabled={unread === 0}>Mark all as read</button>}
-      >
-        <div className="notification-list">
-          {notifications.length === 0 && <p className="muted-copy">No notifications yet.</p>}
-          {notifications.map(notification => (
-            <button
-              key={notification.id}
-              className={`notification-item${notification.read ? '' : ' unread'}`}
-              onClick={() => markRead(notification)}
-            >
-              <span className="notification-dot" />
-              <span>
-                <strong>{notification.title}</strong>
-                <small>{notification.message}</small>
-              </span>
-            </button>
-          ))}
-        </div>
-      </Modal>
 
       <Modal isOpen={helpOpen} onClose={() => setHelpOpen(false)} title="EcoQuest guide & policy" size="lg">
         <div className="help-copy">

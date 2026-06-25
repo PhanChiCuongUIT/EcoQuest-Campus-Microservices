@@ -1974,7 +1974,7 @@ img, svg {
 .system-snapshot span { color: var(--color-text-muted); font-size: 12px; }
 .system-snapshot strong { font-size: 22px; }
 
-.account-menu-wrap { position: relative; }
+.account-menu-wrap, .notification-menu-wrap { position: relative; }
 .account-trigger {
   display: flex; align-items: center; gap: 9px; padding: 3px 6px;
   border: 0; background: transparent; cursor: pointer; border-radius: var(--radius-md);
@@ -1996,7 +1996,31 @@ img, svg {
 .account-popover button:hover { background: var(--color-background-alt); }
 .account-popover button.danger { color: var(--color-danger); }
 .account-popover-divider { height: 1px; background: var(--color-border); margin: 5px; }
+.notification-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(380px, calc(100vw - 24px));
+  z-index: 70;
+  padding: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+.notification-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 8px 8px 10px;
+  border-bottom: 1px solid var(--color-border-light);
+  margin-bottom: 8px;
+}
+.notification-popover-header div { display: grid; gap: 2px; }
+.notification-popover-header span { font-size: 11px; color: var(--color-text-muted); }
 .notification-list { display: grid; gap: 6px; max-height: 55vh; overflow-y: auto; }
+.notification-list.compact { max-height: min(420px, 68vh); padding-right: 2px; }
 .notification-item {
   display: grid; grid-template-columns: 8px 1fr; gap: 10px; width: 100%; padding: 12px;
   border: 1px solid var(--color-border-light); border-radius: var(--radius-md);
@@ -2007,6 +2031,55 @@ img, svg {
 .notification-item.unread .notification-dot { background: var(--color-primary); }
 .notification-item span:last-child { display: grid; gap: 3px; }
 .notification-item small { color: var(--color-text-muted); line-height: 1.4; }
+
+.dashboard-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+.mini-chart-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+.mini-chart-header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.mini-chart-header strong { font-size: 14px; }
+.mini-chart-body { display: grid; gap: 10px; }
+.mini-chart-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.8fr) minmax(100px, 1.6fr) 36px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.mini-chart-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+.mini-chart-row strong { text-align: right; font-size: 12px; }
+.mini-chart-track {
+  height: 9px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--color-background-alt);
+  border: 1px solid var(--color-border-light);
+}
+.mini-chart-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+}
 .help-copy { display: grid; gap: var(--space-3); line-height: 1.65; }
 .help-copy h3 { font-size: 14px; }
 .help-copy p { color: var(--color-text-muted); }

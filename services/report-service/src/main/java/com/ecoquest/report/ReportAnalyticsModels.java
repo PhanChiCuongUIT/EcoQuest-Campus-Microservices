@@ -19,6 +19,34 @@ class ActionAnalyticsRecord {
     public Instant occurredOn;
 }
 
+@Entity
+class StudentRewardSnapshot {
+    @Id
+    public String studentId;
+    public int currentPoints;
+    public Instant updatedOn;
+}
+
+@Entity
+class BadgeAnalyticsRecord {
+    @Id
+    public String eventId;
+    public String studentId;
+    public String badgeCode;
+    public String badgeName;
+    public Instant occurredOn;
+}
+
+@Entity
+class CertificateAnalyticsRecord {
+    @Id
+    public String eventId;
+    public String certificateId;
+    public String studentId;
+    public String certificateType;
+    public Instant occurredOn;
+}
+
 record AnalyticsSummary(
         String period,
         Instant from,
@@ -30,6 +58,8 @@ record AnalyticsSummary(
         long openReports,
         long acceptedReports,
         long rejectedReports,
+        long badgesGranted,
+        long certificatesIssued,
         List<ActionTypeMetric> actionTypes,
         List<StudentMetric> topStudents
 ) {
@@ -47,6 +77,8 @@ record StudentAnalytics(
         long acceptedActions,
         long rejectedActions,
         int totalPoints,
+        long badgeCount,
+        long certificateCount,
         long reportsSubmitted,
         List<ActionTypeMetric> actionTypes
 ) {

@@ -49,7 +49,7 @@ class RecognitionController {
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "inline; filename=\"ecoquest-%s.pdf\"".formatted(certificate.id))
+                        "attachment; filename=\"ecoquest-%s.pdf\"".formatted(certificate.id))
                 .header(HttpHeaders.CACHE_CONTROL, "private, max-age=300")
                 .contentLength(pdf.length)
                 .body(new ByteArrayResource(pdf));

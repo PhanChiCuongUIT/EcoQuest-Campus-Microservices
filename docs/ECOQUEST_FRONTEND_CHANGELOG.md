@@ -274,3 +274,14 @@ npm run build  # ✅ Build thành công, 0 errors
 - Added frontend unit tests in `web-apps/ecoquest-web/test/accessRules.test.js` and `web-apps/ecoquest-web/test/workflowRules.test.js`; `npm.cmd test` passes 6/6.
 - Production build verified with `npm.cmd run build`; backend smoke and queue drain also pass after the latest backend alignment.
 - For the current API contract and handoff, use `docs/frontend-handoff.md`; for QA, use `docs/frontend-test-scenarios.md`.
+
+# Update 2026-06-25 - Role Panels, PDF, Email Links, Notifications, Dashboards
+
+- Isolated navigation for Student, Moderator, and Admin panels; Moderator/Admin panels no longer duplicate Student-only pages.
+- Added Moderator own-mission catalog workflow: create as `PENDING`, list only missions created by that moderator, Admin approves status.
+- Fixed certificate download to use an authenticated blob request; backend returns a PDF attachment instead of opening a protected URL and producing Whitelabel 401.
+- Added frontend deep-link handling for `/verify-email?token=...` and `/reset-password?token=...`.
+- Replaced the notification modal with a dropdown under the bell, including toggle, outside-click close, mark-all-read, SSE updates, and role-safe navigation.
+- Added distinct charts/metrics for Student, Moderator, and Admin dashboards.
+- Admin Reports/Analytics now displays points, badge and certificate event read models from Report service.
+- Latest verification: frontend tests 7/7, Vite build pass, backend full smoke pass, 16 RabbitMQ queues drained.
