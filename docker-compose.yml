@@ -47,6 +47,7 @@ services:
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:3000}
       IDENTITY_MAIL_ENABLED: ${IDENTITY_MAIL_ENABLED:-false}
       IDENTITY_MAIL_FROM: ${IDENTITY_MAIL_FROM:-no-reply@ecoquest.local}
+      IDENTITY_SUPPORT_EMAIL: ${IDENTITY_SUPPORT_EMAIL:-cuong26.16.8@gmail.com}
       SMTP_HOST: ${SMTP_HOST:-localhost}
       SMTP_PORT: ${SMTP_PORT:-1025}
       SMTP_USERNAME: ${SMTP_USERNAME:-}

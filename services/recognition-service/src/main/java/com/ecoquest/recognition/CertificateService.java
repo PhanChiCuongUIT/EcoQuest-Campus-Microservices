@@ -119,8 +119,8 @@ class CertificateService {
             drawCentered(canvas, bold, 11, LIGHT_MUTED, "CERTIFICATE OF EXCELLENCE", center, height - 144, 4);
             drawCentered(canvas, serifBold, 34, DARK, "Sustainability Award", center, height - 184, 1.5f);
             drawCentered(canvas, serifItalic, 15, MUTED, "This certificate is proudly presented to", center, height - 218, 0);
-            drawCentered(canvas, serifItalic, recipientFontSize(certificate.studentId), GREEN,
-                    safe(certificate.studentId), center, height - 267, 0);
+            drawFittedCentered(canvas, serifItalic, recipientFontSize(certificate.studentId), 18, GREEN,
+                    safe(certificate.studentId), center, height - 267, width - 150);
             drawCentered(canvas, regular, 11, LIGHT_MUTED, "Student ID: " + safe(certificate.studentId), center, height - 292, 1);
 
             String season = seasonLabel(certificate.seasonId);
@@ -132,7 +132,7 @@ class CertificateService {
                     + type + " " + season + " season, finishing in " + rankText
                     + " on the leaderboard and accumulating " + points
                     + " green points for campus sustainability actions.";
-            drawWrappedCentered(canvas, serif, 14, MUTED, description, center, height - 328, 660, 18);
+            drawWrappedCentered(canvas, serif, 12, MUTED, description, center, height - 328, 620, 16);
 
             drawMetrics(canvas, center - 240, height - 402, 480, 52,
                     new String[]{"Season", "Type", "Rank", "Points"},
@@ -140,7 +140,7 @@ class CertificateService {
 
             drawSeal(canvas, 120, 105, bold);
             drawRegistry(canvas, certificate, center, 104, regular);
-            drawSignatures(canvas, width - 290, 92, regular, bold, serifItalic);
+            drawSignatures(canvas, width - 330, 92, regular, bold, serifItalic);
 
             document.close();
             return out.toByteArray();
@@ -287,7 +287,7 @@ class CertificateService {
 
     private static void drawSignature(PdfContentByte canvas, float x, float y, String name, String title,
                                       BaseFont regular, BaseFont bold, BaseFont signatureFont) {
-        drawCentered(canvas, signatureFont, 17, DARK, name, x + 50, y + 27, 0);
+        drawFittedCentered(canvas, signatureFont, 15, 10, DARK, name, x + 50, y + 27, 120);
         canvas.setColorStroke(GOLD);
         canvas.setLineWidth(0.9f);
         canvas.moveTo(x, y + 18);

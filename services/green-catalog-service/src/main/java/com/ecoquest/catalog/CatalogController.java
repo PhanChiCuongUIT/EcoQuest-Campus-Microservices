@@ -39,9 +39,12 @@ class CatalogController {
     List<Mission> getMissions(@RequestParam(defaultValue = "false") boolean management,
                               HttpServletRequest httpRequest) {
         var principal = RoleAuthorizer.requireAnyRole(httpRequest, "STUDENT", "MODERATOR", "ADMIN");
-        if ("ADMIN".equals(principal.role()) || management) {
-            RoleAuthorizer.requireAnyRole(httpRequest, "MODERATOR", "ADMIN");
+        if ("ADMIN".equals(principal.role())) {
             return missions.findAll();
+        }
+        if (management) {
+            RoleAuthorizer.requireAnyRole(httpRequest, "MODERATOR", "ADMIN");
+            return missions.findByCreatedByUserId(principal.userId());
         }
         return missions.findByStatusIn(List.of(
                 MissionStatus.ACTIVE,

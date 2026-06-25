@@ -4,6 +4,7 @@ import {
   activeMissions,
   allowedUiRoles,
   canSubmitMission,
+  panelViewsForRole,
   visibleMissions,
 } from '../src/utils/accessRules.js';
 
@@ -29,4 +30,18 @@ test('role switching follows backend role inheritance', () => {
   assert.deepEqual(allowedUiRoles('STUDENT'), ['Student']);
   assert.deepEqual(allowedUiRoles('MODERATOR'), ['Student', 'Moderator']);
   assert.deepEqual(allowedUiRoles('ADMIN'), ['Moderator', 'Admin']);
+});
+
+test('panel navigation does not leak student pages into moderator or admin panels', () => {
+  assert.deepEqual(panelViewsForRole('Student'), [
+    'dashboard', 'missions', 'wallet', 'leaderboard', 'certificates', 'reports', 'profile',
+  ]);
+  assert.deepEqual(panelViewsForRole('Moderator'), [
+    'dashboard', 'review', 'reports', 'leaderboard', 'catalog', 'profile',
+  ]);
+  assert.deepEqual(panelViewsForRole('Admin'), [
+    'dashboard', 'catalog', 'users', 'reports', 'policy', 'adjust', 'profile',
+  ]);
+  assert.equal(panelViewsForRole('Moderator').includes('wallet'), false);
+  assert.equal(panelViewsForRole('Admin').includes('certificates'), false);
 });

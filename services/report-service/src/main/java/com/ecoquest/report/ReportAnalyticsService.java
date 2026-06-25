@@ -1,7 +1,10 @@
 package com.ecoquest.report;
 
+import com.ecoquest.messaging.events.BadgeUnlockedEvent;
+import com.ecoquest.messaging.events.CertificateIssuedEvent;
 import com.ecoquest.messaging.events.EcoActionAcceptedEvent;
 import com.ecoquest.messaging.events.EcoActionRejectedEvent;
+import com.ecoquest.messaging.events.PointsGrantedEvent;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 
@@ -20,10 +23,19 @@ import java.util.stream.Collectors;
 class ReportAnalyticsService {
     private final ReportAnalyticsRepository analytics;
     private final ReportRepository reports;
+    private final StudentRewardSnapshotRepository rewardSnapshots;
+    private final BadgeAnalyticsRepository badgeAnalytics;
+    private final CertificateAnalyticsRepository certificateAnalytics;
 
-    ReportAnalyticsService(ReportAnalyticsRepository analytics, ReportRepository reports) {
+    ReportAnalyticsService(ReportAnalyticsRepository analytics, ReportRepository reports,
+                           StudentRewardSnapshotRepository rewardSnapshots,
+                           BadgeAnalyticsRepository badgeAnalytics,
+                           CertificateAnalyticsRepository certificateAnalytics) {
         this.analytics = analytics;
         this.reports = reports;
+        this.rewardSnapshots = rewardSnapshots;
+        this.badgeAnalytics = badgeAnalytics;
+        this.certificateAnalytics = certificateAnalytics;
     }
 
     @RabbitListener(queues = ReportMessagingConfig.ACTION_ACCEPTED_QUEUE)
@@ -59,6 +71,49 @@ class ReportAnalyticsService {
         analytics.save(record);
     }
 
+    @RabbitListener(queues = ReportMessagingConfig.POINTS_GRANTED_QUEUE)
+    void onPointsGranted(PointsGrantedEvent event) {
+        var snapshot = rewardSnapshots.findById(event.studentId()).orElseGet(() -> {
+            var created = new StudentRewardSnapshot();
+            created.studentId = event.studentId();
+            return created;
+        });
+        if (snapshot.updatedOn != null && snapshot.updatedOn.isAfter(event.occurredOn())) {
+            return;
+        }
+        snapshot.currentPoints = event.totalPoints();
+        snapshot.updatedOn = event.occurredOn();
+        rewardSnapshots.save(snapshot);
+    }
+
+    @RabbitListener(queues = ReportMessagingConfig.BADGE_UNLOCKED_QUEUE)
+    void onBadgeUnlocked(BadgeUnlockedEvent event) {
+        if (badgeAnalytics.existsById(event.eventId())) {
+            return;
+        }
+        var record = new BadgeAnalyticsRecord();
+        record.eventId = event.eventId();
+        record.studentId = event.studentId();
+        record.badgeCode = event.badgeCode();
+        record.badgeName = event.badgeName();
+        record.occurredOn = event.occurredOn();
+        badgeAnalytics.save(record);
+    }
+
+    @RabbitListener(queues = ReportMessagingConfig.CERTIFICATE_ISSUED_QUEUE)
+    void onCertificateIssued(CertificateIssuedEvent event) {
+        if (certificateAnalytics.existsById(event.eventId())) {
+            return;
+        }
+        var record = new CertificateAnalyticsRecord();
+        record.eventId = event.eventId();
+        record.certificateId = event.certificateId();
+        record.studentId = event.studentId();
+        record.certificateType = event.certificateType();
+        record.occurredOn = event.occurredOn();
+        certificateAnalytics.save(record);
+    }
+
     AnalyticsSummary summary(String period) {
         var range = range(period);
         var records = analytics.findByOccurredOnBetweenOrderByOccurredOnDesc(range.from(), range.to());
@@ -74,6 +129,8 @@ class ReportAnalyticsService {
                 allReports.stream().filter(report -> report.status == ReportStatus.OPEN).count(),
                 allReports.stream().filter(report -> report.status == ReportStatus.ACCEPTED).count(),
                 allReports.stream().filter(report -> report.status == ReportStatus.REJECTED).count(),
+                badgeAnalytics.countByOccurredOnBetween(range.from(), range.to()),
+                certificateAnalytics.countByOccurredOnBetween(range.from(), range.to()),
                 actionTypeMetrics(records),
                 studentMetrics(records)
         );
@@ -86,7 +143,10 @@ class ReportAnalyticsService {
                 records.size(),
                 records.stream().filter(this::accepted).count(),
                 records.stream().filter(this::rejected).count(),
-                records.stream().mapToInt(record -> record.points).sum(),
+                rewardSnapshots.findById(studentId).map(snapshot -> snapshot.currentPoints)
+                        .orElseGet(() -> records.stream().mapToInt(record -> record.points).sum()),
+                badgeAnalytics.countByStudentId(studentId),
+                certificateAnalytics.countByStudentId(studentId),
                 reports.findAll().stream().filter(report -> studentId.equals(report.reporterStudentId)).count(),
                 actionTypeMetrics(records)
         );

@@ -21,7 +21,7 @@ import Profile           from './views/Profile.jsx';
 import AdminUsers        from './views/AdminUsers.jsx';
 import Missions          from './views/Missions.jsx';
 import { AdminDashboard, ModeratorDashboard } from './views/RoleDashboard.jsx';
-import { allowedUiRoles } from './utils/accessRules.js';
+import { allowedUiRoles, panelViewsForRole } from './utils/accessRules.js';
 
 /* ── View Titles ─────────────────────────────────────────────── */
 const VIEW_TITLES = {
@@ -70,6 +70,13 @@ function AppInner() {
     }
   }, [user]);
 
+  useEffect(() => {
+    const allowed = new Set([...panelViewsForRole(role), 'more']);
+    if (!allowed.has(activeView)) {
+      setActiveView('dashboard');
+    }
+  }, [role, activeView]);
+
   // Student ID — starts from auth user, but can be changed for viewing other students (admin demo)
   const [studentId, setStudentId] = useState(authStudentId);
   useEffect(() => { setStudentId(authStudentId); }, [authStudentId]);
@@ -108,31 +115,31 @@ function AppInner() {
   }
 
   /* ── Student ID selector only on student-scoped views ── */
-  const showStudentId = role !== 'Admin'
+  const showStudentId = role === 'Student'
     && ['dashboard', 'wallet', 'certificates'].includes(activeView);
 
   const renderView = () => {
     switch (activeView) {
       case 'dashboard':
         if (role === 'Admin') return <AdminDashboard />;
-        if (role === 'Moderator') return <ModeratorDashboard studentId={studentId} onSubmitMission={handleSubmitMission} />;
+        if (role === 'Moderator') return <ModeratorDashboard />;
         return <StudentDashboard studentId={studentId} onSubmitMission={handleSubmitMission} />;
       case 'missions':     return <Missions onSubmitMission={handleSubmitMission} />;
       case 'wallet':       return <WalletBadges studentId={studentId} />;
       case 'leaderboard':  return <Leaderboard studentId={studentId} role={role} />;
       case 'certificates': return <Certificates studentId={studentId} />;
       case 'review':       return <ModeratorReview />;
-      case 'catalog':      return <AdminCatalog />;
+      case 'catalog':      return <AdminCatalog mode={role === 'Moderator' ? 'moderator' : 'admin'} />;
       case 'policy':       return <AdminPolicy />;
       case 'adjust':       return <AdminAdjust />;
-      case 'reports':      return <Reports />;
+      case 'reports':      return <Reports panelRole={role} />;
       case 'profile':      return <Profile />;
       case 'users':        return <AdminUsers />;
       case 'more':         return (
         <div>
           <div className="section-title">More Options</div>
           <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
-            {['review', 'catalog', 'users', 'reports', 'policy', 'adjust', 'certificates', 'leaderboard', 'profile'].map(v => (
+            {panelViewsForRole(role).filter(v => v !== 'dashboard').map(v => (
               <button
                 key={v}
                 className="btn btn-outline w-full"
@@ -195,6 +202,7 @@ function AppInner() {
             toggleTheme={toggleTheme}
             onMenuClick={() => setSidebarOpen(true)}
             onNavigate={setActiveView}
+            panelRole={role}
           />
 
           <main className="app-content" id="main-content">

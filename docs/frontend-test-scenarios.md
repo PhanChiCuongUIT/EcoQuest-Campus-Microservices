@@ -1,6 +1,6 @@
 # EcoQuest Frontend Test Scenarios
 
-Updated: 2026-06-24
+Updated: 2026-06-25
 
 ## Chuẩn bị
 
@@ -28,11 +28,12 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Current automated unit tests: 6/6 pass.
+Current automated unit tests: 7/7 pass.
 
 - student không thấy pending/rejected mission;
 - chỉ active mission được submit;
 - UI role switch tuân theo role inheritance;
+- panel Moderator/Admin không lộ các trang Student;
 - report target options follow Student/Moderator rules;
 - manual point adjustment supports deductions but never a negative wallet;
 - upload validation enforces file type, size, and non-empty content.
@@ -74,7 +75,8 @@ Student:
 
 Moderator:
 
-- chuyển được giữa Student self view và Moderator review;
+- có thể chủ động chuyển sang Student self panel, nhưng Moderator panel không lặp Missions/Wallet/Certificates;
+- Moderator panel chỉ có Dashboard, Review Queue, Reports, Leaderboard, My Mission Catalog, Profile;
 - submit action với `SVMOD001`;
 - không submit thay `SV001`;
 - không approve/reject action của `SVMOD001`;
@@ -84,6 +86,7 @@ Admin:
 
 - thấy Admin và Moderator management view;
 - không có Student submit view;
+- Admin panel chỉ có Dashboard, Catalog, Users, Reports/Analytics, Policy, Adjust Points, Profile;
 - quản lý users/catalog/policy/reward/season;
 - mọi forbidden API phải hiển thị feedback `403`, không giả success.
 
@@ -159,17 +162,35 @@ Admin:
 ### 11. Certificates và reward claim
 
 1. Sau close season, certificate card xuất hiện.
-2. Preview/download trả PDF hợp lệ và mở inline.
-3. Close cùng season không duplicate certificate.
-4. Reward claim thành công một lần và UI hiển thị trạng thái.
+2. Download gọi API bằng bearer token, lưu file PDF attachment; không mở URL protected trực tiếp và không còn Whitelabel `401`.
+3. Render PDF A4 landscape một trang; tên/ID dài không tràn, mô tả và chữ ký không bị cắt.
+4. Close cùng season không duplicate certificate.
+5. Reward claim thành công một lần và UI hiển thị voucher/history.
 
-### 12. Admin user management
+### 12. Notification dropdown và deep navigation
+
+1. Bấm chuông mở danh sách ngay dưới chuông; bấm lần hai hoặc outside-click để đóng.
+2. Mark all read đưa unread count về 0.
+3. Event SSE mới xuất hiện mà không refresh.
+4. Click action notification về Dashboard; badge/wallet/certificate chỉ mở trang Student khi đang ở Student panel.
+5. Mission status notification `/admin-catalog` mở My Mission Catalog/Catalog theo panel.
+6. Report và profile notification mở đúng trang, không rơi vào view bị role guard chặn.
+
+### 13. Admin user management
 
 1. List/search users.
 2. Promote Student -> Moderator, login lại để nhận token role mới.
 3. Set `INACTIVE`/`BANNED`: login bị chặn.
 4. Reactivate: login lại được.
 5. Chỉ user banned mới được delete theo contract hiện tại.
+
+### 14. Dashboard và analytics
+
+1. Student: points, rank, badges, certificates, missions joined; chart trạng thái submit và submit theo mission.
+2. Moderator: pending/accepted/rejected review, open reports, own mission và chart status.
+3. Admin: users theo role, mission lifecycle, action outcomes/types, points, badges, certificates, reports.
+4. Reports weekly/monthly/yearly/all hiển thị `badgesGranted`, `certificatesIssued`.
+5. Student lookup hiển thị points hiện tại, badge count, certificate count.
 
 ## Responsive/mobile
 

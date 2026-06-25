@@ -27,8 +27,9 @@ function Toggle({ checked, onChange, id }) {
 }
 
 // ── Mission Tab ─────────────────────────────────────────────────
-function MissionsTab({ toast }) {
+function MissionsTab({ toast, mode = 'admin' }) {
   const confirm = useConfirm();
+  const isModeratorMode = mode === 'moderator';
   const [items, setItems]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -53,7 +54,9 @@ function MissionsTab({ toast }) {
     const existing = items.some(item => item.id === form.id);
     const accepted = await confirm({
       title: existing ? 'Save mission changes?' : 'Create mission?',
-      message: existing ? `Update ${form.title}.` : `${form.title} will start in PENDING status and require admin approval.`,
+      message: existing
+        ? `Update ${form.title}. It will return to PENDING if you are editing as moderator.`
+        : `${form.title} will start in PENDING status and require admin approval.`,
       confirmLabel: existing ? 'Save changes' : 'Create mission',
     });
     if (!accepted) return;
@@ -89,6 +92,12 @@ function MissionsTab({ toast }) {
 
   return (
     <div>
+      {isModeratorMode && (
+        <AsyncBanner
+          type="info"
+          message="Moderator mission catalog shows only missions created by you. New or edited missions stay PENDING until an admin approves them."
+        />
+      )}
       <div className="flex items-center justify-between mb-4" style={{ gap: 'var(--space-3)' }}>
         <div className="flex items-center gap-2">
           <input className="form-input" style={{ maxWidth: 280 }} placeholder="Search missions…" value={search} onChange={e => setSearch(e.target.value)} />
@@ -176,36 +185,52 @@ function MissionsTab({ toast }) {
                     <td>{m.evidenceRequired ? <Check size={16} color="var(--color-success)" /> : <X size={16} color="var(--color-text-faint)" />}</td>
                     <td>{m.stationRequired ? <Check size={16} color="var(--color-success)" /> : <X size={16} color="var(--color-text-faint)" />}</td>
                     <td>
-                      <select
-                        className="form-select"
-                        value={m.status || 'PENDING'}
-                        onChange={async e => {
-                          const nextStatus = e.target.value;
-                          const accepted = await confirm({
-                            title: 'Change mission status?',
-                            message: `${m.title} will change from ${m.status} to ${nextStatus}.`,
-                            confirmLabel: `Set ${nextStatus}`,
-                            tone: nextStatus === 'REJECTED' || nextStatus === 'CANCELLED' ? 'warning' : 'primary',
-                          });
-                          if (!accepted) return;
-                          try {
-                            await updateMissionStatus(m.id, nextStatus);
-                            toast({ type: 'success', message: `Mission status changed to ${nextStatus}` });
-                            load();
-                          } catch {
-                            toast({ type: 'error', message: 'Failed to change mission status' });
-                          }
-                        }}
-                      >
-                        {['PENDING', 'ACTIVE', 'REJECTED', 'CANCELLED', 'COMPLETED'].map(status => (
-                          <option key={status} value={status}>{status}</option>
-                        ))}
-                      </select>
+                      {isModeratorMode ? (
+                        <span className={`badge ${m.status === 'ACTIVE' ? 'badge-accepted' : m.status === 'REJECTED' ? 'badge-rejected' : 'badge-pending'}`}>
+                          {m.status || 'PENDING'}
+                        </span>
+                      ) : (
+                        <select
+                          className="form-select"
+                          value={m.status || 'PENDING'}
+                          onChange={async e => {
+                            const nextStatus = e.target.value;
+                            const accepted = await confirm({
+                              title: 'Change mission status?',
+                              message: `${m.title} will change from ${m.status} to ${nextStatus}.`,
+                              confirmLabel: `Set ${nextStatus}`,
+                              tone: nextStatus === 'REJECTED' || nextStatus === 'CANCELLED' ? 'warning' : 'primary',
+                            });
+                            if (!accepted) return;
+                            try {
+                              await updateMissionStatus(m.id, nextStatus);
+                              toast({ type: 'success', message: `Mission status changed to ${nextStatus}` });
+                              load();
+                            } catch {
+                              toast({ type: 'error', message: 'Failed to change mission status' });
+                            }
+                          }}
+                        >
+                          {['PENDING', 'ACTIVE', 'REJECTED', 'CANCELLED', 'COMPLETED'].map(status => (
+                            <option key={status} value={status}>{status}</option>
+                          ))}
+                        </select>
+                      )}
                     </td>
                     <td>
                       <div className="table-actions">
-                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setForm({ ...m, stationRequired: m.stationRequired ?? false }); setShowForm(true); }} aria-label="Edit"><Pencil size={14} /></button>
-                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleDelete(m.id)} aria-label="Delete"><Trash2 size={14} color="var(--color-danger)" /></button>
+                        <button
+                          className="btn btn-ghost btn-icon btn-sm"
+                          onClick={() => { setForm({ ...m, stationRequired: m.stationRequired ?? false }); setShowForm(true); }}
+                          aria-label="Edit"
+                          disabled={isModeratorMode && ['ACTIVE', 'CANCELLED', 'COMPLETED'].includes(m.status)}
+                          title={isModeratorMode && ['ACTIVE', 'CANCELLED', 'COMPLETED'].includes(m.status) ? 'Ask an admin to change approved/closed missions.' : 'Edit'}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        {!isModeratorMode && (
+                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleDelete(m.id)} aria-label="Delete"><Trash2 size={14} color="var(--color-danger)" /></button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -473,14 +498,23 @@ function BadgesTab({ toast }) {
 }
 
 // ── Main View ───────────────────────────────────────────────────
-export default function AdminCatalog() {
+export default function AdminCatalog({ mode = 'admin' }) {
   const toast = useToast();
   const [tab, setTab] = useState('missions');
+  const tabs = mode === 'moderator' ? ['missions'] : ['missions', 'stations', 'badges'];
 
   return (
     <div>
+      <div className="page-intro">
+        <div>
+          <h2>{mode === 'moderator' ? 'My Mission Catalog' : 'Catalog Management'}</h2>
+          <p>{mode === 'moderator'
+            ? 'Create and edit your own proposed missions. Admin approval is required before students can submit actions.'
+            : 'Manage missions, stations, and badge definitions owned by Catalog service.'}</p>
+        </div>
+      </div>
       <div className="tabs">
-        {['missions', 'stations', 'badges'].map(t => (
+        {tabs.map(t => (
           <button
             key={t}
             className={`tab-btn${tab === t ? ' active' : ''}`}
@@ -492,7 +526,7 @@ export default function AdminCatalog() {
         ))}
       </div>
 
-      {tab === 'missions'  && <MissionsTab toast={toast} />}
+      {tab === 'missions'  && <MissionsTab toast={toast} mode={mode} />}
       {tab === 'stations'  && <StationsTab toast={toast} />}
       {tab === 'badges'    && <BadgesTab   toast={toast} />}
     </div>

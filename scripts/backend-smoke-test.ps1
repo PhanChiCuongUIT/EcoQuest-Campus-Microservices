@@ -488,6 +488,26 @@ $moderatorOwnPending = Invoke-Api -Method "POST" -Uri "$Gateway/actions/submit" 
 Assert-True ($moderatorOwnPending.status -eq "PENDING_REVIEW") "Moderator should be able to submit their own student action"
 $moderatorSelfApproveStatus = Get-StatusCode -Method "PUT" -Uri "$Gateway/actions/$($moderatorOwnPending.id)/approve"
 Assert-True ($moderatorSelfApproveStatus -eq 403) "Moderator should not approve their own action"
+$moderatorMissionId = "MISSION-MODERATOR-OWN-$runId"
+$moderatorMission = Invoke-Api -Method "POST" -Uri "$Gateway/catalog/missions" -Body @{
+    id = $moderatorMissionId
+    title = "Moderator Owned Mission"
+    actionType = "MODERATOR_OWNED_ACTION"
+    basePoints = 2
+    evidenceRequired = $false
+    stationRequired = $false
+    description = "Mission created by moderator and waiting for admin approval."
+}
+Assert-True ($moderatorMission.status -eq "PENDING") "Moderator-created mission should start as PENDING"
+$moderatorManagedMissions = @(Invoke-ApiList -Uri "$Gateway/catalog/missions?management=true")
+Assert-True (Has-ItemWithValue $moderatorManagedMissions "id" $moderatorMissionId) "Moderator management catalog should include own mission"
+Assert-True (-not (Has-ItemWithValue $moderatorManagedMissions "id" "MISSION-RECYCLE-01")) "Moderator management catalog should not include global/admin missions"
+$script:DefaultHeaders = $adminHeaders
+$adminManagedMissions = @(Invoke-ApiList -Uri "$Gateway/catalog/missions?management=true")
+Assert-True (Has-ItemWithValue $adminManagedMissions "id" $moderatorMissionId) "Admin management catalog should include moderator-created mission"
+$approvedModeratorMission = Invoke-Api -Method "PUT" -Uri "$Gateway/catalog/missions/$moderatorMissionId/status?status=ACTIVE"
+Assert-True ($approvedModeratorMission.status -eq "ACTIVE") "Admin should approve moderator-created mission"
+Assert-True ((Get-StatusCode -Method "DELETE" -Uri "$Gateway/catalog/missions/$moderatorMissionId") -eq 200) "Admin should clean up moderator-owned temp mission"
 $script:DefaultHeaders = $studentAcceptedHeaders
 $studentCloseSeasonStatus = Get-StatusCode -Method "POST" -Uri "$Gateway/leaderboards/seasons/RBAC-DENIED-$runId/close?type=weekly&winners=1"
 Assert-True ($studentCloseSeasonStatus -eq 403) "Student should not close leaderboard seasons"
@@ -696,6 +716,8 @@ $analyticsSummary = Invoke-Api -Uri "$Gateway/reports/analytics/summary?period=w
 Assert-True ($analyticsSummary.acceptedActions -ge 3) "Report analytics should count accepted actions"
 Assert-True ($analyticsSummary.totalPoints -ge 30) "Report analytics should aggregate granted points"
 Assert-True ($null -ne $analyticsSummary.topStudents) "Report analytics contract should expose topStudents for the admin UI"
+Assert-True ($null -ne $analyticsSummary.badgesGranted) "Report analytics should expose badge totals"
+Assert-True ($null -ne $analyticsSummary.certificatesIssued) "Report analytics should expose certificate totals"
 $studentAnalytics = Invoke-Api -Uri "$Gateway/reports/analytics/students/$studentAccepted"
 Assert-True ($studentAnalytics.actionCount -ge 1) "Student analytics should include accepted student's actions"
 Assert-True ($studentAnalytics.totalPoints -ge 10) "Student analytics should include accepted student's points"
@@ -841,7 +863,7 @@ Assert-True ($null -ne $certificate) "Recognition should issue certificate for a
 $download = Invoke-WebRequest -Uri "$Gateway/recognitions/certificates/$($certificate.id)/download" -Headers $script:DefaultHeaders -UseBasicParsing
 Assert-True ($download.StatusCode -eq 200) "Certificate download should return HTTP 200"
 Assert-True ($download.Headers["Content-Type"] -match "application/pdf") "Certificate download should be PDF"
-Assert-True ($download.Headers["Content-Disposition"] -match "inline") "Certificate PDF should be previewable inline"
+Assert-True ($download.Headers["Content-Disposition"] -match "attachment") "Certificate PDF should be returned as a downloadable attachment"
 $claim = Invoke-Api -Method "POST" -Uri "$Gateway/recognitions/rewards/reward-cafe/claim" -Body @{
     studentId = $studentAccepted
     rewardName = "Campus Cafe Voucher"
@@ -854,6 +876,16 @@ Wait-Until -Message "certificate notification" -Attempts 45 -DelaySeconds 2 -Con
     $notifications = @(Invoke-ApiList -Uri "$Gateway/notifications")
     return Has-ItemWithValue $notifications "type" "CERTIFICATE_ISSUED"
 }
+$script:DefaultHeaders = $adminHeaders
+Wait-Until -Message "Report analytics to consume badge and certificate events" -Attempts 45 -DelaySeconds 2 -Condition {
+    $summary = Invoke-Api -Uri "$Gateway/reports/analytics/summary?period=all"
+    $studentSummary = Invoke-Api -Uri "$Gateway/reports/analytics/students/$studentAccepted"
+    return $summary.badgesGranted -ge 1 -and $summary.certificatesIssued -ge 1 `
+        -and $studentSummary.badgeCount -ge 1 -and $studentSummary.certificateCount -ge 1
+}
+$rewardAnalytics = Invoke-Api -Uri "$Gateway/reports/analytics/students/$studentAccepted"
+$currentWallet = Invoke-Api -Uri "$Gateway/rewards/wallets/$studentAccepted"
+Assert-True ($rewardAnalytics.totalPoints -eq $currentWallet.totalPoints) "Student analytics should expose the current Reward wallet total"
 
 if (-not $SkipDockerChecks) {
     Write-Step "Checking RabbitMQ queues are drained"
