@@ -1903,6 +1903,7 @@ img, svg {
 /* ── 40. Certificate UI Frame ────────────────────────────────── */
 .cert-preview-frame {
   box-shadow: var(--shadow-lg);
+  container-type: inline-size;
 }
 .cert-card-v2:hover {
   border-color: var(--color-primary) !important;
@@ -2031,6 +2032,219 @@ img, svg {
 .notification-item.unread .notification-dot { background: var(--color-primary); }
 .notification-item span:last-child { display: grid; gap: 3px; }
 .notification-item small { color: var(--color-text-muted); line-height: 1.4; }
+
+@media (max-width: 767px) {
+  .topbar {
+    gap: 8px;
+    padding: 0 10px;
+  }
+
+  .topbar-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15px;
+  }
+
+  .topbar-controls {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .theme-toggle,
+  .topbar-mobile-menu {
+    width: 34px;
+    height: 34px;
+  }
+
+  .notification-popover,
+  .account-popover {
+    position: fixed;
+    top: calc(var(--topbar-height) + 8px);
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    z-index: 220;
+  }
+
+  .notification-popover {
+    padding: 8px;
+  }
+
+  .notification-popover-header {
+    padding: 7px 6px 9px;
+  }
+
+  .notification-list.compact {
+    max-height: min(420px, calc(100vh - var(--topbar-height) - 34px));
+  }
+
+  .notification-item {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .notification-item strong,
+  .notification-item small {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 767px) and (orientation: portrait) {
+  .cert-preview-backdrop {
+    justify-content: center !important;
+    padding: 10px !important;
+    overflow-y: auto !important;
+  }
+
+  .cert-preview-dialog {
+    max-width: calc(100vw - 20px) !important;
+    gap: 8px !important;
+  }
+
+  .cert-preview-actions {
+    gap: 8px !important;
+    justify-content: space-between !important;
+  }
+
+  .cert-preview-actions .btn {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .cert-preview-frame {
+    border-radius: 9px !important;
+    padding: 4.4% !important;
+  }
+
+  .cert-preview-frame > div[style*="12px"] {
+    inset: 7px !important;
+  }
+
+  .cert-preview-frame > div[style*="16px"] {
+    inset: 10px !important;
+  }
+
+  .cert-preview-org {
+    font-size: clamp(5.5px, 1.8vw, 13px) !important;
+    letter-spacing: clamp(1.1px, 0.75vw, 4px) !important;
+  }
+
+  .cert-preview-org-sub {
+    font-size: clamp(4.5px, 1.4vw, 8px) !important;
+    letter-spacing: clamp(0.8px, 0.5vw, 2px) !important;
+  }
+
+  .cert-preview-rule {
+    width: min(42vw, 200px) !important;
+    margin: 3px auto !important;
+  }
+
+  .cert-preview-eyebrow {
+    font-size: clamp(4.8px, 1.45vw, 9px) !important;
+    letter-spacing: clamp(1px, 0.6vw, 3px) !important;
+  }
+
+  .cert-preview-title {
+    font-size: clamp(12px, 4.7vw, 24px) !important;
+    letter-spacing: 0.4px !important;
+  }
+
+  .cert-preview-presented {
+    font-size: clamp(6px, 1.9vw, 11px) !important;
+    margin-top: 2px !important;
+  }
+
+  .cert-preview-recipient {
+    max-width: 82vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: clamp(18px, 8vw, 42px) !important;
+    margin: 2px 0 !important;
+  }
+
+  .cert-preview-student-id {
+    font-size: clamp(5.5px, 1.7vw, 9px) !important;
+  }
+
+  .cert-preview-description {
+    max-width: 82% !important;
+    font-size: clamp(6.2px, 1.9vw, 12px) !important;
+    line-height: 1.25 !important;
+    margin-top: 1px !important;
+  }
+
+  .cert-preview-stats {
+    width: min(72%, 400px) !important;
+    margin: 2px 0 !important;
+  }
+
+  .cert-preview-stats > div {
+    padding: 2px 3px !important;
+  }
+
+  .cert-preview-stats > div > div:first-child {
+    font-size: clamp(4px, 1.25vw, 7px) !important;
+    letter-spacing: 0.2px !important;
+  }
+
+  .cert-preview-stats > div > div:last-child {
+    font-size: clamp(6px, 2vw, 11px) !important;
+    line-height: 1.05 !important;
+    overflow-wrap: anywhere;
+  }
+
+  .cert-preview-seal {
+    width: 34px !important;
+    height: 41px !important;
+  }
+
+  .cert-preview-registry {
+    max-width: 92px;
+    font-size: clamp(4px, 1.25vw, 7px) !important;
+    line-height: 1.15 !important;
+  }
+
+  .cert-preview-signatures {
+    gap: 6px !important;
+  }
+
+  .cert-preview-signature {
+    width: 70px !important;
+  }
+
+  .cert-preview-signature-script {
+    height: 12px !important;
+    line-height: 12px !important;
+    font-size: 10px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+  }
+
+  .cert-preview-signature-script.formal {
+    font-size: 7.5px !important;
+  }
+
+  .cert-preview-signature-name {
+    font-size: 4.8px !important;
+    line-height: 1.05 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+  }
+
+  .cert-preview-signature-title {
+    font-size: 3.6px !important;
+    line-height: 1.05 !important;
+    letter-spacing: 0 !important;
+  }
+}
 
 .dashboard-chart-grid {
   display: grid;

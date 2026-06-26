@@ -61,6 +61,10 @@ class RecognitionController {
         if (request.rewardName() == null || request.rewardName().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "rewardName is required.");
         }
+        var existing = rewardClaims.findFirstByStudentIdAndRewardIdOrderByClaimedOnDesc(request.studentId(), id);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
         var claim = new RewardClaim();
         claim.id = "CLAIM-" + UUID.randomUUID();
         claim.rewardId = id;

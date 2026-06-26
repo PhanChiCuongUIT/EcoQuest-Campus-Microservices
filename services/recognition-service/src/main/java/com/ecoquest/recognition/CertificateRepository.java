@@ -3,6 +3,7 @@ package com.ecoquest.recognition;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 interface CertificateRepository extends JpaRepository<CertificateRecord, String> {
     List<CertificateRecord> findByStudentIdOrderByIssuedOnDesc(String studentId);
@@ -11,4 +12,5 @@ interface CertificateRepository extends JpaRepository<CertificateRecord, String>
 
 interface RewardClaimRepository extends JpaRepository<RewardClaim, String> {
     List<RewardClaim> findByStudentIdOrderByClaimedOnDesc(String studentId);
+    Optional<RewardClaim> findFirstByStudentIdAndRewardIdOrderByClaimedOnDesc(String studentId, String rewardId);
 }

@@ -974,6 +974,12 @@ $claim = Invoke-Api -Method "POST" -Uri "$Gateway/recognitions/rewards/reward-ca
 }
 Assert-True ($claim.status -eq "ISSUED") "Reward claim should be persisted as ISSUED"
 Assert-True ($claim.voucherCode -like "ECO-*") "Reward claim should generate a voucher code"
+$duplicateClaim = Invoke-Api -Method "POST" -Uri "$Gateway/recognitions/rewards/reward-cafe/claim" -Body @{
+    studentId = $studentAccepted
+    rewardName = "Campus Cafe Voucher"
+}
+Assert-True ($duplicateClaim.id -eq $claim.id) "Duplicate reward claim should return the existing voucher"
+Assert-True ($duplicateClaim.voucherCode -eq $claim.voucherCode) "Duplicate reward claim should keep the original voucher code"
 $claims = @(Invoke-ApiList -Uri "$Gateway/recognitions/rewards/claims/user/$studentAccepted")
 Assert-True (Has-ItemWithValue $claims "id" $claim.id) "Student should see persisted reward claims"
 Wait-Until -Message "certificate notification" -Attempts 45 -DelaySeconds 2 -Condition {

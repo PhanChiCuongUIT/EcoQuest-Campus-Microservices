@@ -281,8 +281,8 @@ class CertificateService {
 
     private static void drawSignatures(PdfContentByte canvas, float x, float y, BaseFont regular,
                                        BaseFont bold, BaseFont signatureFont) {
-        drawSignature(canvas, x, y, "Dr. Elena Vance", "DIR. SUSTAINABILITY", regular, bold, signatureFont);
-        drawSignature(canvas, x + 145, y, "Prof. Marcus Thorne", "ACADEMIC AFFAIRS", regular, bold, signatureFont);
+        drawSignature(canvas, x, y, "University Representative", "UNIVERSITY REPRESENTATIVE", regular, bold, signatureFont);
+        drawSignature(canvas, x + 145, y, "Phan Chi Cuong", "ECOQUEST APPLICATION REPRESENTATIVE", regular, bold, signatureFont);
     }
 
     private static void drawSignature(PdfContentByte canvas, float x, float y, String name, String title,
@@ -294,7 +294,7 @@ class CertificateService {
         canvas.lineTo(x + 100, y + 18);
         canvas.stroke();
         drawCentered(canvas, bold, 8, DARK, name, x + 50, y + 6, 0);
-        drawCentered(canvas, regular, 6, LIGHT_MUTED, title, x + 50, y - 5, 0);
+        drawFittedCentered(canvas, regular, 6, 4.8f, LIGHT_MUTED, title, x + 50, y - 5, 128);
     }
 
     private static void drawWrappedCentered(PdfContentByte canvas, BaseFont font, float size, Color color,

@@ -38,16 +38,16 @@ function CertPreviewModal({ cert, user, onClose, onPrint }) {
   const typeLabel = cert.certificateType === 'WEEKLY' ? 'Weekly' : cert.certificateType === 'MONTHLY' ? 'Monthly' : cert.certificateType;
 
   return (
-    <div style={{
+    <div className="cert-preview-backdrop" style={{
       position: 'fixed', inset: 0, background: 'rgba(13,33,26,0.85)', backdropFilter: 'blur(6px)',
       zIndex: 500, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24,
       animation: 'fadeIn 200ms ease',
     }} onClick={onClose}>
-      <div style={{ maxWidth: 840, width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}
+      <div className="cert-preview-dialog" style={{ maxWidth: 840, width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}
         onClick={e => e.stopPropagation()}>
 
         {/* Actions bar */}
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', alignItems: 'center' }}>
+        <div className="cert-preview-actions" style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', alignItems: 'center' }}>
           <button className="btn btn-primary btn-sm" onClick={onPrint} style={{ boxShadow: '0 4px 12px rgba(28,124,84,0.3)' }}>
             <Printer size={14} /> Print / Save PDF
           </button>
@@ -99,9 +99,9 @@ function CertPreviewModal({ cert, user, onClose, onPrint }) {
           <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center', zIndex: 5 }}>
             {/* Header */}
             <div>
-              <div style={{ fontFamily: 'Cinzel, serif', fontSize: 13, fontWeight: 700, color: '#1C7C54', letterSpacing: 4, textTransform: 'uppercase' }}>EcoQuest Campus Initiative</div>
-              <div style={{ fontSize: 8, color: '#7A8F82', letterSpacing: 2, textTransform: 'uppercase', fontWeight: 600, marginTop: 2 }}>Sustainability & Stewardship Board</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px auto', width: 200 }}>
+              <div className="cert-preview-org" style={{ fontFamily: 'Cinzel, serif', fontSize: 13, fontWeight: 700, color: '#1C7C54', letterSpacing: 4, textTransform: 'uppercase' }}>EcoQuest Campus Initiative</div>
+              <div className="cert-preview-org-sub" style={{ fontSize: 8, color: '#7A8F82', letterSpacing: 2, textTransform: 'uppercase', fontWeight: 600, marginTop: 2 }}>Sustainability & Stewardship Board</div>
+              <div className="cert-preview-rule" style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px auto', width: 200 }}>
                 <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, #C59B27, transparent)' }} />
                 <div style={{ fontSize: 8, color: '#C59B27' }}>★</div>
                 <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, #C59B27, transparent)' }} />
@@ -110,20 +110,20 @@ function CertPreviewModal({ cert, user, onClose, onPrint }) {
 
             {/* Core titles */}
             <div style={{ margin: '4px 0' }}>
-              <div style={{ fontFamily: 'Cinzel, serif', fontSize: 9, letterSpacing: 3, textTransform: 'uppercase', color: '#7A8F82', fontWeight: 600 }}>Certificate of Excellence</div>
-              <div style={{ fontFamily: 'Cinzel, serif', fontSize: 24, fontWeight: 800, color: '#1A2E22', letterSpacing: 1, marginTop: 1 }}>Sustainability Award</div>
-              <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 11, fontStyle: 'italic', color: '#5A6E62', marginTop: 4 }}>This certificate is proudly presented to</div>
-              <div style={{ fontFamily: 'Alex Brush, cursive', fontSize: 42, color: '#1C7C54', margin: '4px 0', lineHeight: 1 }}>{recipientName}</div>
-              <div style={{ fontSize: 9, color: '#7A8F82', fontFamily: 'monospace' }}>Student ID: {cert.studentId}</div>
+              <div className="cert-preview-eyebrow" style={{ fontFamily: 'Cinzel, serif', fontSize: 9, letterSpacing: 3, textTransform: 'uppercase', color: '#7A8F82', fontWeight: 600 }}>Certificate of Excellence</div>
+              <div className="cert-preview-title" style={{ fontFamily: 'Cinzel, serif', fontSize: 24, fontWeight: 800, color: '#1A2E22', letterSpacing: 1, marginTop: 1 }}>Sustainability Award</div>
+              <div className="cert-preview-presented" style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 11, fontStyle: 'italic', color: '#5A6E62', marginTop: 4 }}>This certificate is proudly presented to</div>
+              <div className="cert-preview-recipient" style={{ fontFamily: 'Alex Brush, cursive', fontSize: 42, color: '#1C7C54', margin: '4px 0', lineHeight: 1 }}>{recipientName}</div>
+              <div className="cert-preview-student-id" style={{ fontSize: 9, color: '#7A8F82', fontFamily: 'monospace' }}>Student ID: {cert.studentId}</div>
             </div>
 
             {/* Description */}
-            <p style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 12, color: '#4A5E51', maxWidth: 620, margin: '4px auto 0', lineHeight: 1.5 }}>
+            <p className="cert-preview-description" style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 12, color: '#4A5E51', maxWidth: 620, margin: '4px auto 0', lineHeight: 1.5 }}>
               For outstanding commitment and environmental contributions during the <strong>{typeLabel} {seasonLabel}</strong> season, finishing in <strong>{rank}{rankSuffix} Place</strong> on the leaderboard and accumulating <strong>{Number(cert.points).toLocaleString()} green points</strong> for campus sustainability actions.
             </p>
 
             {/* Stats block */}
-            <div style={{ display: 'flex', border: '1px solid rgba(28,124,84,0.15)', background: 'rgba(28,124,84,0.02)', borderRadius: 4, overflow: 'hidden', width: 400, margin: '6px 0' }}>
+            <div className="cert-preview-stats" style={{ display: 'flex', border: '1px solid rgba(28,124,84,0.15)', background: 'rgba(28,124,84,0.02)', borderRadius: 4, overflow: 'hidden', width: 400, margin: '6px 0' }}>
               {[
                 { l: 'Season', v: seasonLabel },
                 { l: 'Type', v: typeLabel },
@@ -140,7 +140,7 @@ function CertPreviewModal({ cert, user, onClose, onPrint }) {
             {/* Bottom Signature & Seal Row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%', marginTop: 4 }}>
               {/* SVG Gold Seal */}
-              <svg width="56" height="66" viewBox="0 0 100 120" style={{ filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.12))' }}>
+              <svg className="cert-preview-seal" width="56" height="66" viewBox="0 0 100 120" style={{ filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.12))' }}>
                 <defs>
                   <linearGradient id="modalGold" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stop-color="#FFE57F" />
@@ -159,25 +159,25 @@ function CertPreviewModal({ cert, user, onClose, onPrint }) {
               </svg>
 
               {/* Central Metadata */}
-              <div style={{ fontSize: 7, color: '#9AAFA2', lineHeight: 1.4 }}>
+              <div className="cert-preview-registry" style={{ fontSize: 7, color: '#9AAFA2', lineHeight: 1.4 }}>
                 Registry: ECOQUEST BLOCKCHAIN LEDGER<br/>
                 ID: {cert.id?.slice(0, 18)}...<br/>
                 Issued: {dateStr}
               </div>
 
               {/* Cursive Signatures */}
-              <div style={{ display: 'flex', gap: 24 }}>
-                <div style={{ width: 100, textAlign: 'center' }}>
-                  <div style={{ fontFamily: 'Alex Brush, cursive', fontSize: 16, color: '#1A2E22', height: 18, lineHeight: 1.2 }}>Dr. Elena Vance</div>
+              <div className="cert-preview-signatures" style={{ display: 'flex', gap: 20, alignItems: 'flex-end' }}>
+                <div className="cert-preview-signature" style={{ width: 126, textAlign: 'center' }}>
+                  <div className="cert-preview-signature-script formal" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontStyle: 'italic', fontSize: 11, color: '#1A2E22', height: 18, lineHeight: '18px', whiteSpace: 'nowrap' }}>University Representative</div>
                   <div style={{ height: 1, background: '#C59B27', margin: '2px 0' }} />
-                  <div style={{ fontSize: 7, fontWeight: 700, color: '#1A2E22' }}>Dr. Elena Vance</div>
-                  <div style={{ fontSize: 6, color: '#7A8F82', textTransform: 'uppercase' }}>Dir. Sustainability</div>
+                  <div className="cert-preview-signature-name" style={{ fontSize: 7, fontWeight: 700, color: '#1A2E22', lineHeight: 1.15 }}>University Representative</div>
+                  <div className="cert-preview-signature-title" style={{ fontSize: 5, color: '#7A8F82', textTransform: 'uppercase', lineHeight: 1.15 }}>University Representative</div>
                 </div>
-                <div style={{ width: 100, textAlign: 'center' }}>
-                  <div style={{ fontFamily: 'Alex Brush, cursive', fontSize: 15, color: '#1A2E22', height: 18, lineHeight: 1.2 }}>Prof. M. Thorne</div>
+                <div className="cert-preview-signature" style={{ width: 126, textAlign: 'center' }}>
+                  <div className="cert-preview-signature-script" style={{ fontFamily: 'Alex Brush, cursive', fontSize: 16, color: '#1A2E22', height: 18, lineHeight: '18px', whiteSpace: 'nowrap' }}>Phan Chi Cuong</div>
                   <div style={{ height: 1, background: '#C59B27', margin: '2px 0' }} />
-                  <div style={{ fontSize: 7, fontWeight: 700, color: '#1A2E22' }}>Prof. Marcus Thorne</div>
-                  <div style={{ fontSize: 6, color: '#7A8F82', textTransform: 'uppercase' }}>Academic Affairs</div>
+                  <div className="cert-preview-signature-name" style={{ fontSize: 7, fontWeight: 700, color: '#1A2E22', lineHeight: 1.15 }}>Phan Chi Cuong</div>
+                  <div className="cert-preview-signature-title" style={{ fontSize: 4.8, color: '#7A8F82', textTransform: 'uppercase', lineHeight: 1.15 }}>EcoQuest Application Representative</div>
                 </div>
               </div>
             </div>
@@ -299,7 +299,8 @@ function CertCard({ cert, user, onPreview, onDownload }) {
 }
 
 /* ── Rewards Section ─────────────────────────────────────────── */
-function RewardItem({ reward, onClaim, claiming }) {
+function RewardItem({ reward, onClaim, claiming, claim }) {
+  const alreadyClaimed = Boolean(claim);
   return (
     <div style={{
       borderRadius: 'var(--radius-xl)',
@@ -339,9 +340,9 @@ function RewardItem({ reward, onClaim, claiming }) {
             border: 'none',
           }}
           onClick={() => onClaim(reward.id, reward.name)}
-          disabled={claiming[reward.id]}
+          disabled={claiming[reward.id] || alreadyClaimed}
         >
-          {claiming[reward.id] ? 'Claiming…' : '✓ Redeem Coupon'}
+          {claiming[reward.id] ? 'Claiming...' : alreadyClaimed ? `Issued: ${claim.voucherCode}` : 'Redeem Coupon'}
         </button>
       </div>
     </div>
@@ -388,8 +389,8 @@ export default function Certificates({ studentId }) {
     setClaiming(prev => ({ ...prev, [rewardId]: true }));
     try {
       const claim = await claimReward(rewardId, studentId, rewardName);
-      setClaims(items => [claim, ...items]);
-      toast({ type: 'success', message: 'Reward voucher issued', sub: `Voucher code: ${claim.voucherCode}` });
+      setClaims(items => [claim, ...items.filter(item => item.id !== claim.id)]);
+      toast({ type: 'success', message: 'Reward voucher ready', sub: `Voucher code: ${claim.voucherCode}` });
     } catch {
       toast({ type: 'error', message: 'Redemption failed', sub: 'Please try again later.' });
     } finally { setClaiming(prev => { const n = { ...prev }; delete n[rewardId]; return n; }); }
@@ -495,7 +496,13 @@ export default function Certificates({ studentId }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
             {DEMO_REWARDS.map(r => (
-              <RewardItem key={r.id} reward={r} onClaim={handleClaim} claiming={claiming} />
+              <RewardItem
+                key={r.id}
+                reward={r}
+                onClaim={handleClaim}
+                claiming={claiming}
+                claim={claims.find(item => item.rewardId === r.id)}
+              />
             ))}
           </div>
 
