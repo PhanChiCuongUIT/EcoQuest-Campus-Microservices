@@ -283,11 +283,12 @@ export function printCertificate(cert) {
     /* Signatures */
     .signature-container {
       display: flex;
-      gap: 50px;
+      gap: 36px;
+      align-items: flex-end;
     }
     .sig-box {
       text-align: center;
-      width: 150px;
+      width: 190px;
     }
     .sig-handwritten {
       font-family: 'Alex Brush', cursive;
@@ -297,6 +298,16 @@ export function printCertificate(cert) {
       line-height: 30px;
       opacity: 0.85;
       transform: rotate(-2deg);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: clip;
+    }
+    .sig-handwritten--formal {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-style: italic;
+      font-size: 18px;
+      transform: none;
+      letter-spacing: 0.2px;
     }
     .sig-line {
       width: 100%;
@@ -308,12 +319,14 @@ export function printCertificate(cert) {
       font-size: 10px;
       font-weight: 700;
       color: #1A2E22;
+      line-height: 1.2;
     }
     .sig-title {
-      font-size: 8px;
+      font-size: 7px;
       color: #7A8F82;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      line-height: 1.15;
     }
 
     /* Registry metadata */
@@ -442,16 +455,16 @@ export function printCertificate(cert) {
         <!-- Signature blocks -->
         <div class="signature-container">
           <div class="sig-box">
-            <div class="sig-handwritten" style="font-family: 'Alex Brush', cursive;">Dr. Elena Vance</div>
+            <div class="sig-handwritten sig-handwritten--formal">University Representative</div>
             <div class="sig-line"></div>
-            <div class="sig-name">Dr. Elena Vance</div>
-            <div class="sig-title">Director of Sustainability</div>
+            <div class="sig-name">University Representative</div>
+            <div class="sig-title">University Representative</div>
           </div>
           <div class="sig-box">
-            <div class="sig-handwritten" style="font-family: 'Alex Brush', cursive; font-size: 23px;">Prof. M. Thorne</div>
+            <div class="sig-handwritten" style="font-family: 'Alex Brush', cursive; font-size: 24px;">Phan Chi Cuong</div>
             <div class="sig-line"></div>
-            <div class="sig-name">Prof. Marcus Thorne</div>
-            <div class="sig-title">Office of Academic Affairs</div>
+            <div class="sig-name">Phan Chi Cuong</div>
+            <div class="sig-title">EcoQuest Application Representative</div>
           </div>
         </div>
       </div>

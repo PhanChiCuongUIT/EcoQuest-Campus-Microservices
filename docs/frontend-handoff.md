@@ -16,7 +16,7 @@ Backend hiện có **9 microservices**:
 | Verification Policy | direct `:8090`, gRPC `:9090` | PostgreSQL `policy_db` | Policy admin direct local; Action gọi gRPC nội bộ |
 | Reward Ledger | `/rewards/**` | PostgreSQL `reward_db` | Wallet, transactions, badges, adjustment |
 | Leaderboard | `/leaderboards/**` | Redis, PostgreSQL `leaderboard_db` | Weekly/monthly rank, season snapshots |
-| Recognition | `/recognitions/**` | PostgreSQL `recognition_db`, MinIO | Certificates, reward claim |
+| Recognition | `/recognitions/**` | PostgreSQL `recognition_db`, MinIO | Certificates, idempotent reward claim vouchers |
 | Report | `/reports/**` | PostgreSQL `report_db`, MinIO | User reports, moderation, evidence upload, analytics |
 | Notification | `/notifications/**` | PostgreSQL `notification_db` | Inbox, read state, SSE, event consumers |
 
@@ -584,7 +584,7 @@ Already expected or implemented:
 4. Wallet & Badges: total points, transactions, point badges, count badges.
 5. Leaderboard: weekly/monthly tabs, rank lookup, close season for Admin.
 6. Moderator Review: queue/history, search/filter, evidence preview, approve/reject, own-action disabled.
-7. Certificates: cards, preview, PDF download, reward claim.
+7. Certificates: cards, preview, authenticated PDF download, reward claim. Fixed reward claims are idempotent per `studentId + rewardId`: duplicate claim returns the existing voucher and should be rendered as already issued.
 8. Admin Catalog: mission CRUD/status workflow, station image upload/preview, badge CRUD.
 9. Admin Policy: direct local policy rules.
 10. Profile: display name/avatar upload.
@@ -616,4 +616,5 @@ Last verified on 2026-06-26:
 - RabbitMQ exposes 18 queues; all drained to 0 messages with one consumer after smoke.
 - Frontend unit tests after latest UI/API changes: 9/9 pass.
 - Policy rule creation uses a modal overlay; dashboards render partial data while a backend service is warming up; Identity emails attach the real EcoQuest logo inline by CID.
+- Recognition certificate PDF download and duplicate reward claim idempotency are covered by backend smoke.
 - Frontend production build after latest UI/API changes: pass.

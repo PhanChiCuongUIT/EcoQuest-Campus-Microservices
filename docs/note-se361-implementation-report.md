@@ -48,7 +48,7 @@ Tài liệu này đối chiếu project với file `Note SE361 - Microservices (
 | 29 | Student/Moderator có desktop và mobile web | Đã có | Responsive shell dùng sidebar desktop và bottom nav mobile cho Student/Moderator. |
 | 30 | Admin chỉ cần desktop web | Đã có | Admin dùng desktop/admin shell, không ép bottom nav mobile. |
 | 31 | User Management search/lọc/phân quyền/status/delete | Đã có | `AdminUsers.jsx` hỗ trợ search/filter, role, status, delete theo rule. |
-| 32 | Redeem Sustainability Rewards bị lỗi | Đã sửa | Đây là luồng đổi thành tích thành voucher demo. Recognition lưu claim/voucher và frontend hiển thị mã/trạng thái/lịch sử. |
+| 32 | Redeem Sustainability Rewards bị lỗi | Đã sửa | Đây là luồng đổi thành tích thành voucher demo. Recognition lưu claim/voucher và frontend hiển thị mã/trạng thái/lịch sử. Claim cùng `studentId + rewardId` là idempotent: bấm lại trả về voucher cũ, không phát mã mới. |
 | 33 | Moderator thêm/edit mission của mình, pending chờ admin | Đã có | Mission mới luôn `PENDING`; management API của Moderator chỉ trả mission do chính user đó tạo; Admin mới được duyệt status. |
 | 34 | Admin có trang báo cáo tuần/tháng/năm | Đã có | Summary, action types, top students, điểm, badge, certificate và student lookup được dựng từ read model RabbitMQ riêng của Report service. |
 | 35 | Student/Moderator có trang report | Đã có | Reports page cho Student/Moderator tạo report và xem mine/queue theo vai trò. |
@@ -63,7 +63,7 @@ Tài liệu này đối chiếu project với file `Note SE361 - Microservices (
 | 44 | Admin chưa có báo cáo | Đã có | Admin có trang Reports cho workflow vi phạm/nội dung và trang Analytics riêng cho báo cáo hệ thống. |
 | 45 | PDF bị Whitelabel 401, cần tải đúng định dạng | Đã sửa | Frontend gọi Axios blob kèm bearer token, backend trả attachment; smoke kiểm HTTP 200, `application/pdf`, disposition và PDF A4 ngang. |
 | 46 | Email xác nhận/reset/status cần UI đẹp, logo và link hoạt động | Đã sửa | HTML mail branded cho verify/reset/ACTIVE/INACTIVE/BANNED; có reason, support, CTA và fallback URL. Frontend deep-link verify/reset đã hoạt động. |
-| 47 | Giải thích Redeem Sustainability Rewards | Đã làm rõ | Đây là demo redemption: Student dùng recognition để nhận voucher/coupon; claim lưu ở Recognition DB, không phải đổi certificate thành tiền. |
+| 47 | Giải thích Redeem Sustainability Rewards | Đã làm rõ | Đây là demo redemption: Student dùng Recognition để nhận voucher/coupon; claim lưu ở Recognition DB, không phải đổi certificate thành tiền. Fixed reward chỉ phát một voucher cho mỗi student/reward; custom reward có thể dùng rewardId riêng nếu muốn tạo quyền lợi khác. |
 | 48 | Tách menu Student/Moderator/Admin và ownership mission Moderator | Đã sửa | Menu panel không trùng chức năng Student; Moderator chỉ quản lý mission của mình; mission chờ Admin duyệt; backend smoke kiểm boundary. |
 | 49 | Submit Action và Catalog CRUD | Đã kiểm chứng | Smoke kiểm draft, upload, accepted/pending/rejected, idempotency, daily limit; Catalog mission/station/badge create-update-delete và status workflow. |
 | 50 | Notification realtime phải là dropdown và điều hướng đúng | Đã sửa | Popover dưới chuông, toggle, outside-click, mark all read; map action/wallet/certificate/catalog/report/profile theo panel hợp lệ. |
@@ -129,7 +129,7 @@ Các luồng đã/đang được kiểm bởi `scripts/backend-smoke-test.ps1`:
 - Reward ledger, badge, leaderboard weekly/monthly, close season.
 - Recognition certificate generation và PDF download `application/pdf`.
 - Certificate download bắt buộc JWT nhưng frontend tải blob đúng cách; response là attachment.
-- Reward claim/voucher.
+- Reward claim/voucher và duplicate claim idempotency.
 - Notification inbox/SSE-backed read model.
 - Report analytics nhận action, points snapshot, badge, certificate, mission và user registration events mà không đọc DB chéo.
 - Admin analytics export PDF `application/pdf` attachment cho kỳ hiện tại hoặc kỳ được chọn trong quá khứ.
@@ -143,6 +143,13 @@ Các luồng đã/đang được kiểm bởi `scripts/backend-smoke-test.ps1`:
 - Report target lookup: frontend không cần nhập Target ID thủ công cho USER/MISSION/ACTION.
 - Seed data: mission >=10, submit action >=20, policy rule >=12, demo SV001 actions.
 - RabbitMQ queue drain.
+
+## Kiểm Tra Bổ Sung Certificate Và Coupon Ngày 26/06/2026
+
+- Certificate: Recognition service consume `LeaderboardSeasonClosedEvent`, tạo metadata trong `recognition_db`, render PDF A4 ngang, upload MinIO và trả download `application/pdf` qua endpoint có JWT. Close cùng `seasonId` không tạo trùng certificate vì backend kiểm `seasonId + studentId`.
+- Coupon/voucher: Recognition service sở hữu bảng `reward_claims`. `POST /recognitions/rewards/{id}/claim` kiểm quyền self/admin, validate `studentId` và `rewardName`, sau đó trả claim `ISSUED` với mã `ECO-...`.
+- Bug đã sửa: trước đây bấm lại cùng reward có thể phát thêm voucher mới. Hiện backend trả lại claim cũ theo `studentId + rewardId`; frontend disable reward đã claim và hiển thị `Issued: <voucherCode>`.
+- Kiểm chứng: `scripts/backend-smoke-test.ps1` đã thêm assertion duplicate claim giữ nguyên `id` và `voucherCode`; smoke full stack PASS ngày 26/06/2026.
 
 Frontend đã có:
 

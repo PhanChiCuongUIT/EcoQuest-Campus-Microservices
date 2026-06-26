@@ -166,7 +166,8 @@ Admin:
 2. Download gọi API bằng bearer token, lưu file PDF attachment; không mở URL protected trực tiếp và không còn Whitelabel `401`.
 3. Render PDF A4 landscape một trang; tên/ID dài không tràn, mô tả và chữ ký không bị cắt.
 4. Close cùng season không duplicate certificate.
-5. Reward claim thành công một lần và UI hiển thị voucher/history.
+5. Reward claim thành công và UI hiển thị voucher/history.
+6. Bấm lại cùng fixed reward không phát thêm voucher mới; backend trả lại claim cũ và UI hiển thị `Issued: <voucherCode>`.
 
 ### 12. Notification dropdown và deep navigation
 
