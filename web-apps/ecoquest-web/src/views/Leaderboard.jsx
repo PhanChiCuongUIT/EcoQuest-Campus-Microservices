@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { BarChart3, Search, AlertTriangle, Trophy, RefreshCw, Crown, Medal, Zap, X } from 'lucide-react';
 import EmptyState from '../components/EmptyState.jsx';
 import AsyncBanner from '../components/AsyncBanner.jsx';
@@ -7,6 +7,7 @@ import {
   getWeeklyLeaderboard, getMonthlyLeaderboard,
   getStudentRank, closeSeason,
 } from '../api/ecoquestApi.js';
+import { buildLeaderboardPeriodOptions, periodParamsFromKey } from '../utils/leaderboardPeriods.js';
 
 /* ── Rank medal helpers ──────────────────────────────────────── */
 const RANK_META = {
@@ -101,6 +102,17 @@ export default function Leaderboard({ studentId, role }) {
   const [error, setError]       = useState(null);
   const [asyncBanner, setAsyncBanner] = useState(false);
   const [myRank, setMyRank]     = useState(null);
+  const [periodKey, setPeriodKey] = useState('');
+  const periodOptions = useMemo(() => buildLeaderboardPeriodOptions(tab), [tab]);
+  const selectedPeriodKey = periodKey || periodOptions[0]?.key || '';
+  const periodParams = useMemo(
+    () => periodParamsFromKey(tab, selectedPeriodKey),
+    [tab, selectedPeriodKey],
+  );
+
+  useEffect(() => {
+    setPeriodKey(periodOptions[0]?.key || '');
+  }, [tab, periodOptions]);
 
   // Admin close season state
   const today = new Date().toISOString().slice(0, 10);
@@ -114,24 +126,24 @@ export default function Leaderboard({ studentId, role }) {
     setLoading(true); setError(null);
     try {
       const data = tab === 'weekly'
-        ? await getWeeklyLeaderboard(20)
-        : await getMonthlyLeaderboard(20);
+        ? await getWeeklyLeaderboard(20, periodParams)
+        : await getMonthlyLeaderboard(20, periodParams);
       setBoard(data);
       // Also load current user rank
       if (studentId) {
-        const r = await getStudentRank(studentId, tab).catch(() => null);
+        const r = await getStudentRank(studentId, tab, periodParams).catch(() => null);
         setMyRank(r);
       }
     } catch {
       setError('Could not load leaderboard. Make sure Leaderboard service is running.');
     } finally { setLoading(false); }
-  }, [tab, studentId]);
+  }, [tab, studentId, periodParams]);
 
   useEffect(() => { loadBoard(); }, [loadBoard]);
 
   const handleLookup = async () => {
     try {
-      const r = await getStudentRank(lookupId, tab);
+      const r = await getStudentRank(lookupId, tab, periodParams);
       setLookupResult(r);
     } catch {
       setLookupResult({ rank: null, score: null });
@@ -224,6 +236,19 @@ export default function Leaderboard({ studentId, role }) {
         >
           <RefreshCw size={13} /> <span style={{ fontSize: 12 }}>Refresh</span>
         </button>
+      </div>
+      <div className="leaderboard-period-bar">
+        <label className="form-label" htmlFor="leaderboard-period">Reporting period</label>
+        <select
+          id="leaderboard-period"
+          className="form-select"
+          value={selectedPeriodKey}
+          onChange={event => setPeriodKey(event.target.value)}
+        >
+          {periodOptions.map(option => (
+            <option key={option.key} value={option.key}>{option.label}</option>
+          ))}
+        </select>
       </div>
 
       {error && <AsyncBanner type="warning" message={error} />}

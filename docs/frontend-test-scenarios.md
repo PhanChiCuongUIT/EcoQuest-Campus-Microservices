@@ -28,7 +28,7 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Current automated unit tests: 9/9 pass.
+Current automated unit tests: 12/12 pass.
 
 - student không thấy pending/rejected mission;
 - chỉ active mission được submit;
@@ -128,7 +128,9 @@ Admin:
 4. Sau 10 recycle accepted, `RECYCLING_HERO` xuất hiện.
 5. Weekly/monthly tabs tải đúng.
 6. Current user row/rank lookup đúng.
-7. Admin close cùng `seasonId` hai lần không duplicate snapshot.
+7. Chọn reporting period của weekly/monthly: current week/month có dữ liệu, previous week/month trong cùng năm cũng có dữ liệu; không cần nhập key thủ công.
+8. Rank lookup dùng đúng kỳ đang chọn, không luôn luôn lấy kỳ hiện tại.
+9. Admin close cùng `seasonId` hai lần không duplicate snapshot.
 
 ### 8. Moderator review
 
@@ -153,12 +155,15 @@ Admin:
 
 ### 10. Notifications
 
-1. Accepted/rejected action tạo notification đúng student.
-2. Badge/certificate event tạo notification.
-3. Mark one read và read-all cập nhật count.
-4. User không mark-read notification của người khác.
-5. SSE dùng native `EventSource('/notifications/stream?accessToken=...')`; khi có notification mới, unread count tăng mà không cần refresh.
-6. Mission status changed, report created/reviewed, user reported và user status changed đều tạo notification đúng recipient/role.
+1. Sau reset seed sạch, Student thấy `WELCOME`, `MISSION_REMINDER`, `BADGE_UNLOCKED`, `CERTIFICATE_ISSUED`.
+2. Moderator thấy `REVIEW_QUEUE_READY`, `REPORT_CREATED`, `MISSION_STATUS_CHANGED`.
+3. Admin thấy `ADMIN_DAILY_DIGEST`, `POLICY_REVIEW`, `USER_STATUS_CHANGED`.
+4. Mark one read và read-all cập nhật count.
+5. User không mark-read notification của người khác.
+6. Accepted/rejected action tạo notification đúng student.
+7. Badge/certificate event tạo notification.
+8. SSE dùng native `EventSource('/notifications/stream?accessToken=...')`; khi có notification mới, unread count tăng mà không cần refresh.
+9. Mission status changed, report created/reviewed, user reported và user status changed đều tạo notification đúng recipient/role.
 
 ### 11. Certificates và coupon claim
 
@@ -250,7 +255,7 @@ Test tối thiểu ở `390x844`, `768x1024`, `1440x900`:
 - modal/drawer scroll được và nút action luôn tiếp cận được;
 - bảng review/catalog chuyển layout phù hợp;
 - text/button không bị cắt;
-- light/dark đều đạt tương phản;
+- light/dark đều đạt tương phản, đặc biệt các search bar, select, student picker, target picker và form input không còn nền trắng/chữ nhạt trong dark theme;
 - evidence/certificate mở được trên mobile thật qua `http://<LAN-IP>:3000`.
 
 ## Playwright nên bổ sung

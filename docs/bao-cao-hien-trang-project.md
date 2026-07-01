@@ -17,7 +17,7 @@ Backend hiện có 9 microservice, mỗi service có database hoặc storage ri�
 | Eco Action | Draft Redis, evidence upload, submit action, idempotency, moderator review, outbox | MongoDB `action_db`, Redis, MinIO evidence |
 | Verification Policy | Rule policy, daily limit, evidence/station requirement, gRPC evaluation | PostgreSQL `policy_db` |
 | Reward Ledger | Wallet, transaction, badge achievement, adjust points có audit | PostgreSQL `reward_db` |
-| Leaderboard | Weekly/monthly ranking, close season, snapshot winner | Redis, PostgreSQL `leaderboard_db` |
+| Leaderboard | Weekly/monthly ranking theo kỳ, xem tuần/tháng cũ trong năm, close season, snapshot winner | Redis, PostgreSQL `leaderboard_db` |
 | Recognition | Certificate PDF, reward offer catalog, coupon eligibility/claim voucher | PostgreSQL `recognition_db`, MinIO certificate |
 | Report | User/mission/action report, report evidence, analytics read model, PDF export | PostgreSQL `report_db`, MinIO report evidence |
 | Notification | Inbox, mark read/read all, SSE realtime, event notification | PostgreSQL `notification_db` |
@@ -70,12 +70,13 @@ Gateway chỉ route API, CORS và correlation ID. Gateway không chứa nghiệp
 
 Sau `docker compose down -v` và `docker compose up -d --build`, hệ thống seed dữ liệu demo sạch:
 
-- 10 demo users: 8 student, 1 moderator, 1 admin.
-- 12 mission, 7 station, 6 badge definition.
-- 12 policy rule.
-- Ít nhất 24 submit action ở nhiều mốc tuần/tháng/năm.
+- 12 demo users: 10 student, 1 moderator, 1 admin.
+- 15 mission, 7 station, 6 badge definition.
+- 15 policy rule.
+- Ít nhất 36 submit action ở tuần/tháng hiện tại và nhiều mốc tuần/tháng/năm.
 - Wallet, transaction, badge achievement, leaderboard, certificate, report và analytics read model.
 - Reward offer/coupon: cafe voucher, library extension, eco kit, merch coupon với điều kiện và stock khác nhau.
+- Notification inbox: Student có 4 thông báo mẫu, Moderator có 3 thông báo mẫu, Admin có 3 thông báo mẫu; notification mới vẫn được tạo thật từ RabbitMQ events khi submit action, unlock badge, issue certificate, tạo/review report, đổi mission/user status.
 
 Demo accounts:
 
@@ -91,7 +92,7 @@ Demo accounts:
 - Spring Cloud Gateway.
 - PostgreSQL database-per-service.
 - MongoDB cho action document/outbox.
-- Redis cho draft, idempotency và leaderboard sorted set.
+- Redis cho draft, idempotency và leaderboard sorted set theo kỳ `weekly:YYYY-Www`, `monthly:YYYY-MM`.
 - RabbitMQ event-driven architecture với 20 queue.
 - MinIO object storage cho avatar, station image, action evidence, report evidence, certificate PDF.
 - gRPC cho Action -> Policy.
@@ -106,10 +107,11 @@ Ngày 01/07/2026:
 
 - Maven targeted reactor Recognition + dependencies: PASS.
 - Backend smoke test `scripts/backend-smoke-test.ps1`: PASS.
-- Frontend unit test: 9/9 PASS.
+- Frontend unit test: 12/12 PASS.
 - Frontend production build: PASS.
 - RabbitMQ: 20 queue, 0 pending message, mỗi queue có 1 consumer.
-- Smoke test đã kiểm auth, role boundary, upload media, Catalog CRUD, Policy CRUD, Action submit/review, Reward/badge, Leaderboard, Report/analytics/export, Notification, Recognition certificate PDF, RewardOffer CRUD và coupon claim thật.
+- Smoke test đã kiểm auth, role boundary, upload media, Catalog CRUD, Policy CRUD, Action submit/review, Reward/badge, Leaderboard hiện tại và kỳ cũ, Report/analytics/export, Notification seeded inbox/recipient guard/read-all/event notification, Recognition certificate PDF, RewardOffer CRUD và coupon claim thật.
+- Final audit sau reset sạch: Gateway `UP`, 15 mission, 12 user demo, 0 user/action E2E, Student/Moderator/Admin notification seed có dữ liệu, RabbitMQ 20 queue đều drained.
 
 ## 7. Giới Hạn Còn Lại
 

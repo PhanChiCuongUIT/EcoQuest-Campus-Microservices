@@ -49,7 +49,17 @@ class RewardDemoSeeder implements CommandLineRunner {
                 new DemoTx("DEMO-TX-017", "SV005", "DEMO-ACTION-021", "MISSION-EWASTE-01", "EWASTE_DROPOFF", 22, 145),
                 new DemoTx("DEMO-TX-018", "SV006", "DEMO-ACTION-022", "MISSION-PLASTIC-01", "PLASTIC_FREE_LUNCH", 16, 180),
                 new DemoTx("DEMO-TX-019", "SV007", "DEMO-ACTION-023", "MISSION-CARPOOL-01", "CARPOOL_TO_CAMPUS", 18, 220),
-                new DemoTx("DEMO-TX-020", "SV008", "DEMO-ACTION-024", "MISSION-RECYCLE-01", "RECYCLE_BOTTLE", 10, 300)
+                new DemoTx("DEMO-TX-020", "SV008", "DEMO-ACTION-024", "MISSION-RECYCLE-01", "RECYCLE_BOTTLE", 10, 300),
+                new DemoTx("DEMO-TX-021", "SV009", "DEMO-ACTION-025", "MISSION-SOLAR-01", "SOLAR_AWARENESS", 18, 0),
+                new DemoTx("DEMO-TX-022", "SV010", "DEMO-ACTION-026", "MISSION-WORKSHOP-01", "GREEN_WORKSHOP", 20, 0),
+                new DemoTx("DEMO-TX-023", "SV001", "DEMO-ACTION-027", "MISSION-PAPERLESS-01", "PAPERLESS_NOTE", 12, 0),
+                new DemoTx("DEMO-TX-024", "SV002", "DEMO-ACTION-028", "MISSION-SOLAR-01", "SOLAR_AWARENESS", 18, 1),
+                new DemoTx("DEMO-TX-025", "SV003", "DEMO-ACTION-029", "MISSION-WORKSHOP-01", "GREEN_WORKSHOP", 20, 1),
+                new DemoTx("DEMO-TX-026", "SV005", "DEMO-ACTION-031", "MISSION-CLEANUP-01", "CLEANUP_EVENT", 30, 2),
+                new DemoTx("DEMO-TX-027", "SV006", "DEMO-ACTION-032", "MISSION-ENERGY-01", "ENERGY_SAVING", 20, 3),
+                new DemoTx("DEMO-TX-028", "SV007", "DEMO-ACTION-033", "MISSION-BIKE-01", "BIKE_TO_CAMPUS", 12, 4),
+                new DemoTx("DEMO-TX-029", "SV008", "DEMO-ACTION-034", "MISSION-REFILL-01", "WATER_REFILL", 8, 5),
+                new DemoTx("DEMO-TX-030", "SV010", "DEMO-ACTION-036", "MISSION-COMPOST-01", "COMPOST_WASTE", 14, 9)
         };
         Map<String, Integer> totals = new HashMap<>();
         for (DemoTx tx : txs) {
@@ -81,6 +91,8 @@ class RewardDemoSeeder implements CommandLineRunner {
         badge("DEMO-BADGE-SV005-ZERO", "SV005", "ZERO_WASTE_ADVOCATE", "Zero Waste Advocate", 27);
         badge("DEMO-BADGE-SV006-TREE", "SV006", "CLEANUP_CHAMPION", "Cleanup Champion", 35);
         badge("DEMO-BADGE-SV008-REFILL", "SV008", "GREEN_STARTER", "Green Starter", 53);
+        badge("DEMO-BADGE-SV009-STARTER", "SV009", "GREEN_STARTER", "Green Starter", 0);
+        badge("DEMO-BADGE-SV010-STARTER", "SV010", "GREEN_STARTER", "Green Starter", 0);
     }
 
     private void badge(String id, String studentId, String code, String name, long daysAgo) {

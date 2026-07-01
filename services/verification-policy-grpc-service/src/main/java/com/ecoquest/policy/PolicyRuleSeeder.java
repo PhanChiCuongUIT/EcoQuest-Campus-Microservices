@@ -21,6 +21,9 @@ class PolicyRuleSeeder {
             saveIfMissing(rules, rule("EWASTE_DROPOFF", 22, true, true, 2));
             saveIfMissing(rules, rule("PLASTIC_FREE_LUNCH", 16, true, false, 3));
             saveIfMissing(rules, rule("CARPOOL_TO_CAMPUS", 18, true, false, 2));
+            saveIfMissing(rules, rule("SOLAR_AWARENESS", 18, true, false, 4));
+            saveIfMissing(rules, rule("GREEN_WORKSHOP", 20, true, false, 3));
+            saveIfMissing(rules, rule("PAPERLESS_NOTE", 12, true, false, 5));
         };
     }
 

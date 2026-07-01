@@ -29,6 +29,8 @@ class IdentitySeeder implements CommandLineRunner {
         seed("student6@ecoquest.local", "Do Nhat Linh", UserRole.STUDENT, "SV006");
         seed("student7@ecoquest.local", "Hoang Nam Phuong", UserRole.STUDENT, "SV007");
         seed("student8@ecoquest.local", "Vu Thanh Dat", UserRole.STUDENT, "SV008");
+        seed("student9@ecoquest.local", "Bui Khanh Linh", UserRole.STUDENT, "SV009");
+        seed("student10@ecoquest.local", "Dang Minh Khoi", UserRole.STUDENT, "SV010");
         seed("moderator@ecoquest.local", "EcoQuest Moderator", UserRole.MODERATOR, "SVMOD001");
         seed("admin@ecoquest.local", "EcoQuest Admin", UserRole.ADMIN, null);
     }

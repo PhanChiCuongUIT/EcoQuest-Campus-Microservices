@@ -34,6 +34,8 @@ class RecognitionDemoSeeder implements CommandLineRunner {
         profile("SV006", 71, 3, 1);
         profile("SV007", 25, 1, 0);
         profile("SV008", 46, 2, 1);
+        profile("SV009", 18, 1, 0);
+        profile("SV010", 34, 1, 0);
 
         reward("reward-cafe", "Campus Cafe Voucher", "10% off at the campus cafe for verified eco contributors.",
                 "☕", "#16A34A", 10, 1, 0, 120,
