@@ -98,14 +98,27 @@ export const adjustPoints = (studentId, points, reason) =>
 
 // ── Leaderboard ───────────────────────────────────────────────
 
-export const getWeeklyLeaderboard = (limit = 10) =>
-  client.get(`/leaderboards/weekly?limit=${limit}`).then(r => r.data);
+const leaderboardParams = (limit, options = {}) => {
+  const params = new URLSearchParams({ limit });
+  if (options.year) params.set('year', options.year);
+  if (options.week) params.set('week', options.week);
+  if (options.month) params.set('month', options.month);
+  return params.toString();
+};
 
-export const getMonthlyLeaderboard = (limit = 10) =>
-  client.get(`/leaderboards/monthly?limit=${limit}`).then(r => r.data);
+export const getWeeklyLeaderboard = (limit = 10, options = {}) =>
+  client.get(`/leaderboards/weekly?${leaderboardParams(limit, options)}`).then(r => r.data);
 
-export const getStudentRank = (studentId, type = 'weekly') =>
-  client.get(`/leaderboards/users/${studentId}/rank?type=${type}`).then(r => r.data);
+export const getMonthlyLeaderboard = (limit = 10, options = {}) =>
+  client.get(`/leaderboards/monthly?${leaderboardParams(limit, options)}`).then(r => r.data);
+
+export const getStudentRank = (studentId, type = 'weekly', options = {}) => {
+  const params = new URLSearchParams({ type });
+  if (options.year) params.set('year', options.year);
+  if (options.week) params.set('week', options.week);
+  if (options.month) params.set('month', options.month);
+  return client.get(`/leaderboards/users/${studentId}/rank?${params.toString()}`).then(r => r.data);
+};
 
 export const closeSeason = (seasonId, type = 'weekly', winners = 10) =>
   client.post(`/leaderboards/seasons/${seasonId}/close?type=${type}&winners=${winners}`)

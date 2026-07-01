@@ -40,7 +40,19 @@ class ActionDemoSeeder implements CommandLineRunner {
                 new DemoAction("DEMO-ACTION-021", "SV005", "MISSION-EWASTE-01", "STATION-G7", "EWASTE_DROPOFF", ActionStatus.ACCEPTED, 22, 145),
                 new DemoAction("DEMO-ACTION-022", "SV006", "MISSION-PLASTIC-01", null, "PLASTIC_FREE_LUNCH", ActionStatus.ACCEPTED, 16, 180),
                 new DemoAction("DEMO-ACTION-023", "SV007", "MISSION-CARPOOL-01", null, "CARPOOL_TO_CAMPUS", ActionStatus.ACCEPTED, 18, 220),
-                new DemoAction("DEMO-ACTION-024", "SV008", "MISSION-RECYCLE-01", "STATION-A1", "RECYCLE_BOTTLE", ActionStatus.ACCEPTED, 10, 300)
+                new DemoAction("DEMO-ACTION-024", "SV008", "MISSION-RECYCLE-01", "STATION-A1", "RECYCLE_BOTTLE", ActionStatus.ACCEPTED, 10, 300),
+                new DemoAction("DEMO-ACTION-025", "SV009", "MISSION-SOLAR-01", null, "SOLAR_AWARENESS", ActionStatus.ACCEPTED, 18, 0),
+                new DemoAction("DEMO-ACTION-026", "SV010", "MISSION-WORKSHOP-01", null, "GREEN_WORKSHOP", ActionStatus.ACCEPTED, 20, 0),
+                new DemoAction("DEMO-ACTION-027", "SV001", "MISSION-PAPERLESS-01", null, "PAPERLESS_NOTE", ActionStatus.ACCEPTED, 12, 0),
+                new DemoAction("DEMO-ACTION-028", "SV002", "MISSION-SOLAR-01", null, "SOLAR_AWARENESS", ActionStatus.ACCEPTED, 18, 1),
+                new DemoAction("DEMO-ACTION-029", "SV003", "MISSION-WORKSHOP-01", null, "GREEN_WORKSHOP", ActionStatus.ACCEPTED, 20, 1),
+                new DemoAction("DEMO-ACTION-030", "SV004", "MISSION-PAPERLESS-01", null, "PAPERLESS_NOTE", ActionStatus.PENDING_REVIEW, 12, 2),
+                new DemoAction("DEMO-ACTION-031", "SV005", "MISSION-CLEANUP-01", null, "CLEANUP_EVENT", ActionStatus.ACCEPTED, 30, 2),
+                new DemoAction("DEMO-ACTION-032", "SV006", "MISSION-ENERGY-01", null, "ENERGY_SAVING", ActionStatus.ACCEPTED, 20, 3),
+                new DemoAction("DEMO-ACTION-033", "SV007", "MISSION-BIKE-01", null, "BIKE_TO_CAMPUS", ActionStatus.ACCEPTED, 12, 4),
+                new DemoAction("DEMO-ACTION-034", "SV008", "MISSION-REFILL-01", "STATION-B2", "WATER_REFILL", ActionStatus.ACCEPTED, 8, 5),
+                new DemoAction("DEMO-ACTION-035", "SV009", "MISSION-PLASTIC-01", null, "PLASTIC_FREE_LUNCH", ActionStatus.REJECTED, 0, 6),
+                new DemoAction("DEMO-ACTION-036", "SV010", "MISSION-COMPOST-01", "STATION-F6", "COMPOST_WASTE", ActionStatus.ACCEPTED, 14, 9)
         };
         for (DemoAction item : seed) {
             if (actions.existsById(item.id())) {

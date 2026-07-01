@@ -155,7 +155,7 @@ Redis dùng cho:
 
 - Draft action tạm thời.
 - Idempotency key chống double submit.
-- Leaderboard sorted set cho rank nhanh.
+- Leaderboard sorted set cho rank nhanh, tách key theo kỳ `weekly:YYYY-Www` và `monthly:YYYY-MM` để xem lại tuần/tháng trước trong năm.
 
 Kiểm tra:
 
@@ -233,7 +233,37 @@ GET /reports/analytics/series?period=monthly&year=2026&fromMonth=1&toMonth=6
 GET /reports/analytics/export?period=yearly&year=2025
 ```
 
-## 11. Test Hệ Thống
+## 11. Notification Inbox Và SSE
+
+Notification service có database riêng `notification_db`, không nhúng thông báo vào từng service khác.
+
+Cách dùng:
+
+1. Đăng nhập Student, Moderator hoặc Admin.
+2. Bấm chuông notification ở TopBar.
+3. Hộp dropdown hiển thị inbox seed theo role và notification phát sinh thật.
+4. Bấm một notification để mark read và điều hướng đến trang liên quan.
+5. Bấm `Mark all read` để đánh dấu toàn bộ inbox hiện tại.
+
+Dữ liệu seed sau reset sạch:
+
+- Student: `WELCOME`, `MISSION_REMINDER`, `BADGE_UNLOCKED`, `CERTIFICATE_ISSUED`.
+- Moderator: `REVIEW_QUEUE_READY`, `REPORT_CREATED`, `MISSION_STATUS_CHANGED`.
+- Admin: `ADMIN_DAILY_DIGEST`, `POLICY_REVIEW`, `USER_STATUS_CHANGED`.
+
+Realtime:
+
+- Frontend mở `EventSource('/notifications/stream?accessToken=<JWT>')`.
+- Common JWT filter chấp nhận `accessToken` query cho SSE vì native `EventSource` không gửi được `Authorization` header.
+- Khi Action/Reward/Recognition/Report/Identity/Catalog publish event qua RabbitMQ, Notification consume event, lưu inbox và đẩy SSE cho user/role liên quan.
+
+Ý nghĩa công nghệ:
+
+- Notification là read model riêng cho trải nghiệm người dùng.
+- Service nghiệp vụ chỉ publish event; không cần gọi sync sang Notification.
+- Polling `GET /notifications` vẫn là fallback nếu SSE bị trình duyệt/mạng chặn.
+
+## 12. Test Hệ Thống
 
 Backend smoke:
 
@@ -251,7 +281,7 @@ npm.cmd test
 npm.cmd run build
 ```
 
-## 12. Reset Dữ Liệu Sạch
+## 13. Reset Dữ Liệu Sạch
 
 Khi DB có nhiều dữ liệu test E2E, reset riêng project EcoQuest:
 
@@ -273,7 +303,7 @@ Nếu chỉ chạy lại bản mới nhất, không cần rebuild:
 docker compose up -d
 ```
 
-## 13. Dọn Dung Lượng Docker
+## 14. Dọn Dung Lượng Docker
 
 Sau nhiều lần build, xóa tài nguyên không còn được container nào dùng:
 
@@ -287,3 +317,23 @@ docker volume prune -af
 Không chạy `docker compose down -v` nếu muốn giữ dữ liệu DB hiện tại.
 
 Nếu file `docker_data.vhdx` vẫn lớn, cần compact VHDX bằng PowerShell Administrator theo mục Docker Storage Maintenance trong `README.md`.
+
+## 15. Khi Báo Cáo Microservices Nên Show Gì
+
+Nên demo theo thứ tự từ hạ tầng đến nghiệp vụ:
+
+1. `docker compose ps`: nói rằng hệ thống có Gateway, 9 microservice backend, nhiều database/storage riêng, RabbitMQ, Redis và MinIO.
+2. Gateway health `Invoke-RestMethod http://localhost:18080/actuator/health`: nói frontend chỉ gọi Gateway, Gateway chỉ route.
+3. Đăng nhập Student/Admin: nói JWT được service tự verify, không tin role switcher frontend.
+4. Submit một mission: nói Action gọi Catalog để validate mission và gọi Policy bằng gRPC để xét rule.
+5. Mở RabbitMQ UI hoặc chạy `rabbitmqctl list_queues name messages consumers`: nói event-driven giúp Reward, Leaderboard, Report, Notification xử lý bất đồng bộ; queue 0 message là đã drain.
+6. Mở Redis keys: nói Redis dùng cho draft, idempotency và leaderboard sorted set theo kỳ.
+7. Mở MinIO console: nói file evidence/avatar/station/certificate thuộc service sở hữu, không lưu base64 trong DB.
+8. Mở chuông Notification ở 3 role: nói Notification là service riêng, có seed inbox, read/read-all và SSE realtime.
+9. Admin -> Analytics -> Export PDF: nói Report service dựng read model từ event, không đọc DB chéo.
+10. Student -> Certificates -> Redeem coupon: nói Recognition tự xét điều kiện, stock và idempotency voucher.
+11. Chạy smoke test: nói đây là bằng chứng hệ thống chạy xuyên service, không chỉ test từng API lẻ.
+
+Câu nói gợi ý khi kết luận:
+
+“Điểm chính của project là mỗi nghiệp vụ lớn có ownership riêng: service riêng, database/storage riêng, API riêng và event riêng. Gateway không chứa business logic; những dữ liệu tổng hợp như leaderboard, analytics, notification được dựng bằng event/read model qua RabbitMQ.”

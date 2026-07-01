@@ -47,7 +47,7 @@ Identity, Report và Notification là các bounded context bổ sung ngoài 6 se
 
 ### Catalog và Action
 
-- 12 missions, 7 stations có ảnh, 6 badge definitions.
+- 15 missions, 7 stations có ảnh, 6 badge definitions.
 - Mission workflow `PENDING -> ACTIVE/REJECTED/CANCELLED/COMPLETED`.
 - Mission mới luôn pending; Admin quyết định status.
 - Student chỉ thấy mission có trạng thái công khai; management view thấy toàn bộ.
@@ -78,6 +78,7 @@ Identity, Report và Notification là các bounded context bổ sung ngoài 6 se
 - Notification inbox, mark read, read-all và SSE endpoint.
 - Notification từ action accepted/rejected, badge unlocked, certificate issued, mission status changed, report created/reviewed, user reported và user status changed.
 - Admin có thể tạo notification theo user/student/role.
+- Demo seed có inbox mẫu cho Student/Moderator/Admin; smoke test kiểm seeded inbox, read-all và recipient guard.
 
 ## So sánh với tài liệu gốc
 
@@ -139,7 +140,7 @@ Kết quả sau patch mới nhất:
 - Backend smoke test: **PASS**.
 - RabbitMQ queue drain after smoke: **PASS** với 20 queue, 0 pending message và mỗi queue có consumer.
 - Post-smoke log scan: **PASS** cho lỗi nghiệp vụ; lỗi duplicate profile ở Recognition đã được sửa. Gateway có thể có vài dòng `Connection refused` trong giây đầu nếu test gọi login trước khi Identity mở port, sau warm-up không lặp lại.
-- Frontend unit tests: **9/9 PASS**.
+- Frontend unit tests: **12/12 PASS**.
 - Frontend production build after Policy modal, Student outcome layout, and dashboard partial-loading fixes: **PASS**.
 - Frontend Vite build: **PASS**.
 

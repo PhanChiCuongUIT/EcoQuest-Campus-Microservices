@@ -15,7 +15,7 @@ Backend hiện có **9 microservices**:
 | Eco Action | `/actions/**` | MongoDB `action_db`, Redis, MinIO | Draft, evidence, submit, moderation, outbox |
 | Verification Policy | direct `:8090`, gRPC `:9090` | PostgreSQL `policy_db` | Policy admin direct local; Action gọi gRPC nội bộ |
 | Reward Ledger | `/rewards/**` | PostgreSQL `reward_db` | Wallet, transactions, badges, adjustment |
-| Leaderboard | `/leaderboards/**` | Redis, PostgreSQL `leaderboard_db` | Weekly/monthly rank, season snapshots |
+| Leaderboard | `/leaderboards/**` | Redis, PostgreSQL `leaderboard_db` | Weekly/monthly period rank, previous week/month lookup, season snapshots |
 | Recognition | `/recognitions/**` | PostgreSQL `recognition_db`, MinIO | Certificates, reward offer catalog, coupon eligibility and idempotent voucher claims |
 | Report | `/reports/**` | PostgreSQL `report_db`, MinIO | User reports, moderation, evidence upload, analytics |
 | Notification | `/notifications/**` | PostgreSQL `notification_db` | Inbox, read state, SSE, event consumers |
@@ -87,8 +87,15 @@ Missions:
 | `MISSION-TREE-01` | `TREE_CARE` | 25 | required | required | `ACTIVE` |
 | `MISSION-BIKE-01` | `BIKE_TO_CAMPUS` | 12 | required | optional | `ACTIVE` |
 | `MISSION-REFILL-01` | `WATER_REFILL` | 8 | optional | required | `ACTIVE` |
+| `MISSION-COMPOST-01` | `COMPOST_WASTE` | 14 | required | required | `ACTIVE` |
+| `MISSION-EWASTE-01` | `EWASTE_DROPOFF` | 22 | required | required | `ACTIVE` |
+| `MISSION-PLASTIC-01` | `PLASTIC_FREE_LUNCH` | 16 | required | optional | `ACTIVE` |
+| `MISSION-CARPOOL-01` | `CARPOOL_TO_CAMPUS` | 18 | required | optional | `ACTIVE` |
+| `MISSION-SOLAR-01` | `SOLAR_AWARENESS` | 18 | required | optional | `ACTIVE` |
+| `MISSION-WORKSHOP-01` | `GREEN_WORKSHOP` | 20 | required | optional | `ACTIVE` |
+| `MISSION-PAPERLESS-01` | `PAPERLESS_NOTE` | 12 | required | optional | `ACTIVE` |
 
-Stations: `STATION-A1`, `STATION-B2`, `STATION-C3`, `STATION-D4`, `STATION-E5`. Mỗi station có `imageUrl`.
+Stations: `STATION-A1`, `STATION-B2`, `STATION-C3`, `STATION-D4`, `STATION-E5`, `STATION-F6`, `STATION-G7`. Mỗi station có `imageUrl`.
 
 Badges:
 
@@ -98,6 +105,13 @@ Badges:
 - `ZERO_WASTE_ADVOCATE`: 250 điểm.
 - `GREEN_AMBASSADOR`: 300 điểm.
 - `CAMPUS_GUARDIAN`: 500 điểm.
+
+Notifications:
+
+- Student inbox seed: `WELCOME`, `MISSION_REMINDER`, `BADGE_UNLOCKED`, `CERTIFICATE_ISSUED`.
+- Moderator inbox seed: `REVIEW_QUEUE_READY`, `REPORT_CREATED`, `MISSION_STATUS_CHANGED`.
+- Admin inbox seed: `ADMIN_DAILY_DIGEST`, `POLICY_REVIEW`, `USER_STATUS_CHANGED`.
+- Seeded notifications include both unread and read examples. New notifications are still created from RabbitMQ events at runtime.
 
 Action status enum: `ACCEPTED`, `PENDING_REVIEW`, `REJECTED`.
 
@@ -415,8 +429,12 @@ Transaction:
 ## Leaderboard API
 
 - `GET /leaderboards/weekly?limit=10`
+- `GET /leaderboards/weekly?limit=10&year=2026&week=27`
 - `GET /leaderboards/monthly?limit=10`
+- `GET /leaderboards/monthly?limit=10&year=2026&month=7`
 - `GET /leaderboards/users/{studentId}/rank?type=weekly`
+- `GET /leaderboards/users/{studentId}/rank?type=weekly&year=2026&week=27`
+- `GET /leaderboards/users/{studentId}/rank?type=monthly&year=2026&month=7`
 - `POST /leaderboards/seasons/{id}/close?type=weekly&winners=10` - Admin
 - `GET /leaderboards/seasons/{id}/snapshots`
 
@@ -586,7 +604,7 @@ Notification object:
 }
 ```
 
-Backend currently creates notifications for action accepted/rejected, badge unlocked, certificate issued, mission status changed, report created/reviewed, user reported, and user status changed. Frontend can poll `GET /notifications` and may also open native `EventSource('/notifications/stream?accessToken=...')`.
+Backend currently creates notifications for action accepted/rejected, badge unlocked, certificate issued, mission status changed, report created/reviewed, user reported, and user status changed. Frontend can poll `GET /notifications` and may also open native `EventSource('/notifications/stream?accessToken=...')`. A clean seeded database already contains Student, Moderator, and Admin inbox samples, so the bell dropdown should not be empty on demo accounts.
 
 ## Policy Admin API
 
@@ -654,9 +672,9 @@ Last verified on 2026-07-01:
 
 - Full Maven reactor 14/14 modules: pass.
 - `docker compose config --quiet`: pass.
-- Backend smoke test: pass.
+- Backend smoke test: pass, including current/previous week/month leaderboard period queries.
 - RabbitMQ after smoke: 20 queues drained to 0 messages and have consumers.
-- Frontend unit tests after latest UI/API changes: 9/9 pass.
+- Frontend unit tests after latest UI/API changes: 12/12 pass.
 - Policy rule creation uses a modal overlay; dashboards render partial data while a backend service is warming up; Identity emails attach the real EcoQuest logo inline by CID.
 - Recognition certificate PDF download, reward offer CRUD, real coupon eligibility, locked coupon rejection, stock decrement and duplicate reward claim idempotency are covered by backend smoke.
 - Frontend production build after latest UI/API changes: pass.

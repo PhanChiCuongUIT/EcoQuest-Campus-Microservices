@@ -998,6 +998,44 @@ img, svg {
   cursor: pointer;
 }
 
+.form-input::placeholder,
+.form-textarea::placeholder,
+.search-field input::placeholder {
+  color: var(--color-text-faint);
+  opacity: 1;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea,
+.theme-dark input,
+.theme-dark select,
+.theme-dark textarea {
+  color-scheme: dark;
+}
+
+[data-theme="dark"] .form-input,
+[data-theme="dark"] .form-select,
+[data-theme="dark"] .form-textarea,
+.theme-dark .form-input,
+.theme-dark .form-select,
+.theme-dark .form-textarea {
+  background-color: #0F1D14;
+  border-color: #274333;
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .form-select,
+.theme-dark .form-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237DA890' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+[data-theme="dark"] select option,
+.theme-dark select option {
+  background: #0F1D14;
+  color: var(--color-text);
+}
+
 /* Toggle Switch */
 .toggle-switch {
   position: relative;
@@ -1946,8 +1984,42 @@ img, svg {
   border: 0;
   outline: 0;
   background: transparent;
+  color: var(--color-text);
 }
 .select-field select { width: auto; }
+.search-field:focus-within,
+.select-field:focus-within,
+.student-selector:focus-within,
+.student-picker-field:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-dim);
+}
+[data-theme="dark"] .search-field,
+[data-theme="dark"] .select-field,
+[data-theme="dark"] .student-selector,
+[data-theme="dark"] .student-picker-field,
+.theme-dark .search-field,
+.theme-dark .select-field,
+.theme-dark .student-selector,
+.theme-dark .student-picker-field {
+  background: #0F1D14;
+  border-color: #274333;
+  color: var(--color-text-muted);
+}
+.leaderboard-period-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin: calc(var(--space-3) * -1) 0 var(--space-5);
+}
+.leaderboard-period-bar .form-label {
+  margin: 0;
+  white-space: nowrap;
+}
+.leaderboard-period-bar .form-select {
+  width: min(100%, 260px);
+}
 .mission-list-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .mission-list-grid > div { position: relative; }
 .mission-detail-button { margin-top: 4px; }
@@ -2636,6 +2708,8 @@ img, svg {
   .analytics-series-panel .card-header, .analytics-toolbar { align-items: stretch; flex-direction: column; }
   .page-intro, .filter-bar, .report-queue-header { align-items: stretch; flex-direction: column; }
   .search-field { max-width: none; }
+  .leaderboard-period-bar { align-items: stretch; flex-direction: column; margin-top: 0; }
+  .leaderboard-period-bar .form-select { width: 100%; }
   .panel-context { align-items: flex-start; flex-direction: column; }
   .stats-grid-compact { grid-template-columns: repeat(2, 1fr); }
   .system-snapshot, .student-analytics-result { grid-template-columns: repeat(2, 1fr); }

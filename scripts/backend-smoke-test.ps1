@@ -206,6 +206,13 @@ $moderatorLogin = Invoke-ApiWithHeaders -Method "POST" -Uri "$Gateway/auth/login
 }
 Assert-True ($moderatorLogin.user.role -eq "MODERATOR") "Seeded moderator login should return MODERATOR role"
 $moderatorHeaders = New-AuthHeaders $moderatorLogin
+$script:DefaultHeaders = $moderatorHeaders
+$seededModeratorNotifications = @(Invoke-ApiList -Uri "$Gateway/notifications")
+Assert-True (Has-ItemWithValue $seededModeratorNotifications "type" "REVIEW_QUEUE_READY") "Moderator should see seeded review queue notification"
+$script:DefaultHeaders = $adminHeaders
+$seededAdminNotifications = @(Invoke-ApiList -Uri "$Gateway/notifications")
+Assert-True (Has-ItemWithValue $seededAdminNotifications "type" "ADMIN_DAILY_DIGEST") "Admin should see seeded daily digest notification"
+$seededAdminNotification = $seededAdminNotifications | Where-Object { $_.type -eq "ADMIN_DAILY_DIGEST" } | Select-Object -First 1
 $newAuthEmail = "e2e-$authRunId@ecoquest.local"
 $newAuthPassword = "EcoQuest@123"
 $newStudentId = "SV_AUTH_$authRunId"
@@ -424,6 +431,16 @@ $studentCheckinHeaders = New-StudentSession "checkin" $studentCheckin
 $studentMissingStationHeaders = New-StudentSession "missing-station" $studentMissingStation
 $studentTrashHeaders = New-StudentSession "trash" $studentTrash
 $studentUnsupportedHeaders = New-StudentSession "unsupported" $studentUnsupported
+
+Write-Step "Checking seeded Notification inbox and recipient guards"
+$script:DefaultHeaders = $studentAcceptedHeaders
+$seededStudentNotifications = @(Invoke-ApiList -Uri "$Gateway/notifications")
+Assert-True (Has-ItemWithValue $seededStudentNotifications "type" "WELCOME") "Student should see seeded welcome notification by role"
+$forbiddenAdminNotificationStatus = Get-StatusCode -Method "PUT" -Uri "$Gateway/notifications/$($seededAdminNotification.id)/read"
+Assert-True ($forbiddenAdminNotificationStatus -eq 403) "Student should not mark an admin notification as read"
+Invoke-Api -Method "PUT" -Uri "$Gateway/notifications/read-all" | Out-Null
+$studentNotificationsAfterReadAll = @(Invoke-ApiList -Uri "$Gateway/notifications")
+Assert-True (($studentNotificationsAfterReadAll | Where-Object { $_.read -eq $false }).Count -eq 0) "Notification read-all should mark the current inbox as read"
 
 Write-Step "Checking Catalog admin create/update/delete APIs"
 $script:DefaultHeaders = $adminHeaders
@@ -825,6 +842,25 @@ Assert-True (($selectedYearlyPdf.Headers["Content-Type"] -join ";") -like "appli
 Assert-True (($selectedYearlyPdf.Headers["Content-Disposition"] -join ";") -like "*attachment*ecoquest-analytics-$((Get-Date).Year - 1).pdf*") "Selected yearly analytics export should use the selected year filename"
 $seededActions = @(Invoke-ApiList -Uri "$Gateway/actions/user/SV001")
 Assert-True ($seededActions.Count -ge 3) "Demo seed should expose multiple SV001 submit actions"
+$calendar = [System.Globalization.CultureInfo]::InvariantCulture.Calendar
+$currentDate = Get-Date
+$currentWeek = $calendar.GetWeekOfYear($currentDate, [System.Globalization.CalendarWeekRule]::FirstFourDayWeek, [System.DayOfWeek]::Monday)
+$currentYear = $currentDate.Year
+$currentMonth = $currentDate.Month
+$currentWeekBoard = @(Invoke-ApiList -Uri "$Gateway/leaderboards/weekly?limit=20&year=$currentYear&week=$currentWeek")
+Assert-True ($currentWeekBoard.Count -ge 1) "Leaderboard should expose current-week seeded rankings"
+$currentMonthBoard = @(Invoke-ApiList -Uri "$Gateway/leaderboards/monthly?limit=20&year=$currentYear&month=$currentMonth")
+Assert-True ($currentMonthBoard.Count -ge 1) "Leaderboard should expose current-month seeded rankings"
+if ($currentWeek -gt 1) {
+    $previousWeekBoard = @(Invoke-ApiList -Uri "$Gateway/leaderboards/weekly?limit=20&year=$currentYear&week=$($currentWeek - 1)")
+    Assert-True ($previousWeekBoard.Count -ge 1) "Leaderboard should expose previous-week rankings in the selected year"
+}
+if ($currentMonth -gt 1) {
+    $previousMonthBoard = @(Invoke-ApiList -Uri "$Gateway/leaderboards/monthly?limit=20&year=$currentYear&month=$($currentMonth - 1)")
+    Assert-True ($previousMonthBoard.Count -ge 1) "Leaderboard should expose previous-month rankings in the selected year"
+}
+$invalidWeekStatus = Get-StatusCode -Uri "$Gateway/leaderboards/weekly?year=$currentYear&week=54"
+Assert-True ($invalidWeekStatus -eq 400) "Leaderboard should reject invalid week numbers"
 
 Write-Step "Checking unsupported action rejection"
 $unsupportedMissionId = "MISSION-E2E-UNSUPPORTED-$runId"

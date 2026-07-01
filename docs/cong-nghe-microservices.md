@@ -317,3 +317,24 @@ npm.cmd run build
 - Report analytics là read model riêng, không query trực tiếp DB service khác.
 - Notification là service riêng consume event, không nhúng vào từng service.
 - Các ràng buộc chống duplicate nằm ở service sở hữu nghiệp vụ.
+
+## 17. Nên Show Gì Khi Báo Cáo Microservices
+
+Khi thuyết trình, nên demo theo thứ tự sau để người nghe thấy rõ kiến trúc chứ không chỉ thấy UI:
+
+| Cần show | Mở ở đâu / chạy gì | Ý nghĩa cần nói |
+| --- | --- | --- |
+| Toàn bộ container | `docker compose ps` | Một project chạy nhiều service độc lập: Gateway, 9 backend service, DB riêng, RabbitMQ, Redis, MinIO. |
+| Gateway health | `Invoke-RestMethod http://localhost:18080/actuator/health` | Frontend chỉ gọi Gateway; Gateway route, không chứa nghiệp vụ. |
+| Database per service | Mở các container `identity-db`, `catalog-db`, `reward-db`, `notification-db` | Mỗi service sở hữu dữ liệu riêng; không dùng foreign key vật lý xuyên service. |
+| Auth/JWT | Đăng nhập Student/Admin trên web | JWT giúp mỗi microservice tự kiểm quyền; role switcher frontend không thay được quyền backend. |
+| gRPC Policy | Submit một mission | Action gọi Policy qua gRPC để xét điểm/evidence/station/daily limit, không copy rule vào Action. |
+| RabbitMQ | `docker exec microservices-se361-rabbitmq-1 rabbitmqctl list_queues name messages consumers` | Event-driven: Action publish event, Reward/Leaderboard/Report/Notification tự consume. Queue cuối cùng 0 message nghĩa là event đã xử lý xong. |
+| Redis | `docker exec microservices-se361-redis-1 redis-cli --scan --pattern "ecoquest:*"` | Redis giữ draft/idempotency và leaderboard sorted set theo tuần/tháng để rank nhanh. |
+| MinIO | `http://localhost:9001` | File avatar/station/evidence/certificate không nhét base64 vào DB; service nào sở hữu nghiệp vụ thì sở hữu bucket/file. |
+| Notification | Mở chuông ở Student/Moderator/Admin | Notification là microservice riêng có inbox seed, read/read-all và SSE realtime; các service khác không tự nhúng logic thông báo. |
+| Report Analytics | Admin -> Analytics -> export PDF | Report service dựng read model từ event, không đọc DB chéo nhưng vẫn tổng hợp được mission/action/user/points/badge/certificate. |
+| Coupon thật | Student -> Certificates -> Redeem | Recognition tự xét điều kiện coupon bằng profile read model, trừ stock và phát voucher idempotent. |
+| Smoke test | `powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090` | Đây là bằng chứng tích hợp: auth, CRUD, upload, event, notification, certificate, coupon và queue drain đều pass. |
+
+Câu chốt nên nói: “EcoQuest dùng microservices không chỉ để tách thư mục code, mà tách ownership thật: mỗi service có API, database/storage, test và nghiệp vụ riêng. Dữ liệu tổng hợp đi qua event/read model, còn Gateway chỉ định tuyến.”

@@ -34,7 +34,7 @@ The system currently has **9 microservices**. Each service owns its own data and
 | Eco Action | Draft, evidence upload, submit, idempotency, moderation, outbox | `8082` |
 | Verification Policy | Internal gRPC rule evaluation; direct admin REST | `9090` gRPC, `8090` REST |
 | Reward Ledger | Wallet, transaction ledger, badge achievement, manual point adjustment | `8083` |
-| Leaderboard | Weekly/monthly rank read model, season snapshots | `8084` |
+| Leaderboard | Weekly/monthly period rank read model, historical week/month lookup, season snapshots | `8084` |
 | Recognition | Certificate PDF/MinIO, reward offer catalog, coupon eligibility and idempotent voucher claims | `8085` |
 | Report | Student/Moderator reports, moderation queue, analytics read model | `8087` |
 | Notification | Inbox, read/read-all, SSE, event consumers | `8088` |
@@ -47,7 +47,7 @@ The system currently has **9 microservices**. Each service owns its own data and
 4. Draft/idempotency use Redis; accepted/rejected actions are persisted in MongoDB.
 5. Action outbox publishes RabbitMQ events.
 6. Reward Ledger grants points by `sourceActionId`, records transactions, and unlocks point/action-count badges.
-7. Leaderboard consumes point events and updates Redis sorted sets.
+7. Leaderboard consumes point events and updates Redis sorted sets by period, so the UI can view current and previous weeks/months in the selected year.
 8. Admin closes a season; Recognition creates a PDF certificate in MinIO and publishes notification.
 9. Missing evidence/station can create `PENDING_REVIEW`; Moderator/Admin approve or reject. Moderators cannot review their own actions.
 10. Report service consumes action, mission, user registration, points, badge, and certificate events into its own analytics read model and handles report create/review without reading other DBs.
@@ -99,14 +99,15 @@ Verification, password reset, and status-change emails use the real EcoQuest log
 
 ## Seed Data
 
-- 12 missions: recycle, cleanup, green check-in, trash report, energy saving, tree care, bike to campus, bottle refill, compost waste, e-waste drop-off, plastic-free lunch, and campus carpool.
+- 15 missions: recycle, cleanup, green check-in, trash report, energy saving, tree care, bike to campus, bottle refill, compost waste, e-waste drop-off, plastic-free lunch, campus carpool, solar awareness, green workshop, and paperless study.
 - 7 stations with `imageUrl`; Admin can upload station images.
 - 6 badges; `RECYCLING_HERO` and `CLEANUP_CHAMPION` use action-count rules.
-- 12 policy rules, one for each seeded action type.
-- 10 demo users: 8 students, 1 moderator, 1 admin. Demo password is `EcoQuest@123`.
-- 24 seeded submit actions across weekly/monthly/yearly windows, with accepted, pending-review, and rejected states.
+- 15 policy rules, one for each seeded action type.
+- 12 demo users: 10 students, 1 moderator, 1 admin. Demo password is `EcoQuest@123`.
+- 36 seeded submit actions across current week/month plus weekly/monthly/yearly windows, with accepted, pending-review, and rejected states.
 - Seeded Reward wallets/transactions/badges and Recognition certificates/coupon offers so dashboards and student pages are not empty after a fresh run.
 - Seeded Report analytics read-model data for weekly/monthly/yearly reports, including missions, submit actions, users, points, badges, certificates, and reports.
+- Seeded Notification inbox data for Student, Moderator, and Admin, including unread/read samples and links for missions, wallet, certificates, review queue, reports, policy, users, and analytics.
 
 To delete old local test data and reseed a clean demo dataset, run this from the repository root. This removes only this Compose project's containers/volumes, then recreates them:
 
@@ -205,17 +206,18 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Latest verification on 2026-07-01 after real Recognition coupon offers, reward offer CRUD, Recognition profile race fix, clean seed reset, certificate signature/mobile UI fixes, Policy modal, email logo, dashboard resilience, and Student outcome layout fixes:
+Latest verification on 2026-07-01 after real Recognition coupon offers, reward offer CRUD, Recognition profile race fix, clean seed reset, certificate signature/mobile UI fixes, Policy modal, email logo, dashboard resilience, Student outcome layout fixes, dark theme input/search fixes, leaderboard historical period lookup, expanded current seed data, and seeded Notification inbox verification:
 
-- Targeted Maven reactor for Recognition and dependencies: PASS.
+- Full Maven reactor 14/14 modules: PASS.
 - `docker compose config --quiet`: PASS.
-- Backend smoke test: PASS.
+- Backend smoke test: PASS, including current/previous week/month leaderboard queries and Notification seeded inbox/recipient guards.
 - RabbitMQ queues after smoke: 20 queues, 0 pending messages, 1 consumer each.
 - Post-smoke logs: no Recognition duplicate profile errors after the race fix. A few Gateway `Connection refused` lines can appear during initial startup while Identity is still opening port `8086`; they disappear once services are healthy.
-- Frontend unit tests: 9/9 PASS.
+- Frontend unit tests: 12/12 PASS.
 - Frontend production build: PASS.
+- Final audit reset: Gateway `UP`, 15 missions, 12 demo users, 0 E2E users, Student/Moderator/Admin notification seeds present, and 20 RabbitMQ queues drained with consumers.
 
-Smoke currently covers auth/verify/reset/profile/user management, admin self-protection, Moderator -> Student demotion, report target lookup, RBAC, moderator mission ownership, Catalog CRUD/workflow including badge update, station image upload, seeded mission/policy counts, Policy Admin create/update/delete guard, seeded demo action visibility, mission eligibility, Redis draft/idempotency, MinIO uploads, gRPC Policy, Action outbox/RabbitMQ, Reward/badges, Leaderboard, moderation, Report workflow, Report analytics including mission/user/badge/certificate events, Admin analytics range guards + student outcome report + selected weekly/monthly/yearly PDF export, Notification, daily limit, season close idempotency, authenticated certificate PDF attachment, Recognition reward offer CRUD, real coupon eligibility, locked coupon rejection, coupon stock decrement, duplicate reward claim idempotency, and queue drain. Frontend build verifies dashboard partial-loading code and the Policy add-rule modal.
+Smoke currently covers auth/verify/reset/profile/user management, admin self-protection, Moderator -> Student demotion, report target lookup, RBAC, moderator mission ownership, Catalog CRUD/workflow including badge update, station image upload, seeded mission/policy counts, Policy Admin create/update/delete guard, seeded demo action visibility, current/previous week/month leaderboard data, mission eligibility, Redis draft/idempotency, MinIO uploads, gRPC Policy, Action outbox/RabbitMQ, Reward/badges, Leaderboard, moderation, Report workflow, Report analytics including mission/user/badge/certificate events, Admin analytics range guards + student outcome report + selected weekly/monthly/yearly PDF export, Notification seeded role inbox, Notification mark-read/read-all/recipient guard, event-created notifications, daily limit, season close idempotency, authenticated certificate PDF attachment, Recognition reward offer CRUD, real coupon eligibility, locked coupon rejection, coupon stock decrement, duplicate reward claim idempotency, and queue drain. Frontend build verifies dashboard partial-loading code, dark theme form/search styling, leaderboard period selector, and the Policy add-rule modal.
 
 ## Docker Storage Maintenance
 
@@ -280,6 +282,7 @@ docker compose up -d
 
 More docs:
 
+- [Docs index](docs/README.md)
 - [Backend review](docs/backend-review-summary.md)
 - [Note SE361 implementation report](docs/note-se361-implementation-report.md)
 - [Project state report](docs/bao-cao-hien-trang-project.md)

@@ -49,6 +49,8 @@ class ReportDemoSeeder implements CommandLineRunner {
         user("DEMO-USER-SV006", "STUDENT", "SV006", 20);
         user("DEMO-USER-SV007", "STUDENT", "SV007", 10);
         user("DEMO-USER-SV008", "STUDENT", "SV008", 4);
+        user("DEMO-USER-SV009", "STUDENT", "SV009", 1);
+        user("DEMO-USER-SV010", "STUDENT", "SV010", 0);
         user("DEMO-USER-MOD", "MODERATOR", "SVMOD001", 200);
         user("DEMO-USER-ADMIN", "ADMIN", null, 240);
     }
@@ -66,6 +68,9 @@ class ReportDemoSeeder implements CommandLineRunner {
         mission("MISSION-EWASTE-01", "E-waste Drop-off", "ACTIVE", "DEMO-USER-MOD", 5);
         mission("MISSION-PLASTIC-01", "Plastic-free Lunch", "PENDING", "DEMO-USER-MOD", 2);
         mission("MISSION-CARPOOL-01", "Campus Carpool", "ACTIVE", "DEMO-USER-ADMIN", 1);
+        mission("MISSION-SOLAR-01", "Solar Awareness Booth", "ACTIVE", "DEMO-USER-MOD", 0);
+        mission("MISSION-WORKSHOP-01", "Green Workshop Attendance", "ACTIVE", "DEMO-USER-ADMIN", 0);
+        mission("MISSION-PAPERLESS-01", "Paperless Study Week", "ACTIVE", "DEMO-USER-MOD", 0);
     }
 
     private void seedActions() {
@@ -93,6 +98,18 @@ class ReportDemoSeeder implements CommandLineRunner {
         action("DEMO-ACTION-022", "SV006", "MISSION-PLASTIC-01", null, "PLASTIC_FREE_LUNCH", "ACCEPTED", 16, 180);
         action("DEMO-ACTION-023", "SV007", "MISSION-CARPOOL-01", null, "CARPOOL_TO_CAMPUS", "ACCEPTED", 18, 220);
         action("DEMO-ACTION-024", "SV008", "MISSION-RECYCLE-01", "STATION-A1", "RECYCLE_BOTTLE", "ACCEPTED", 10, 300);
+        action("DEMO-ACTION-025", "SV009", "MISSION-SOLAR-01", null, "SOLAR_AWARENESS", "ACCEPTED", 18, 0);
+        action("DEMO-ACTION-026", "SV010", "MISSION-WORKSHOP-01", null, "GREEN_WORKSHOP", "ACCEPTED", 20, 0);
+        action("DEMO-ACTION-027", "SV001", "MISSION-PAPERLESS-01", null, "PAPERLESS_NOTE", "ACCEPTED", 12, 0);
+        action("DEMO-ACTION-028", "SV002", "MISSION-SOLAR-01", null, "SOLAR_AWARENESS", "ACCEPTED", 18, 1);
+        action("DEMO-ACTION-029", "SV003", "MISSION-WORKSHOP-01", null, "GREEN_WORKSHOP", "ACCEPTED", 20, 1);
+        action("DEMO-ACTION-030", "SV004", "MISSION-PAPERLESS-01", null, "PAPERLESS_NOTE", "PENDING_REVIEW", 12, 2);
+        action("DEMO-ACTION-031", "SV005", "MISSION-CLEANUP-01", null, "CLEANUP_EVENT", "ACCEPTED", 30, 2);
+        action("DEMO-ACTION-032", "SV006", "MISSION-ENERGY-01", null, "ENERGY_SAVING", "ACCEPTED", 20, 3);
+        action("DEMO-ACTION-033", "SV007", "MISSION-BIKE-01", null, "BIKE_TO_CAMPUS", "ACCEPTED", 12, 4);
+        action("DEMO-ACTION-034", "SV008", "MISSION-REFILL-01", "STATION-B2", "WATER_REFILL", "ACCEPTED", 8, 5);
+        action("DEMO-ACTION-035", "SV009", "MISSION-PLASTIC-01", null, "PLASTIC_FREE_LUNCH", "REJECTED", 0, 6);
+        action("DEMO-ACTION-036", "SV010", "MISSION-COMPOST-01", "STATION-F6", "COMPOST_WASTE", "ACCEPTED", 14, 9);
     }
 
     private void seedRewards() {
@@ -104,6 +121,8 @@ class ReportDemoSeeder implements CommandLineRunner {
         reward("SV006", 71, 35);
         reward("SV007", 30, 44);
         reward("SV008", 46, 53);
+        reward("SV009", 18, 0);
+        reward("SV010", 34, 0);
     }
 
     private void seedBadges() {
@@ -113,6 +132,8 @@ class ReportDemoSeeder implements CommandLineRunner {
         badge("DEMO-BADGE-004", "SV006", "CLEANUP_CHAMPION", "Cleanup Champion", 35);
         badge("DEMO-BADGE-005", "SV008", "GREEN_STARTER", "Green Starter", 53);
         badge("DEMO-BADGE-006", "SV004", "GREEN_STARTER", "Green Starter", 110);
+        badge("DEMO-BADGE-007", "SV009", "GREEN_STARTER", "Green Starter", 0);
+        badge("DEMO-BADGE-008", "SV010", "GREEN_STARTER", "Green Starter", 0);
     }
 
     private void seedCertificates() {
@@ -129,6 +150,8 @@ class ReportDemoSeeder implements CommandLineRunner {
         report("DEMO-REPORT-004", "DEMO-USER-MOD", "SVMOD001", "MODERATOR", ReportTargetType.ACTION, "DEMO-ACTION-004", ReportStatus.ACCEPTED, 55);
         report("DEMO-REPORT-005", "DEMO-USER-SV005", "SV005", "STUDENT", ReportTargetType.USER, "SV007", ReportStatus.OPEN, 120);
         report("DEMO-REPORT-006", "DEMO-USER-SV006", "SV006", "STUDENT", ReportTargetType.MISSION, "MISSION-EWASTE-01", ReportStatus.REJECTED, 210);
+        report("DEMO-REPORT-007", "DEMO-USER-SV009", "SV009", "STUDENT", ReportTargetType.MISSION, "MISSION-SOLAR-01", ReportStatus.OPEN, 0);
+        report("DEMO-REPORT-008", "DEMO-USER-SV010", "SV010", "STUDENT", ReportTargetType.USER, "SV004", ReportStatus.ACCEPTED, 3);
     }
 
     private void user(String id, String role, String studentId, long daysAgo) {

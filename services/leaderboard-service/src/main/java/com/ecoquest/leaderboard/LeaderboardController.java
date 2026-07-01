@@ -2,7 +2,9 @@ package com.ecoquest.leaderboard;
 
 import com.ecoquest.common.security.RoleAuthorizer;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -18,18 +20,38 @@ class LeaderboardController {
     }
 
     @GetMapping("/weekly")
-    List<LeaderboardEntry> weekly(@RequestParam(defaultValue = "10") int limit) {
-        return leaderboard.top("weekly", limit);
+    List<LeaderboardEntry> weekly(@RequestParam(defaultValue = "10") int limit,
+                                  @RequestParam(required = false) Integer year,
+                                  @RequestParam(required = false) Integer week) {
+        try {
+            return leaderboard.top("weekly", limit, year, week, null);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+        }
     }
 
     @GetMapping("/monthly")
-    List<LeaderboardEntry> monthly(@RequestParam(defaultValue = "10") int limit) {
-        return leaderboard.top("monthly", limit);
+    List<LeaderboardEntry> monthly(@RequestParam(defaultValue = "10") int limit,
+                                   @RequestParam(required = false) Integer year,
+                                   @RequestParam(required = false) Integer month) {
+        try {
+            return leaderboard.top("monthly", limit, year, null, month);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+        }
     }
 
     @GetMapping("/users/{studentId}/rank")
-    RankResponse rank(@PathVariable String studentId, @RequestParam(defaultValue = "weekly") String type) {
-        return leaderboard.rank(type, studentId);
+    RankResponse rank(@PathVariable String studentId,
+                      @RequestParam(defaultValue = "weekly") String type,
+                      @RequestParam(required = false) Integer year,
+                      @RequestParam(required = false) Integer week,
+                      @RequestParam(required = false) Integer month) {
+        try {
+            return leaderboard.rank(type, studentId, year, week, month);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+        }
     }
 
     @PostMapping("/seasons/{id}/close")

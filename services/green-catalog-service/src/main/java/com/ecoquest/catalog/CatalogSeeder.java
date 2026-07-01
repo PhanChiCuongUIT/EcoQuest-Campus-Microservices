@@ -59,6 +59,12 @@ class CatalogSeeder {
                     "Document a lunch using reusable containers and no single-use plastic."));
             saveMissionIfMissing(missions, mission("MISSION-CARPOOL-01", "Campus Carpool", "CARPOOL_TO_CAMPUS", 18, true, false,
                     "Share a ride with classmates and submit transport evidence."));
+            saveMissionIfMissing(missions, mission("MISSION-SOLAR-01", "Solar Awareness Booth", "SOLAR_AWARENESS", 18, true, false,
+                    "Visit or support a campus solar awareness booth and submit participation evidence."));
+            saveMissionIfMissing(missions, mission("MISSION-WORKSHOP-01", "Green Workshop Attendance", "GREEN_WORKSHOP", 20, true, false,
+                    "Attend a sustainability workshop and upload attendance evidence."));
+            saveMissionIfMissing(missions, mission("MISSION-PAPERLESS-01", "Paperless Study Week", "PAPERLESS_NOTE", 12, true, false,
+                    "Use digital notes and submit proof of a paperless study session."));
 
             saveStationIfMissing(stations, station("STATION-A1", "Library Recycling Point", "QR-A1", "RECYCLING",
                     "Main Library", true, "/logo.png"));

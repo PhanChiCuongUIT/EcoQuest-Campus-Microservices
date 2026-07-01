@@ -1,5 +1,7 @@
 # EcoQuest Campus — UI/UX Design Specification
 
+> **Historical design plan.** File này là bản kế hoạch UI/UX từ các phiên frontend trước và có thể còn chi tiết cũ. Nguồn sự thật hiện tại để code/review frontend là `docs/frontend-handoff.md`, `docs/frontend-test-scenarios.md`, `docs/bao-cao-hien-trang-project.md` và `docs/note-se361-implementation-report.md`.
+
 > **Dashboard App** cho hệ thống gamified campus sustainability.
 > 3 roles: **Student**, **Moderator**, **Admin**. Không phải landing page / marketing site.
 

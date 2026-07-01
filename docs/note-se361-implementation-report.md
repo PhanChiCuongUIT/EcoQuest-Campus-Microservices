@@ -2,7 +2,7 @@
 
 Cập nhật: 2026-07-01
 
-Tài liệu này đối chiếu project với file `Note SE361 - Microservices (2).docx`. File note ban đầu có 46 gạch đầu dòng, trong đó 2 dòng là ảnh minh họa, tương ứng 44 ý chức năng. Ngày 25/06/2026 bổ sung 7 yêu cầu, sau đó bổ sung 4 yêu cầu, tiếp theo bổ sung 4 yêu cầu về export báo cáo/CRUD/audit/seed data, tiếp theo bổ sung 9 yêu cầu về topbar, report target, self-management, admin analytics theo toàn bộ tuần/tháng/năm, sidebar và reset seed sạch, tiếp theo bổ sung 4 yêu cầu về ràng buộc kỳ báo cáo, Student outcome report, evidence preview và Policy Rules CRUD, tiếp theo bổ sung 4 yêu cầu về Policy modal, Student outcome one-student layout, logo email thật và dashboard resilient loading, và ngày 01/07/2026 bổ sung 4 yêu cầu về chữ ký certificate, coupon thật, reset seed sạch và kiểm lại CRUD. Bảng dưới theo dõi tổng cộng **80 ý**. Backend hiện có 9 microservice tách ownership rõ ràng; upload dùng MinIO theo service sở hữu; SMTP thật đang bật và Actuator mail health trả `UP`.
+Tài liệu này đối chiếu project với file `Note SE361 - Microservices (2).docx`. File note ban đầu có 46 gạch đầu dòng, trong đó 2 dòng là ảnh minh họa, tương ứng 44 ý chức năng. Ngày 25/06/2026 bổ sung 7 yêu cầu, sau đó bổ sung 4 yêu cầu, tiếp theo bổ sung 4 yêu cầu về export báo cáo/CRUD/audit/seed data, tiếp theo bổ sung 9 yêu cầu về topbar, report target, self-management, admin analytics theo toàn bộ tuần/tháng/năm, sidebar và reset seed sạch, tiếp theo bổ sung 4 yêu cầu về ràng buộc kỳ báo cáo, Student outcome report, evidence preview và Policy Rules CRUD, tiếp theo bổ sung 4 yêu cầu về Policy modal, Student outcome one-student layout, logo email thật và dashboard resilient loading, ngày 01/07/2026 bổ sung 4 yêu cầu về chữ ký certificate, coupon thật, reset seed sạch và kiểm lại CRUD, bổ sung 2 yêu cầu về dark theme/search UI cùng leaderboard theo tuần/tháng cũ trong năm, và bổ sung 1 yêu cầu về seed/kiểm tra Notification. Bảng dưới theo dõi tổng cộng **83 ý**. Backend hiện có 9 microservice tách ownership rõ ràng; upload dùng MinIO theo service sở hữu; SMTP thật đang bật và Actuator mail health trả `UP`.
 
 ## Tổng Quan Hiện Trạng
 
@@ -13,7 +13,7 @@ Tài liệu này đối chiếu project với file `Note SE361 - Microservices (
 - Email thật: SMTP đang bật, có Gmail/App Password và mail health `UP`. Email xác nhận, reset mật khẩu và đổi trạng thái dùng HTML branded, logo PNG thật attach inline bằng CID, CTA, link dự phòng, lý do và địa chỉ hỗ trợ.
 - Cloudinary: chưa cần cho bản local microservices. Project đang dùng MinIO để đảm bảo mỗi service sở hữu file của mình; chỉ cần Cloudinary khi deploy public và muốn CDN ngoài.
 
-## 80 Ý Chức Năng Trong Note
+## 83 Ý Chức Năng Trong Note
 
 | # | Yêu cầu trong note | Trạng thái | Ghi chú triển khai |
 | --- | --- | --- | --- |
@@ -75,7 +75,7 @@ Tài liệu này đối chiếu project với file `Note SE361 - Microservices (
 | 56 | Admin Analytics cần xuất file báo cáo đẹp, đúng chuẩn | Đã làm | `report-service` thêm `GET /reports/analytics/export?period=weekly|monthly|yearly`, trả `application/pdf` attachment. PDF có tiêu đề, thời gian báo cáo, bảng metric, action types, top students và footer nguồn dữ liệu read model. Frontend có nút `Export PDF` tải blob kèm JWT. |
 | 57 | Check CRUD tất cả project, thiếu thì fix | Đã kiểm chứng và sửa | Catalog mission/station/badge đã có create/read/update/delete; badge thiếu `PUT /catalog/badges/{code}` nên đã thêm backend, API client và UI edit. Smoke test kiểm create/update/delete mission, station, badge; user management, report review, policy update, reward adjust và notification workflow cũng được kiểm theo nghiệp vụ tương ứng. |
 | 58 | Re-audit project đúng và đủ microservices, kể cả service mới | Đã đạt theo scope hiện tại | Hệ thống giữ 9 microservice: Identity, Catalog, Action, Policy gRPC, Reward, Leaderboard, Recognition, Report, Notification. Gateway chỉ route, không chứa nghiệp vụ; service không đọc DB chéo; Report analytics dùng event/read model riêng nên không cần tạo service thứ 10 cho báo cáo. |
-| 59 | Seed thêm dữ liệu phong phú: mission >=10, submit action >=20, điểm/badge/certificate/report nhiều mốc thời gian | Đã làm | Seed hiện có 12 mission, 7 station, 12 policy rule, 8 student demo, 24 submit action ở weekly/monthly/yearly, reward wallets/transactions/badges, recognition certificates, reports và report analytics read-model records để dashboard/báo cáo có dữ liệu ngay sau khi chạy stack. |
+| 59 | Seed thêm dữ liệu phong phú: mission >=10, submit action >=20, điểm/badge/certificate/report nhiều mốc thời gian | Đã làm | Seed hiện có 15 mission, 7 station, 15 policy rule, 10 student demo, 36 submit action ở tuần/tháng hiện tại và nhiều mốc weekly/monthly/yearly, reward wallets/transactions/badges, recognition certificates, reports và report analytics read-model records để dashboard/báo cáo có dữ liệu ngay sau khi chạy stack. |
 | 60 | Student panel topbar còn hiện `Student: SVMOD001` ở Dashboard/Wallet/Certificates | Đã sửa | TopBar không còn hiển thị selector Student ID ở Student panel; các trang dùng student context từ tài khoản đăng nhập nên header đồng nhất với các trang khác. |
 | 61 | New report không nên bắt nhập Target ID thủ công | Đã sửa | `Reports.jsx` đổi sang target picker có search. USER lấy từ endpoint Identity tối giản `/auth/report-targets/users`, MISSION lấy từ Catalog, ACTION lấy từ Action review queue. |
 | 62 | UI Student/Moderator còn chỗ hiển thị ID thay vì tên khi có thể hiển thị tên | Đã cải thiện | Recent actions đã map mission ID sang title; report queue ưu tiên tên user/mission/action summary và chỉ giữ ID ở dòng phụ để truy vết. Admin Adjust và Admin Analytics đổi lookup student sang danh sách tên/student ID. |
@@ -95,8 +95,11 @@ Tài liệu này đối chiếu project với file `Note SE361 - Microservices (
 | 76 | Dashboard các role đôi khi mới đăng nhập không load được dữ liệu | Đã sửa | Student, Moderator và Admin dashboard đổi sang `Promise.allSettled`/partial fallback. Nếu một service tạm chậm/lỗi, dashboard vẫn render phần dữ liệu đã load và hiện banner cảnh báo thay vì trắng hoặc chỉ báo lỗi chung. |
 | 77 | Certificate cần đổi chữ ký cả backend PDF, preview và print | Đã sửa | Recognition PDF renderer, UI preview và print template đều dùng hai chữ ký: `University Representative / UNIVERSITY REPRESENTATIVE` và `Phan Chi Cuong / ECOQUEST APPLICATION REPRESENTATIVE`. CSS preview/print đã chỉnh line-height/spacing để chữ ký không đè nhau trên desktop và mobile. |
 | 78 | Coupon không được chỉ là demo, cần dùng coupon thật | Đã sửa | Recognition service hiện sở hữu `RewardOffer`, `RewardClaim` và `StudentRecognitionProfile`. Frontend lấy danh sách coupon qua `GET /recognitions/rewards?studentId=...`, backend kiểm điểm/badge/certificate/stock/expiry trước khi phát voucher, trừ stock khi claim, và duplicate claim trả lại voucher cũ. Admin có CRUD coupon offer trong Recognition; Gateway chỉ route. |
-| 79 | Làm mới database, xóa dữ liệu E2E test cũ và seed thêm dữ liệu hiện tại | Đã làm | Đã chạy reset volume EcoQuest (`docker compose down -v`) và rebuild/reseed. Seed giữ dữ liệu demo chính, thêm coupon offers hiện tại, profile recognition, certificate, report analytics, mission/action theo nhiều mốc thời gian; sau smoke cuối sẽ reset lại lần nữa để trạng thái DB cuối cùng chỉ còn seed sạch, không còn user/action `SV_E2E_*`. |
+| 79 | Làm mới database, xóa dữ liệu E2E test cũ và seed thêm dữ liệu hiện tại | Đã làm | Đã chạy reset volume EcoQuest (`docker compose down -v`) và rebuild/reseed sau smoke. Trạng thái cuối cùng chỉ còn seed sạch, không còn user/action `SV_E2E_*`; quick check xác nhận 15 mission, 12 user demo, SV001 có 4 action, SV009 có action mới. |
 | 80 | Check lại CRUD toàn project sau các thay đổi mới | Đã kiểm chứng | Backend smoke ngày 01/07/2026 PASS. Smoke kiểm Catalog mission/station/badge CRUD, Policy rule CRUD có guard inactive, Recognition reward offer CRUD có guard active/no issued voucher, User role/status/self-protection, Report review, Reward adjust, notification read và các luồng submit/review/certificate/coupon. |
+| 81 | Dark theme còn lỗi ở thanh search/input/select | Đã sửa | CSS đã bổ sung token dark cho `.form-input`, `.form-select`, `.form-textarea`, `.search-field`, `.select-field`, `.student-selector`, `.student-picker-field`, placeholder và option dropdown. Frontend unit 12/12 và Vite build PASS. |
+| 82 | Thêm mission/action mẫu cho tuần này/tháng này; Leaderboard xem được tuần/tháng trước trong năm | Đã sửa | Catalog/Policy seed thêm 3 mission/action type; Action/Reward/Report/Identity/Recognition seed thêm student/action/ledger/profile hiện tại. Leaderboard đổi sang Redis key theo kỳ `weekly:YYYY-Www`, `monthly:YYYY-MM`, API nhận `year/week/month`, UI có period selector và smoke test kiểm current/previous week/month. |
+| 83 | Thêm dữ liệu Notification và kiểm lại notification chưa ổn | Đã sửa | `notification-service` có `NotificationDemoSeeder` idempotent cho Student/Moderator/Admin và SV001/SV009. Smoke test kiểm seeded inbox theo role, mark-all-read, student không mark-read notification của Admin, notification từ action/badge/certificate event, và RabbitMQ queue drain. Sau reset sạch: Student có 4 notification, Moderator 3, Admin 3; không còn dữ liệu E2E. |
 
 ## Các Điểm Còn Phụ Thuộc Môi Trường
 
@@ -145,7 +148,7 @@ Các luồng đã/đang được kiểm bởi `scripts/backend-smoke-test.ps1`:
 - Identity email logo: build xác nhận logo PNG thật được đóng gói vào classpath mail template.
 - Identity self-protection: admin không tự đổi role/status/delete chính mình; demote Moderator -> Student hoạt động khi có `studentId`.
 - Report target lookup: frontend không cần nhập Target ID thủ công cho USER/MISSION/ACTION.
-- Seed data: mission >=10, submit action >=20, policy rule >=12, demo SV001 actions, coupon offer và recognition profile.
+- Seed data: mission >=15, submit action >=36, policy rule >=15, demo SV001/SV009 actions, coupon offer, recognition profile và notification inbox theo role.
 - RabbitMQ queue drain với 20 queue event.
 
 ## Kiểm Tra Bổ Sung Certificate Và Coupon Ngày 01/07/2026
@@ -161,17 +164,18 @@ Các luồng đã/đang được kiểm bởi `scripts/backend-smoke-test.ps1`:
 
 Frontend đã có:
 
-- Unit tests cho workflow rules, panel navigation, phân loại lỗi đăng nhập và reporting range guard: 9/9.
+- Unit tests cho workflow rules, panel navigation, phân loại lỗi đăng nhập, reporting range guard và leaderboard period options: 12/12.
 - Production build Vite.
 - Kịch bản manual test trong `docs/frontend-test-scenarios.md`.
 
 Kết quả cuối ngày 01/07/2026:
 
-- Backend full smoke sau khi patch coupon thật, reward offer CRUD, Recognition profile race và seed reset: PASS.
+- Backend full smoke sau khi patch coupon thật, reward offer CRUD, Recognition profile race, leaderboard period key và seed reset: PASS.
 - RabbitMQ: 20 queue, 0 pending message, mỗi queue có 1 consumer.
 - Log sau smoke: không còn lỗi duplicate key ở Recognition. Một vài lỗi Gateway `Connection refused` chỉ xuất hiện trong vài giây warm-up nếu test login trước khi Identity mở port `8086`; sau khi service sẵn sàng smoke pass và không lặp lại trong nghiệp vụ.
-- Frontend unit: 9/9 PASS; Vite production build PASS.
+- Frontend unit: 12/12 PASS; Vite production build PASS.
 - PDF được tải qua bearer token và render trực quan thành A4 landscape một trang.
+- Final audit sau reset sạch: Gateway `UP`, 15 mission, 12 user demo, 0 E2E user, notification seed theo 3 role có dữ liệu, RabbitMQ 20 queue drained.
 
 ## File Chính Đã Cập Nhật
 

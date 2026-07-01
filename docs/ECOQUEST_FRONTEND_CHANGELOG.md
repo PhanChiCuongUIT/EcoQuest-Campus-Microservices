@@ -1,5 +1,7 @@
 # EcoQuest Campus – Frontend Changelog
 
+> **Historical changelog.** File này giữ lịch sử thay đổi frontend từ nhiều phiên. Trạng thái hiện tại và API contract mới nhất nằm ở `docs/frontend-handoff.md`, checklist test nằm ở `docs/frontend-test-scenarios.md`, báo cáo tổng hợp nằm ở `docs/bao-cao-hien-trang-project.md`.
+
 **Ngày cập nhật:** 2026-06-23  
 **Môi trường:** React + Vite + Vanilla CSS  
 **API Gateway:** `http://localhost:18080` (local dev) | `/auth /catalog /actions /rewards /leaderboards /recognitions` (container nginx)
@@ -284,7 +286,7 @@ npm run build  # ✅ Build thành công, 0 errors
 - Replaced the notification modal with a dropdown under the bell, including toggle, outside-click close, mark-all-read, SSE updates, and role-safe navigation.
 - Added distinct charts/metrics for Student, Moderator, and Admin dashboards.
 - Admin Analytics displays points, badge and certificate event read models from Report service.
-- Latest verification: frontend tests 9/9, Vite build pass, backend full smoke pass, 18 RabbitMQ queues drained.
+- Latest verification: frontend tests 12/12, Vite build pass, backend full smoke pass, 20 RabbitMQ queues drained.
 
 # Update 2026-06-25 - Admin Analytics, Login Feedback, Help Content, Rich Charts
 
@@ -299,7 +301,7 @@ npm run build  # ✅ Build thành công, 0 errors
 
 - Admin Analytics now exports a polished PDF report through `GET /reports/analytics/export?period=...`; frontend downloads it as an authenticated blob.
 - Catalog badge management now has true REST update support via `PUT /catalog/badges/{code}` and the admin UI uses it when editing badges.
-- Seed data expanded to 12 missions, 7 stations, 12 policy rules, 8 student demo accounts, 24 seeded submit actions, reward wallets/badges, certificates, reports, and report analytics records across weekly/monthly/yearly windows.
+- Seed data expanded to 15 missions, 7 stations, 15 policy rules, 10 student demo accounts, 36 seeded submit actions, reward wallets/badges, certificates, reports, leaderboard historical periods, and report analytics records across current week/month plus weekly/monthly/yearly windows.
 - Backend smoke now verifies seeded mission/policy counts, badge update, seeded SV001 actions, analytics PDF `application/pdf` attachment, and the existing full microservice flow.
 
 ### 2026-06-25 - Report target and analytics series alignment
@@ -323,3 +325,10 @@ npm run build  # ✅ Build thành công, 0 errors
 - Student outcome One Student lookup uses a dedicated responsive picker so long display names/student IDs no longer overlap the View student button.
 - Student, Moderator, and Admin dashboards render partial data when one backend endpoint is still warming up instead of failing the whole screen.
 - Identity branded emails now use the real EcoQuest PNG logo attached inline by CID.
+
+### 2026-07-01 - Notification Seed And Microservice Demo Readiness
+
+- Notification service now seeds role/person inbox data for Student, Moderator, and Admin, so the bell dropdown has realistic data after a clean reset.
+- Backend smoke verifies seeded notification role inbox, read-all, recipient guard, event-created notifications, and RabbitMQ drain.
+- RabbitMQ healthcheck is stricter (`ping`, `check_running`, `check_port_connectivity`) so event consumers start after the broker application is actually ready.
+- Documentation now includes a microservices demo script covering Gateway, JWT, database-per-service, gRPC, RabbitMQ, Redis, MinIO, Notification, Report Analytics, coupon claims, and smoke tests.
