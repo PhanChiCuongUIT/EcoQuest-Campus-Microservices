@@ -283,6 +283,7 @@ docker compose up -d
 More docs:
 
 - [Docs index](docs/README.md)
+- [DOCX report source document](docs/tai-lieu-nguon-bao-cao-docx.md)
 - [Backend review](docs/backend-review-summary.md)
 - [Note SE361 implementation report](docs/note-se361-implementation-report.md)
 - [Project state report](docs/bao-cao-hien-trang-project.md)
