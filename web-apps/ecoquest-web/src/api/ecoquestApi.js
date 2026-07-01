@@ -134,11 +134,13 @@ export const downloadCertificate = async (certId) => {
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 };
 
-export const claimReward = (rewardId, studentId, rewardName) =>
-  client.post(`/recognitions/rewards/${rewardId}/claim`, { studentId, rewardName })
+export const claimReward = (rewardId, studentId) =>
+  client.post(`/recognitions/rewards/${rewardId}/claim`, { studentId })
     .then(r => r.data);
 export const getRewardClaims = (studentId) =>
   client.get(`/recognitions/rewards/claims/user/${studentId}`).then(r => r.data);
+export const getRecognitionRewards = (studentId) =>
+  client.get(`/recognitions/rewards?studentId=${encodeURIComponent(studentId)}`).then(r => r.data);
 
 // ── Policy (local-only, direct to service) ────────────────────
 

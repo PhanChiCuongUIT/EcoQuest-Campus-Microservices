@@ -1,6 +1,6 @@
 # EcoQuest Campus Frontend Handoff
 
-Updated: 2026-06-26
+Updated: 2026-07-01
 
 Tài liệu này là source-of-truth cho agent frontend. Agent có thể đọc file này cùng các file được liệt kê bên dưới để code/review/test UI mà không cần quét backend source hoặc database.
 
@@ -16,7 +16,7 @@ Backend hiện có **9 microservices**:
 | Verification Policy | direct `:8090`, gRPC `:9090` | PostgreSQL `policy_db` | Policy admin direct local; Action gọi gRPC nội bộ |
 | Reward Ledger | `/rewards/**` | PostgreSQL `reward_db` | Wallet, transactions, badges, adjustment |
 | Leaderboard | `/leaderboards/**` | Redis, PostgreSQL `leaderboard_db` | Weekly/monthly rank, season snapshots |
-| Recognition | `/recognitions/**` | PostgreSQL `recognition_db`, MinIO | Certificates, idempotent reward claim vouchers |
+| Recognition | `/recognitions/**` | PostgreSQL `recognition_db`, MinIO | Certificates, reward offer catalog, coupon eligibility and idempotent voucher claims |
 | Report | `/reports/**` | PostgreSQL `report_db`, MinIO | User reports, moderation, evidence upload, analytics |
 | Notification | `/notifications/**` | PostgreSQL `notification_db` | Inbox, read state, SSE, event consumers |
 
@@ -430,8 +430,13 @@ Leaderboard entry:
 
 - `GET /recognitions/certificates/user/{studentId}`
 - `GET /recognitions/certificates/{id}`
-- `GET /recognitions/certificates/{id}/download` - public PDF
-- `POST /recognitions/rewards/{id}/claim`
+- `GET /recognitions/certificates/{id}/download` - authenticated PDF attachment, request as blob with bearer token
+- `GET /recognitions/rewards?studentId={studentId}` - real coupon offer catalog with eligibility per student
+- `POST /recognitions/rewards/{id}/claim` - claim an eligible coupon/voucher
+- `GET /recognitions/rewards/claims/user/{studentId}`
+- `POST /recognitions/rewards` - Admin create coupon offer
+- `PUT /recognitions/rewards/{id}` - Admin update coupon offer
+- `DELETE /recognitions/rewards/{id}` - Admin delete inactive offer with no issued vouchers
 
 Certificate:
 
@@ -449,6 +454,44 @@ Certificate:
 ```
 
 Download returns `application/pdf` as an authenticated attachment. Frontend must request it as a blob with the bearer token instead of opening the protected URL directly.
+
+Reward offer:
+
+```json
+{
+  "id": "reward-cafe",
+  "name": "Campus Cafe Voucher",
+  "description": "10% off at the campus cafe for verified eco contributors.",
+  "icon": "coffee",
+  "color": "#16A34A",
+  "requiredPoints": 10,
+  "requiredBadges": 1,
+  "requiredCertificates": 0,
+  "remainingStock": 120,
+  "active": true,
+  "validUntil": "2026-09-29T00:00:00Z",
+  "terms": "Valid once at participating campus cafe counters.",
+  "eligible": true,
+  "eligibilityReason": null
+}
+```
+
+Reward claim:
+
+```json
+{
+  "id": "CLAIM-...",
+  "rewardId": "reward-cafe",
+  "studentId": "SV001",
+  "rewardName": "Campus Cafe Voucher",
+  "status": "ISSUED",
+  "voucherCode": "ECO-REWAR-AB12CD34",
+  "claimedOn": "2026-07-01T04:00:00Z",
+  "expiresAt": "2026-09-29T00:00:00Z"
+}
+```
+
+Frontend should not hardcode coupon cards or send a custom reward name as the source of truth. The Recognition service owns reward offer names, requirements, stock, expiry, and duplicate-claim idempotency.
 
 ## Report API
 
@@ -584,7 +627,7 @@ Already expected or implemented:
 4. Wallet & Badges: total points, transactions, point badges, count badges.
 5. Leaderboard: weekly/monthly tabs, rank lookup, close season for Admin.
 6. Moderator Review: queue/history, search/filter, evidence preview, approve/reject, own-action disabled.
-7. Certificates: cards, preview, authenticated PDF download, reward claim. Fixed reward claims are idempotent per `studentId + rewardId`: duplicate claim returns the existing voucher and should be rendered as already issued.
+7. Certificates: cards, preview, authenticated PDF download, real coupon offers from Recognition. Reward claims are idempotent per `studentId + rewardId`: duplicate claim returns the existing voucher and should be rendered as already issued.
 8. Admin Catalog: mission CRUD/status workflow, station image upload/preview, badge CRUD.
 9. Admin Policy: direct local policy rules.
 10. Profile: display name/avatar upload.
@@ -607,14 +650,13 @@ Already expected or implemented:
 
 ## Verification Status
 
-Last verified on 2026-06-26:
+Last verified on 2026-07-01:
 
 - Full Maven reactor 14/14 modules: pass.
 - `docker compose config --quiet`: pass.
 - Backend smoke test: pass.
-- RabbitMQ after smoke: all queues drained to 0 messages and have consumers.
-- RabbitMQ exposes 18 queues; all drained to 0 messages with one consumer after smoke.
+- RabbitMQ after smoke: 20 queues drained to 0 messages and have consumers.
 - Frontend unit tests after latest UI/API changes: 9/9 pass.
 - Policy rule creation uses a modal overlay; dashboards render partial data while a backend service is warming up; Identity emails attach the real EcoQuest logo inline by CID.
-- Recognition certificate PDF download and duplicate reward claim idempotency are covered by backend smoke.
+- Recognition certificate PDF download, reward offer CRUD, real coupon eligibility, locked coupon rejection, stock decrement and duplicate reward claim idempotency are covered by backend smoke.
 - Frontend production build after latest UI/API changes: pass.

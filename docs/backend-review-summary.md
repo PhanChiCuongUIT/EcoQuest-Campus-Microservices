@@ -1,6 +1,6 @@
 # EcoQuest Backend Review Summary
 
-Updated: 2026-06-26
+Updated: 2026-07-01
 
 ## Kết luận
 
@@ -66,7 +66,7 @@ Identity, Report và Notification là các bounded context bổ sung ngoài 6 se
 - Weekly/monthly leaderboard và user rank.
 - Close season idempotent, snapshot DB riêng.
 - Recognition tạo certificate record, PDF MinIO và download attachment `application/pdf`; frontend tải blob có JWT nên không còn Whitelabel 401.
-- Reward claim demo.
+- Recognition sở hữu reward offer catalog và coupon/voucher claim thật: kiểm điểm, badge, certificate, stock, expiry; duplicate claim trả voucher cũ, không phát mã mới.
 
 ### Report và Notification
 
@@ -120,7 +120,7 @@ Các điểm trên không làm sai boundary microservice hiện tại, nhưng l�
 
 ## Test đã xác minh
 
-Ngày 25/06/2026:
+Ngày 01/07/2026:
 
 ```powershell
 docker run --rm -v ${PWD}:/workspace -v ${PWD}/.m2:/root/.m2 -w /workspace maven:3.9.9-eclipse-temurin-21 mvn package -DskipTests
@@ -137,8 +137,8 @@ Kết quả sau patch mới nhất:
 - Maven full reactor 14/14 modules: **PASS**.
 - `docker compose config --quiet`: **PASS**.
 - Backend smoke test: **PASS**.
-- RabbitMQ queue drain after smoke: **PASS**.
-- Post-smoke log scan for `ERROR|Exception|Assertion failed|Timed out`: **PASS** after warm-up; earlier Gateway connection-refused logs only occurred while Identity was still starting.
+- RabbitMQ queue drain after smoke: **PASS** với 20 queue, 0 pending message và mỗi queue có consumer.
+- Post-smoke log scan: **PASS** cho lỗi nghiệp vụ; lỗi duplicate profile ở Recognition đã được sửa. Gateway có thể có vài dòng `Connection refused` trong giây đầu nếu test gọi login trước khi Identity mở port, sau warm-up không lặp lại.
 - Frontend unit tests: **9/9 PASS**.
 - Frontend production build after Policy modal, Student outcome layout, and dashboard partial-loading fixes: **PASS**.
 - Frontend Vite build: **PASS**.

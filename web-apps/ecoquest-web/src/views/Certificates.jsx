@@ -4,21 +4,22 @@ import EmptyState from '../components/EmptyState.jsx';
 import AsyncBanner from '../components/AsyncBanner.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { getCertificates, downloadCertificate, claimReward, getRewardClaims } from '../api/ecoquestApi.js';
+import { getCertificates, downloadCertificate, claimReward, getRewardClaims, getRecognitionRewards } from '../api/ecoquestApi.js';
 import { printCertificate } from '../utils/printCertificate.js';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
-
-const DEMO_REWARDS = [
-  { id: 'reward-cafe',  name: 'Campus Cafe Voucher', icon: '☕', desc: '10% off your next cafe purchase', color: '#16A34A' },
-  { id: 'reward-book',  name: 'Library Book Credit', icon: '📚', desc: 'Free 1-week book extension',      color: '#0284C7' },
-  { id: 'reward-park',  name: 'Eco Park Pass',        icon: '🌿', desc: 'Free entry to campus eco park',  color: '#0D4736' },
-  { id: 'reward-merch', name: 'EcoQuest Merch',       icon: '🎽', desc: 'Exclusive campus sustainability tee', color: '#D97706' },
-];
 
 const RANK_META = {
   1: { emoji: '🥇', color: '#D97706', shadow: 'rgba(217,119,6,0.3)', bgFrom: '#FFFBEB', bgTo: '#FEF3C7', label: '1st Place' },
   2: { emoji: '🥈', color: '#6B7280', shadow: 'rgba(107,114,128,0.3)', bgFrom: '#F9FAFB', bgTo: '#F3F4F6', label: '2nd Place' },
   3: { emoji: '🥉', color: '#B45309', shadow: 'rgba(180,83,9,0.3)', bgFrom: '#FFF7ED', bgTo: '#FFEDD5', label: '3rd Place' },
+};
+
+const REWARD_ICON_MAP = {
+  coffee: '☕',
+  book: '📚',
+  leaf: '🌿',
+  shirt: '🎽',
+  ticket: '🎟️',
 };
 
 function formatDate(iso) {
@@ -301,6 +302,8 @@ function CertCard({ cert, user, onPreview, onDownload }) {
 /* ── Rewards Section ─────────────────────────────────────────── */
 function RewardItem({ reward, onClaim, claiming, claim }) {
   const alreadyClaimed = Boolean(claim);
+  const disabled = claiming[reward.id] || alreadyClaimed || !reward.eligible;
+  const expiry = reward.validUntil ? new Date(reward.validUntil).toLocaleDateString() : 'No expiry';
   return (
     <div style={{
       borderRadius: 'var(--radius-xl)',
@@ -325,10 +328,15 @@ function RewardItem({ reward, onClaim, claiming, claim }) {
           fontSize: 26,
           marginBottom: 'var(--space-3)',
         }}>
-          {reward.icon}
+          {REWARD_ICON_MAP[reward.icon] || reward.icon || '🎟️'}
         </div>
         <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 2 }}>{reward.name}</div>
-        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{reward.desc}</div>
+        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{reward.description}</div>
+        <div style={{ display: 'grid', gap: 3, marginTop: 10, fontSize: 10.5, color: 'var(--color-text-muted)' }}>
+          <span>{reward.requiredPoints} pts · {reward.requiredBadges} badge · {reward.requiredCertificates} certificate</span>
+          <span>{reward.remainingStock} left · valid until {expiry}</span>
+          {!reward.eligible && <span style={{ color: 'var(--color-warning-text)', fontWeight: 700 }}>{reward.eligibilityReason}</span>}
+        </div>
       </div>
       <div style={{ padding: 'var(--space-4)', paddingTop: 0 }}>
         <button
@@ -340,9 +348,9 @@ function RewardItem({ reward, onClaim, claiming, claim }) {
             border: 'none',
           }}
           onClick={() => onClaim(reward.id, reward.name)}
-          disabled={claiming[reward.id] || alreadyClaimed}
+          disabled={disabled}
         >
-          {claiming[reward.id] ? 'Claiming...' : alreadyClaimed ? `Issued: ${claim.voucherCode}` : 'Redeem Coupon'}
+          {claiming[reward.id] ? 'Claiming...' : alreadyClaimed ? `Issued: ${claim.voucherCode}` : reward.eligible ? 'Redeem Coupon' : 'Locked'}
         </button>
       </div>
     </div>
@@ -358,20 +366,22 @@ export default function Certificates({ studentId }) {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
   const [claiming, setClaiming] = useState({});
-  const [customReward, setCustomReward] = useState('');
   const [claims, setClaims] = useState([]);
+  const [rewards, setRewards] = useState([]);
   const [preview, setPreview]   = useState(null); // cert to preview
 
   const load = useCallback(async () => {
     if (!studentId) return;
     setLoading(true); setError(null);
     try {
-      const [data, claimData] = await Promise.all([
+      const [data, claimData, rewardData] = await Promise.all([
         getCertificates(studentId),
         getRewardClaims(studentId).catch(() => []),
+        getRecognitionRewards(studentId).catch(() => []),
       ]);
       setCerts([...data].sort((a, b) => new Date(b.issuedOn) - new Date(a.issuedOn)));
       setClaims(claimData);
+      setRewards(rewardData);
     } catch {
       setError('Could not load certificates. Make sure Recognition service is running.');
     } finally { setLoading(false); }
@@ -388,8 +398,11 @@ export default function Certificates({ studentId }) {
     if (!accepted) return;
     setClaiming(prev => ({ ...prev, [rewardId]: true }));
     try {
-      const claim = await claimReward(rewardId, studentId, rewardName);
+      const claim = await claimReward(rewardId, studentId);
       setClaims(items => [claim, ...items.filter(item => item.id !== claim.id)]);
+      setRewards(items => items.map(item => item.id === rewardId
+        ? { ...item, remainingStock: Math.max(0, (item.remainingStock ?? 1) - 1) }
+        : item));
       toast({ type: 'success', message: 'Reward voucher ready', sub: `Voucher code: ${claim.voucherCode}` });
     } catch {
       toast({ type: 'error', message: 'Redemption failed', sub: 'Please try again later.' });
@@ -487,15 +500,15 @@ export default function Certificates({ studentId }) {
             <Gift size={18} color="var(--color-primary)" />
             <h2 className="card-title">Redeem Sustainability Rewards</h2>
           </div>
-          <span className="badge badge-neutral">{DEMO_REWARDS.length} Rewards Catalog</span>
+          <span className="badge badge-neutral">{rewards.length} Coupon Offers</span>
         </div>
         <div className="card-body">
           <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 'var(--space-4)' }}>
-            This is the demo reward redemption flow: students can turn earned sustainability recognition into a persistent voucher stored by Recognition service. Claiming a reward generates an issued coupon code that remains visible in voucher history.
+            These coupon offers are managed by Recognition service. Each offer has eligibility rules, stock, expiry, and a persistent voucher code stored in Recognition database.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
-            {DEMO_REWARDS.map(r => (
+            {rewards.map(r => (
               <RewardItem
                 key={r.id}
                 reward={r}
@@ -507,6 +520,9 @@ export default function Certificates({ studentId }) {
           </div>
 
           <div className="divider" />
+          {rewards.length === 0 && (
+            <AsyncBanner type="info" message="No active coupon offers are available right now." />
+          )}
           {claims.length > 0 && (
             <div className="reward-claim-history">
               <h3>Issued vouchers</h3>
@@ -521,30 +537,6 @@ export default function Certificates({ studentId }) {
               ))}
             </div>
           )}
-          {claims.length > 0 && <div className="divider" />}
-          <div style={{ background: 'var(--color-background-alt)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)', border: '1px solid var(--color-border)' }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8, color: 'var(--color-text)' }}>Custom Voucher Request</h3>
-            <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 12 }}>
-              Have another reward in mind? Enter a custom request (e.g. "Free Campus Bus Pass") to submit a voucher.
-            </p>
-            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-              <input
-                className="form-input"
-                value={customReward}
-                onChange={e => setCustomReward(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && customReward.trim() && (() => { handleClaim('custom-' + Date.now(), customReward.trim()); setCustomReward(''); })()}
-                placeholder="e.g. Free parking pass, Canteen snack credit..."
-                style={{ flex: 1 }}
-              />
-              <button
-                className="btn btn-primary"
-                onClick={() => { if (!customReward.trim()) return; handleClaim('custom-' + Date.now(), customReward.trim()); setCustomReward(''); }}
-                disabled={!customReward.trim()}
-              >
-                <Gift size={14} /> Request Reward
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

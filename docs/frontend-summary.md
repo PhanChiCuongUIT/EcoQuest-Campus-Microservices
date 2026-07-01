@@ -4,7 +4,7 @@ Tài liệu này tổng hợp toàn bộ hiện trạng hệ thống Frontend c�
 
 ---
 
-## Current Alignment Update - 2026-06-26
+## Current Alignment Update - 2026-07-01
 
 Backend alignment has changed since the earlier frontend notes:
 
@@ -16,12 +16,12 @@ Backend alignment has changed since the earlier frontend notes:
 - Latest alignment also includes report target pickers instead of raw Target ID input, Admin self-protection in User Management, and Admin Analytics period series for choosing any week/month/year before exporting that selected period.
 - Certificate download uses an authenticated blob request and saves a PDF attachment; email verify/reset links have dedicated frontend routes.
 - Notification is a dropdown under the bell with SSE, read-all, toggle and role-safe navigation.
-- Current verification: `npm.cmd test` passes 9/9, `npm.cmd run build` passes, full backend smoke passes, Maven builds pass, and all 18 RabbitMQ queues drain to 0 messages after the smoke run.
+- Current verification: `npm.cmd test` passes 9/9, `npm.cmd run build` passes, full backend smoke passes, targeted Recognition Maven build passes, and all 20 RabbitMQ queues drain to 0 messages after the smoke run.
 - Admin now has separate `Reports` and `Analytics` sidebar pages. Analytics supports weekly/monthly/yearly summaries, student outcome lookup, period series tables, and authenticated selected-period PDF export from the Report-service event read model.
 - Policy & Privacy and Application Guide now have distinct content. Login errors distinguish credentials, email verification, inactive, banned, network, rate-limit, and server cases.
 - Student, Moderator, and Admin dashboards use reusable donut, column, and area charts with role-specific metrics.
 - Admin Analytics now blocks future/reversed reporting ranges, exposes all-student outcome reports by selected period, and Policy Rules supports guarded create/update/delete through the Policy service direct admin API.
-- Latest UI fixes move Policy rule creation into a modal overlay, prevent One Student analytics controls from overlapping, and make dashboards render partial data if one backend service is still warming up.
+- Latest UI/API fixes move Policy rule creation into a modal overlay, prevent One Student analytics controls from overlapping, make dashboards render partial data if one backend service is still warming up, and replace hardcoded reward cards with real Recognition reward offers/coupon eligibility.
 
 For clean API contracts and test scenarios, use `docs/frontend-handoff.md` and `docs/frontend-test-scenarios.md`. Older text below is kept as historical frontend summary and may contain encoding artifacts from prior generation.
 

@@ -13,4 +13,12 @@ interface CertificateRepository extends JpaRepository<CertificateRecord, String>
 interface RewardClaimRepository extends JpaRepository<RewardClaim, String> {
     List<RewardClaim> findByStudentIdOrderByClaimedOnDesc(String studentId);
     Optional<RewardClaim> findFirstByStudentIdAndRewardIdOrderByClaimedOnDesc(String studentId, String rewardId);
+    long countByRewardId(String rewardId);
+}
+
+interface RewardOfferRepository extends JpaRepository<RewardOffer, String> {
+    List<RewardOffer> findByActiveTrueOrderByRequiredPointsAscNameAsc();
+}
+
+interface StudentRecognitionProfileRepository extends JpaRepository<StudentRecognitionProfile, String> {
 }

@@ -789,7 +789,7 @@ Use these choices when designing and coding the frontend. They are no longer ope
 5. Submit Action: modal overlay on desktop and bottom drawer on mobile.
 6. Role switcher: sidebar footer on desktop; More or compact top control on mobile.
 7. Admin Adjust Points: Admin-only panel/action, with optional secondary Wallet entry point for Admin role.
-8. Reward Claims: fixed demo reward cards plus optional custom reward name input.
+8. Reward Claims: use the real Recognition reward offer catalog from `GET /recognitions/rewards?studentId=...`; do not hardcode demo cards or expose custom reward name as the source of truth.
 9. Auth: use the new backend `identity-access-service` for login, register, forgot password, reset password, and `/auth/me`.
 
 ---
@@ -839,5 +839,5 @@ Codex backend review resolved the implementation-blocking issues:
    - Submit Action is a modal overlay on desktop and a bottom drawer on mobile.
    - Role switcher stays in the sidebar footer on desktop. On mobile, place role switching inside More or a compact top control if needed.
    - Admin Adjust Points should be an Admin-only panel/action, not a primary student wallet action. It may also appear as a secondary action when viewing a wallet as Admin.
-   - Reward Claims should use fixed demo reward cards plus an optional custom `rewardName` input because the backend intentionally has no reward catalog service yet.
+   - Reward Claims should use the backend Recognition reward catalog. The backend now owns coupon offer names, requirements, stock, expiry and duplicate-claim idempotency.
 4. Ignore the local image paths in this document if the referenced files are not available. Text specs and `docs/frontend-handoff.md` are the source of truth.

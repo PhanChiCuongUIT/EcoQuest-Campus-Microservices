@@ -968,18 +968,72 @@ $download = Invoke-WebRequest -Uri "$Gateway/recognitions/certificates/$($certif
 Assert-True ($download.StatusCode -eq 200) "Certificate download should return HTTP 200"
 Assert-True ($download.Headers["Content-Type"] -match "application/pdf") "Certificate download should be PDF"
 Assert-True ($download.Headers["Content-Disposition"] -match "attachment") "Certificate PDF should be returned as a downloadable attachment"
+$script:DefaultHeaders = $adminHeaders
+$tempRewardId = "reward-e2e-$runId"
+$tempRewardExpiry = (Get-Date).AddDays(30).ToUniversalTime().ToString("o")
+$createdRewardOffer = Invoke-Api -Method "POST" -Uri "$Gateway/recognitions/rewards" -Body @{
+    id = $tempRewardId
+    name = "E2E Temporary Coupon"
+    description = "Temporary reward offer created by backend smoke test."
+    icon = "ticket"
+    color = "#1C7C54"
+    requiredPoints = 1
+    requiredBadges = 0
+    requiredCertificates = 0
+    remainingStock = 3
+    active = $true
+    validUntil = $tempRewardExpiry
+    terms = "Smoke-test reward offer."
+}
+Assert-True ($createdRewardOffer.id -eq $tempRewardId) "Recognition reward offer create should persist temp coupon"
+Assert-True ((Get-StatusCode -Method "DELETE" -Uri "$Gateway/recognitions/rewards/$tempRewardId") -eq 409) "Recognition should prevent deleting active reward offers"
+$updatedRewardOffer = Invoke-Api -Method "PUT" -Uri "$Gateway/recognitions/rewards/$tempRewardId" -Body @{
+    id = $tempRewardId
+    name = "E2E Updated Temporary Coupon"
+    description = "Updated temporary reward offer created by backend smoke test."
+    icon = "ticket"
+    color = "#0F766E"
+    requiredPoints = 2
+    requiredBadges = 0
+    requiredCertificates = 0
+    remainingStock = 2
+    active = $false
+    validUntil = $tempRewardExpiry
+    terms = "Updated smoke-test reward offer."
+}
+Assert-True ($updatedRewardOffer.name -eq "E2E Updated Temporary Coupon" -and $updatedRewardOffer.active -eq $false) "Recognition reward offer update should persist changes"
+Assert-True ((Get-StatusCode -Method "DELETE" -Uri "$Gateway/recognitions/rewards/$tempRewardId") -eq 200) "Recognition should delete inactive reward offers with no issued vouchers"
+$script:DefaultHeaders = $studentAcceptedHeaders
+$rewardOffers = @(Invoke-ApiList -Uri "$Gateway/recognitions/rewards?studentId=$studentAccepted")
+$cafeOffer = $rewardOffers | Where-Object { $_.id -eq "reward-cafe" } | Select-Object -First 1
+$ecoKitOffer = $rewardOffers | Where-Object { $_.id -eq "reward-eco-kit" } | Select-Object -First 1
+Assert-True ($null -ne $cafeOffer) "Recognition should expose real reward offer catalog"
+Assert-True ($cafeOffer.eligible -eq $true) "Campus Cafe coupon should be eligible after accepted action and starter badge"
+Assert-True ($cafeOffer.remainingStock -gt 0) "Eligible reward offer should expose remaining stock"
+Assert-True ($null -ne $ecoKitOffer) "Recognition should expose locked higher-tier reward offer"
+Assert-True ($ecoKitOffer.eligible -eq $false) "Higher-tier Eco Kit coupon should remain locked until conditions are met"
+Assert-True ((Get-StatusCode -Method "POST" -Uri "$Gateway/recognitions/rewards/reward-eco-kit/claim" -Body @{
+    studentId = $studentAccepted
+}) -eq 409) "Recognition should reject locked coupon claims"
 $claim = Invoke-Api -Method "POST" -Uri "$Gateway/recognitions/rewards/reward-cafe/claim" -Body @{
     studentId = $studentAccepted
     rewardName = "Campus Cafe Voucher"
 }
 Assert-True ($claim.status -eq "ISSUED") "Reward claim should be persisted as ISSUED"
-Assert-True ($claim.voucherCode -like "ECO-*") "Reward claim should generate a voucher code"
+Assert-True ($claim.rewardName -eq "Campus Cafe Voucher") "Reward claim should use the Recognition-owned offer name"
+Assert-True ($claim.voucherCode -like "ECO-REWAR-*") "Reward claim should generate a real coupon code with reward prefix"
+$rewardOffersAfterClaim = @(Invoke-ApiList -Uri "$Gateway/recognitions/rewards?studentId=$studentAccepted")
+$cafeAfterClaim = $rewardOffersAfterClaim | Where-Object { $_.id -eq "reward-cafe" } | Select-Object -First 1
+Assert-True ($cafeAfterClaim.remainingStock -eq ($cafeOffer.remainingStock - 1)) "Claiming a coupon should decrement Recognition-owned stock"
 $duplicateClaim = Invoke-Api -Method "POST" -Uri "$Gateway/recognitions/rewards/reward-cafe/claim" -Body @{
     studentId = $studentAccepted
     rewardName = "Campus Cafe Voucher"
 }
 Assert-True ($duplicateClaim.id -eq $claim.id) "Duplicate reward claim should return the existing voucher"
 Assert-True ($duplicateClaim.voucherCode -eq $claim.voucherCode) "Duplicate reward claim should keep the original voucher code"
+$rewardOffersAfterDuplicate = @(Invoke-ApiList -Uri "$Gateway/recognitions/rewards?studentId=$studentAccepted")
+$cafeAfterDuplicate = $rewardOffersAfterDuplicate | Where-Object { $_.id -eq "reward-cafe" } | Select-Object -First 1
+Assert-True ($cafeAfterDuplicate.remainingStock -eq $cafeAfterClaim.remainingStock) "Duplicate coupon claim should not decrement stock again"
 $claims = @(Invoke-ApiList -Uri "$Gateway/recognitions/rewards/claims/user/$studentAccepted")
 Assert-True (Has-ItemWithValue $claims "id" $claim.id) "Student should see persisted reward claims"
 Wait-Until -Message "certificate notification" -Attempts 45 -DelaySeconds 2 -Condition {

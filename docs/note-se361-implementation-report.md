@@ -1,8 +1,8 @@
 # Báo Cáo Đối Chiếu Note SE361
 
-Cập nhật: 2026-06-26
+Cập nhật: 2026-07-01
 
-Tài liệu này đối chiếu project với file `Note SE361 - Microservices (2).docx`. File note ban đầu có 46 gạch đầu dòng, trong đó 2 dòng là ảnh minh họa, tương ứng 44 ý chức năng. Ngày 25/06/2026 bổ sung 7 yêu cầu, sau đó bổ sung 4 yêu cầu, tiếp theo bổ sung 4 yêu cầu về export báo cáo/CRUD/audit/seed data, tiếp theo bổ sung 9 yêu cầu về topbar, report target, self-management, admin analytics theo toàn bộ tuần/tháng/năm, sidebar và reset seed sạch, tiếp theo bổ sung 4 yêu cầu về ràng buộc kỳ báo cáo, Student outcome report, evidence preview và Policy Rules CRUD, và phiên mới nhất bổ sung 4 yêu cầu về Policy modal, Student outcome one-student layout, logo email thật và dashboard resilient loading. Bảng dưới theo dõi tổng cộng **76 ý**. Backend hiện có 9 microservice tách ownership rõ ràng; upload dùng MinIO theo service sở hữu; SMTP thật đang bật và Actuator mail health trả `UP`.
+Tài liệu này đối chiếu project với file `Note SE361 - Microservices (2).docx`. File note ban đầu có 46 gạch đầu dòng, trong đó 2 dòng là ảnh minh họa, tương ứng 44 ý chức năng. Ngày 25/06/2026 bổ sung 7 yêu cầu, sau đó bổ sung 4 yêu cầu, tiếp theo bổ sung 4 yêu cầu về export báo cáo/CRUD/audit/seed data, tiếp theo bổ sung 9 yêu cầu về topbar, report target, self-management, admin analytics theo toàn bộ tuần/tháng/năm, sidebar và reset seed sạch, tiếp theo bổ sung 4 yêu cầu về ràng buộc kỳ báo cáo, Student outcome report, evidence preview và Policy Rules CRUD, tiếp theo bổ sung 4 yêu cầu về Policy modal, Student outcome one-student layout, logo email thật và dashboard resilient loading, và ngày 01/07/2026 bổ sung 4 yêu cầu về chữ ký certificate, coupon thật, reset seed sạch và kiểm lại CRUD. Bảng dưới theo dõi tổng cộng **80 ý**. Backend hiện có 9 microservice tách ownership rõ ràng; upload dùng MinIO theo service sở hữu; SMTP thật đang bật và Actuator mail health trả `UP`.
 
 ## Tổng Quan Hiện Trạng
 
@@ -13,7 +13,7 @@ Tài liệu này đối chiếu project với file `Note SE361 - Microservices (
 - Email thật: SMTP đang bật, có Gmail/App Password và mail health `UP`. Email xác nhận, reset mật khẩu và đổi trạng thái dùng HTML branded, logo PNG thật attach inline bằng CID, CTA, link dự phòng, lý do và địa chỉ hỗ trợ.
 - Cloudinary: chưa cần cho bản local microservices. Project đang dùng MinIO để đảm bảo mỗi service sở hữu file của mình; chỉ cần Cloudinary khi deploy public và muốn CDN ngoài.
 
-## 76 Ý Chức Năng Trong Note
+## 80 Ý Chức Năng Trong Note
 
 | # | Yêu cầu trong note | Trạng thái | Ghi chú triển khai |
 | --- | --- | --- | --- |
@@ -93,6 +93,10 @@ Tài liệu này đối chiếu project với file `Note SE361 - Microservices (
 | 74 | Student outcome report chế độ One Student vẫn bị đè UI | Đã sửa | `AdminAnalytics.jsx` bỏ dùng `.search-field` chung cho select dài, thay bằng `.student-picker-field` có grid riêng, select co giãn đúng và nút `View student` không bị chồng lên nhau ở desktop/mobile. |
 | 75 | Email hệ thống chưa hiển thị logo project thật | Đã sửa | Copy `resources/EcoQuest Logo.png` vào classpath Identity và attach vào mail bằng CID `ecoquestLogo`. Template verify/reset/status dùng `<img src="cid:ecoquestLogo">`; nếu mail client chặn ảnh thì vẫn có text fallback EcoQuest Campus. |
 | 76 | Dashboard các role đôi khi mới đăng nhập không load được dữ liệu | Đã sửa | Student, Moderator và Admin dashboard đổi sang `Promise.allSettled`/partial fallback. Nếu một service tạm chậm/lỗi, dashboard vẫn render phần dữ liệu đã load và hiện banner cảnh báo thay vì trắng hoặc chỉ báo lỗi chung. |
+| 77 | Certificate cần đổi chữ ký cả backend PDF, preview và print | Đã sửa | Recognition PDF renderer, UI preview và print template đều dùng hai chữ ký: `University Representative / UNIVERSITY REPRESENTATIVE` và `Phan Chi Cuong / ECOQUEST APPLICATION REPRESENTATIVE`. CSS preview/print đã chỉnh line-height/spacing để chữ ký không đè nhau trên desktop và mobile. |
+| 78 | Coupon không được chỉ là demo, cần dùng coupon thật | Đã sửa | Recognition service hiện sở hữu `RewardOffer`, `RewardClaim` và `StudentRecognitionProfile`. Frontend lấy danh sách coupon qua `GET /recognitions/rewards?studentId=...`, backend kiểm điểm/badge/certificate/stock/expiry trước khi phát voucher, trừ stock khi claim, và duplicate claim trả lại voucher cũ. Admin có CRUD coupon offer trong Recognition; Gateway chỉ route. |
+| 79 | Làm mới database, xóa dữ liệu E2E test cũ và seed thêm dữ liệu hiện tại | Đã làm | Đã chạy reset volume EcoQuest (`docker compose down -v`) và rebuild/reseed. Seed giữ dữ liệu demo chính, thêm coupon offers hiện tại, profile recognition, certificate, report analytics, mission/action theo nhiều mốc thời gian; sau smoke cuối sẽ reset lại lần nữa để trạng thái DB cuối cùng chỉ còn seed sạch, không còn user/action `SV_E2E_*`. |
+| 80 | Check lại CRUD toàn project sau các thay đổi mới | Đã kiểm chứng | Backend smoke ngày 01/07/2026 PASS. Smoke kiểm Catalog mission/station/badge CRUD, Policy rule CRUD có guard inactive, Recognition reward offer CRUD có guard active/no issued voucher, User role/status/self-protection, Report review, Reward adjust, notification read và các luồng submit/review/certificate/coupon. |
 
 ## Các Điểm Còn Phụ Thuộc Môi Trường
 
@@ -129,7 +133,7 @@ Các luồng đã/đang được kiểm bởi `scripts/backend-smoke-test.ps1`:
 - Reward ledger, badge, leaderboard weekly/monthly, close season.
 - Recognition certificate generation và PDF download `application/pdf`.
 - Certificate download bắt buộc JWT nhưng frontend tải blob đúng cách; response là attachment.
-- Reward claim/voucher và duplicate claim idempotency.
+- Recognition reward offer catalog/eligibility, claim voucher, duplicate claim idempotency, stock decrement và admin reward offer CRUD.
 - Notification inbox/SSE-backed read model.
 - Report analytics nhận action, points snapshot, badge, certificate, mission và user registration events mà không đọc DB chéo.
 - Admin analytics export PDF `application/pdf` attachment cho kỳ hiện tại hoặc kỳ được chọn trong quá khứ.
@@ -141,15 +145,19 @@ Các luồng đã/đang được kiểm bởi `scripts/backend-smoke-test.ps1`:
 - Identity email logo: build xác nhận logo PNG thật được đóng gói vào classpath mail template.
 - Identity self-protection: admin không tự đổi role/status/delete chính mình; demote Moderator -> Student hoạt động khi có `studentId`.
 - Report target lookup: frontend không cần nhập Target ID thủ công cho USER/MISSION/ACTION.
-- Seed data: mission >=10, submit action >=20, policy rule >=12, demo SV001 actions.
-- RabbitMQ queue drain.
+- Seed data: mission >=10, submit action >=20, policy rule >=12, demo SV001 actions, coupon offer và recognition profile.
+- RabbitMQ queue drain với 20 queue event.
 
-## Kiểm Tra Bổ Sung Certificate Và Coupon Ngày 26/06/2026
+## Kiểm Tra Bổ Sung Certificate Và Coupon Ngày 01/07/2026
 
 - Certificate: Recognition service consume `LeaderboardSeasonClosedEvent`, tạo metadata trong `recognition_db`, render PDF A4 ngang, upload MinIO và trả download `application/pdf` qua endpoint có JWT. Close cùng `seasonId` không tạo trùng certificate vì backend kiểm `seasonId + studentId`.
-- Coupon/voucher: Recognition service sở hữu bảng `reward_claims`. `POST /recognitions/rewards/{id}/claim` kiểm quyền self/admin, validate `studentId` và `rewardName`, sau đó trả claim `ISSUED` với mã `ECO-...`.
-- Bug đã sửa: trước đây bấm lại cùng reward có thể phát thêm voucher mới. Hiện backend trả lại claim cũ theo `studentId + rewardId`; frontend disable reward đã claim và hiển thị `Issued: <voucherCode>`.
-- Kiểm chứng: `scripts/backend-smoke-test.ps1` đã thêm assertion duplicate claim giữ nguyên `id` và `voucherCode`; smoke full stack PASS ngày 26/06/2026.
+- Coupon/voucher: Recognition service sở hữu bảng `reward_offers`, `reward_claims` và `student_recognition_profiles`. Coupon không còn hardcode/demo ở frontend.
+- `GET /recognitions/rewards?studentId=...` trả catalog coupon đang active kèm `eligible` và `eligibilityReason` dựa trên điểm, badge, certificate, stock và hạn dùng.
+- `POST /recognitions/rewards/{id}/claim` chỉ phát voucher khi đủ điều kiện, trừ stock của offer, trả `ISSUED` với mã `ECO-...`; claim lại cùng `studentId + rewardId` trả voucher cũ và không trừ stock lần hai.
+- Admin CRUD coupon offer nằm trong Recognition service: `POST /recognitions/rewards`, `PUT /recognitions/rewards/{id}`, `DELETE /recognitions/rewards/{id}`. Delete bị chặn nếu offer còn active hoặc đã có voucher issued.
+- Recognition consume `PointsGrantedEvent` và `BadgeUnlockedEvent` để cập nhật `StudentRecognitionProfile` phục vụ eligibility, không đọc Reward DB.
+- Bug đã sửa ngày 01/07/2026: cập nhật profile recognition có thể bị duplicate key khi points/badge/certificate event đến gần nhau; hiện `RecognitionProgressService` serialize và flush update để không còn lỗi duplicate key.
+- Kiểm chứng: `scripts/backend-smoke-test.ps1` đã thêm assertion reward offer CRUD, locked coupon claim `409`, duplicate claim giữ nguyên `id`/`voucherCode`, stock decrement đúng; smoke full stack PASS ngày 01/07/2026.
 
 Frontend đã có:
 
@@ -157,11 +165,11 @@ Frontend đã có:
 - Production build Vite.
 - Kịch bản manual test trong `docs/frontend-test-scenarios.md`.
 
-Kết quả cuối ngày 26/06/2026:
+Kết quả cuối ngày 01/07/2026:
 
-- Backend full smoke sau khi patch Policy modal/email logo/dashboard resilient loading: PASS.
-- RabbitMQ: 18 queue, 0 pending message, mỗi queue có 1 consumer.
-- Log sau smoke: không có `ERROR|Exception|Assertion failed|Timed out` sau giai đoạn warm-up. Một vài lỗi Gateway `Connection refused` trước smoke là startup race khi Identity chưa mở port và không còn lặp lại sau khi service sẵn sàng.
+- Backend full smoke sau khi patch coupon thật, reward offer CRUD, Recognition profile race và seed reset: PASS.
+- RabbitMQ: 20 queue, 0 pending message, mỗi queue có 1 consumer.
+- Log sau smoke: không còn lỗi duplicate key ở Recognition. Một vài lỗi Gateway `Connection refused` chỉ xuất hiện trong vài giây warm-up nếu test login trước khi Identity mở port `8086`; sau khi service sẵn sàng smoke pass và không lặp lại trong nghiệp vụ.
 - Frontend unit: 9/9 PASS; Vite production build PASS.
 - PDF được tải qua bearer token và render trực quan thành A4 landscape một trang.
 
@@ -171,6 +179,11 @@ Kết quả cuối ngày 26/06/2026:
   - `docker-compose.yml`
   - `services/recognition-service/src/main/java/com/ecoquest/recognition/CertificateService.java`
   - `services/recognition-service/src/main/java/com/ecoquest/recognition/RecognitionController.java`
+  - `services/recognition-service/src/main/java/com/ecoquest/recognition/RecognitionModels.java`
+  - `services/recognition-service/src/main/java/com/ecoquest/recognition/CertificateRepository.java`
+  - `services/recognition-service/src/main/java/com/ecoquest/recognition/RecognitionProgressService.java`
+  - `services/recognition-service/src/main/java/com/ecoquest/recognition/RecognitionDemoSeeder.java`
+  - `services/recognition-service/src/main/java/com/ecoquest/recognition/RecognitionMessagingConfig.java`
   - `services/report-service/src/main/java/com/ecoquest/report/ReportController.java`
   - `services/report-service/src/main/java/com/ecoquest/report/ReportEvidenceStorage.java`
   - `services/report-service/src/main/java/com/ecoquest/report/ReportAnalyticsService.java`
@@ -204,5 +217,9 @@ Kết quả cuối ngày 26/06/2026:
   - `docs/frontend-summary.md`
   - `docs/frontend-test-scenarios.md`
   - `docs/backend-review-summary.md`
+  - `docs/bao-cao-hien-trang-project.md`
+  - `docs/huong-dan-su-dung-cong-nghe-microservices.md`
+  - `docs/luong-nghiep-vu-database.md`
+  - `docs/cong-nghe-microservices.md`
   - `docs/ECOQUEST_FRONTEND_CHANGELOG.md`
   - `docs/note-se361-implementation-report.md`
