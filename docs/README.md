@@ -1,31 +1,32 @@
-# EcoQuest Campus Docs Index
+# Mục Lục Tài Liệu EcoQuest Campus
 
-Cap nhat: 2026-07-01
+Cập nhật: 2026-07-01
 
-Day la muc luc tai lieu hien tai cua project. Khi can doc nhanh trang thai moi nhat, uu tien cac file trong nhom "nguon su that hien tai".
+Đây là mục lục tài liệu hiện tại của project. Khi cần đọc nhanh trạng thái mới nhất, ưu tiên các file trong nhóm **nguồn sự thật hiện tại**.
 
-## Nguon Su That Hien Tai
+## Nguồn Sự Thật Hiện Tại
 
-| File | Dung de lam gi |
+| File | Dùng để làm gì |
 | --- | --- |
-| `bao-cao-hien-trang-project.md` | Tong hop hien trang project, use case, seed data, cong nghe va test da chay. |
-| `note-se361-implementation-report.md` | Doi chieu 83 y trong note SE361, trang thai da lam/chua lam va ly do. |
-| `frontend-handoff.md` | API contract va du lieu can thiet cho frontend agent/code reviewer. |
+| `bao-cao-hien-trang-project.md` | Tổng hợp hiện trạng project, use case, seed data, công nghệ và test đã chạy. |
+| `tai-lieu-nguon-bao-cao-docx.md` | Bản tổng hợp đầy đủ để viết/copy vào báo cáo DOCX: database, use case, microservices, frontend, test, demo, hạn chế. |
+| `note-se361-implementation-report.md` | Đối chiếu 83 ý trong note SE361, trạng thái đã làm/chưa làm và lý do. |
+| `frontend-handoff.md` | API contract và dữ liệu cần thiết cho frontend agent/code reviewer. |
 | `frontend-test-scenarios.md` | Checklist test frontend theo role, workflow, upload, notification, analytics, certificate/coupon. |
-| `luong-nghiep-vu-database.md` | Luong nghiep vu, khi nao tao badge/certificate/coupon, bang DB va rang buoc logic. |
-| `cong-nghe-microservices.md` | Cong nghe microservices dang dung va cach giai thich khi bao cao. |
-| `huong-dan-su-dung-cong-nghe-microservices.md` | Huong dan chay, demo va trinh bay cac cong nghe microservices. |
-| `backend-review-summary.md` | Ket luan review backend, kien truc service va cac gioi han production-hardening. |
+| `luong-nghiep-vu-database.md` | Luồng nghiệp vụ, khi nào tạo badge/certificate/coupon, database chi tiết và ràng buộc logic. |
+| `cong-nghe-microservices.md` | Công nghệ microservices đang dùng và cách giải thích khi báo cáo. |
+| `huong-dan-su-dung-cong-nghe-microservices.md` | Hướng dẫn chạy, demo và trình bày các công nghệ microservices. |
+| `backend-review-summary.md` | Kết luận review backend, kiến trúc service và các giới hạn production-hardening. |
 
-## Tai Lieu Lich Su / Tham Khao
+## Tài Liệu Lịch Sử / Tham Khảo
 
-| File | Ly do giu lai |
+| File | Lý do giữ lại |
 | --- | --- |
-| `implementation_plan.md` | Ban ke hoach UI/UX cu cua frontend agent. Dung tham khao design, khong dung lam API source-of-truth. |
-| `frontend-summary.md` | Tong hop frontend lich su; dau file da cap nhat current alignment, phan duoi co the co encoding artifact. |
-| `ECOQUEST_FRONTEND_CHANGELOG.md` | Nhat ky thay doi frontend qua nhieu phien, khong thay the handoff/test docs hien tai. |
+| `implementation_plan.md` | Bản kế hoạch UI/UX cũ của frontend agent. Dùng tham khảo design, không dùng làm API source-of-truth. |
+| `frontend-summary.md` | Tổng hợp frontend lịch sử; phần đầu đã cập nhật current alignment, một số phần dưới có thể là ghi chú cũ. |
+| `ECOQUEST_FRONTEND_CHANGELOG.md` | Nhật ký thay đổi frontend qua nhiều phiên, không thay thế handoff/test docs hiện tại. |
 
-## Lenh Kiem Tra Nhanh
+## Lệnh Kiểm Tra Nhanh
 
 ```powershell
 $env:API_GATEWAY_PORT='18080'
@@ -37,7 +38,7 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Sau khi chay smoke test, neu muon xoa du lieu E2E tam va quay ve seed sach:
+Sau khi chạy smoke test, nếu muốn xóa dữ liệu E2E tạm và quay về seed sạch:
 
 ```powershell
 cd C:\Users\ADMIN\Downloads\Microservices-SE361

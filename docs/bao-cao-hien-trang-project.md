@@ -2,6 +2,8 @@
 
 Cập nhật: 2026-07-01
 
+Chi tiết database, use case, frontend và nội dung dùng để viết báo cáo DOCX nằm ở `tai-lieu-nguon-bao-cao-docx.md`; phần luồng nghiệp vụ và bảng/collection theo từng service nằm ở `luong-nghiep-vu-database.md`.
+
 ## 1. Mục Tiêu Hệ Thống
 
 EcoQuest Campus là hệ thống gamification cho hoạt động xanh trong trường học. Student tham gia mission, submit hành động xanh, upload minh chứng, nhận điểm, badge, certificate và coupon. Moderator duyệt action/report và tạo mission ở trạng thái pending. Admin quản trị hệ thống, duyệt catalog, quản lý user/policy/điểm, đóng season và xem báo cáo tuần/tháng/năm.
