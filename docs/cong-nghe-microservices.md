@@ -1,6 +1,6 @@
 # Công Nghệ Microservices Trong EcoQuest Campus
 
-Cập nhật: 2026-06-26
+Cập nhật: 2026-07-01
 
 Tài liệu này tổng hợp các công nghệ microservices đang có trong project EcoQuest Campus và chúng được dùng ở đâu, dùng như thế nào.
 
@@ -16,7 +16,7 @@ Project hiện có 9 microservice backend:
 | Verification Policy | Rule policy, gRPC evaluation, direct admin REST | `8090` REST, `9090` gRPC |
 | Reward Ledger | Wallet, transaction, badge achievement, adjust points | `8083` |
 | Leaderboard | Weekly/monthly rank, season snapshot | `8084` |
-| Recognition | Certificate PDF, coupon/voucher claim | `8085` |
+| Recognition | Certificate PDF, reward offer catalog, coupon/voucher eligibility and claim | `8085` |
 | Report | User report workflow, analytics read model, report PDF export | `8087` |
 | Notification | Inbox, read/read-all, SSE realtime notification | `8088` |
 
@@ -86,8 +86,8 @@ Các event chính:
 | --- | --- | --- |
 | `ActionAcceptedEvent` | Action | Reward, Report, Notification |
 | `ActionRejectedEvent` | Action | Report, Notification |
-| `PointsGrantedEvent` | Reward | Leaderboard, Report |
-| `BadgeUnlockedEvent` | Reward | Report, Notification |
+| `PointsGrantedEvent` | Reward | Leaderboard, Report, Recognition |
+| `BadgeUnlockedEvent` | Reward | Report, Notification, Recognition |
 | `LeaderboardSeasonClosedEvent` | Leaderboard | Recognition |
 | `CertificateIssuedEvent` | Recognition | Report, Notification |
 | `MissionStatusChangedEvent` | Catalog | Report, Notification |

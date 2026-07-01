@@ -15,7 +15,7 @@ Spring Cloud Gateway (routing, CORS, correlation ID)
       |       +-- gRPC --------- Verification Policy + PostgreSQL policy_db
       +-- Reward Ledger -------- PostgreSQL reward_db
       +-- Leaderboard ---------- Redis + PostgreSQL leaderboard_db
-      +-- Recognition ---------- PostgreSQL recognition_db + MinIO certificates
+      +-- Recognition ---------- PostgreSQL recognition_db + MinIO certificates/coupons
       +-- Report --------------- PostgreSQL report_db + MinIO report evidence
       +-- Notification --------- PostgreSQL notification_db
 
@@ -35,7 +35,7 @@ The system currently has **9 microservices**. Each service owns its own data and
 | Verification Policy | Internal gRPC rule evaluation; direct admin REST | `9090` gRPC, `8090` REST |
 | Reward Ledger | Wallet, transaction ledger, badge achievement, manual point adjustment | `8083` |
 | Leaderboard | Weekly/monthly rank read model, season snapshots | `8084` |
-| Recognition | Certificate PDF/MinIO and idempotent reward claim vouchers | `8085` |
+| Recognition | Certificate PDF/MinIO, reward offer catalog, coupon eligibility and idempotent voucher claims | `8085` |
 | Report | Student/Moderator reports, moderation queue, analytics read model | `8087` |
 | Notification | Inbox, read/read-all, SSE, event consumers | `8088` |
 
@@ -53,7 +53,7 @@ The system currently has **9 microservices**. Each service owns its own data and
 10. Report service consumes action, mission, user registration, points, badge, and certificate events into its own analytics read model and handles report create/review without reading other DBs.
 11. Admin analytics can show bounded week/month/year ranges without future periods; export downloads the selected week/month/year as the polished single-period PDF report.
 12. Policy Admin on direct port `8090` supports create/update/delete; deleting requires the rule to be inactive first so active mission action types are not accidentally made unsupported. The Admin UI creates rules through a modal overlay while the backend keeps all rule ownership inside the Policy service.
-13. Student reward redemption is handled by Recognition: claiming the same fixed reward twice returns the existing voucher instead of issuing a duplicate code.
+13. Student coupon redemption is handled by Recognition: active reward offers define points/badge/certificate/stock/expiry requirements; claiming the same reward twice returns the existing voucher instead of issuing a duplicate code.
 
 Mission statuses: `PENDING`, `ACTIVE`, `REJECTED`, `CANCELLED`, `COMPLETED`. New missions are `PENDING`; only Admin changes mission status; only `ACTIVE` missions can be submitted.
 
@@ -105,7 +105,7 @@ Verification, password reset, and status-change emails use the real EcoQuest log
 - 12 policy rules, one for each seeded action type.
 - 10 demo users: 8 students, 1 moderator, 1 admin. Demo password is `EcoQuest@123`.
 - 24 seeded submit actions across weekly/monthly/yearly windows, with accepted, pending-review, and rejected states.
-- Seeded Reward wallets/transactions/badges and Recognition certificates so dashboards and student pages are not empty after a fresh run.
+- Seeded Reward wallets/transactions/badges and Recognition certificates/coupon offers so dashboards and student pages are not empty after a fresh run.
 - Seeded Report analytics read-model data for weekly/monthly/yearly reports, including missions, submit actions, users, points, badges, certificates, and reports.
 
 To delete old local test data and reseed a clean demo dataset, run this from the repository root. This removes only this Compose project's containers/volumes, then recreates them:
@@ -205,17 +205,17 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Latest verification on 2026-06-26 after the Recognition voucher idempotency, Policy modal, email logo, dashboard resilience, and Student outcome layout fixes:
+Latest verification on 2026-07-01 after real Recognition coupon offers, reward offer CRUD, Recognition profile race fix, clean seed reset, certificate signature/mobile UI fixes, Policy modal, email logo, dashboard resilience, and Student outcome layout fixes:
 
-- Targeted Maven reactor for Identity + Policy and dependencies: PASS.
+- Targeted Maven reactor for Recognition and dependencies: PASS.
 - `docker compose config --quiet`: PASS.
 - Backend smoke test: PASS.
-- RabbitMQ queues after smoke: 18 queues, 0 pending messages, 1 consumer each.
-- Post-smoke logs after warm-up checked for `ERROR|Exception|Failed|Caused by`: no matches. A few Gateway `Connection refused` lines can appear during initial startup while Identity is still opening port `8086`; they disappear once services are healthy.
+- RabbitMQ queues after smoke: 20 queues, 0 pending messages, 1 consumer each.
+- Post-smoke logs: no Recognition duplicate profile errors after the race fix. A few Gateway `Connection refused` lines can appear during initial startup while Identity is still opening port `8086`; they disappear once services are healthy.
 - Frontend unit tests: 9/9 PASS.
 - Frontend production build: PASS.
 
-Smoke currently covers auth/verify/reset/profile/user management, admin self-protection, Moderator -> Student demotion, report target lookup, RBAC, moderator mission ownership, Catalog CRUD/workflow including badge update, station image upload, seeded mission/policy counts, Policy Admin create/update/delete guard, seeded demo action visibility, mission eligibility, Redis draft/idempotency, MinIO uploads, gRPC Policy, Action outbox/RabbitMQ, Reward/badges, Leaderboard, moderation, Report workflow, Report analytics including mission/user/badge/certificate events, Admin analytics range guards + student outcome report + selected weekly/monthly/yearly PDF export, Notification, daily limit, season close idempotency, authenticated certificate PDF attachment, reward claim voucher, duplicate reward claim idempotency, and queue drain. Frontend build verifies dashboard partial-loading code and the Policy add-rule modal.
+Smoke currently covers auth/verify/reset/profile/user management, admin self-protection, Moderator -> Student demotion, report target lookup, RBAC, moderator mission ownership, Catalog CRUD/workflow including badge update, station image upload, seeded mission/policy counts, Policy Admin create/update/delete guard, seeded demo action visibility, mission eligibility, Redis draft/idempotency, MinIO uploads, gRPC Policy, Action outbox/RabbitMQ, Reward/badges, Leaderboard, moderation, Report workflow, Report analytics including mission/user/badge/certificate events, Admin analytics range guards + student outcome report + selected weekly/monthly/yearly PDF export, Notification, daily limit, season close idempotency, authenticated certificate PDF attachment, Recognition reward offer CRUD, real coupon eligibility, locked coupon rejection, coupon stock decrement, duplicate reward claim idempotency, and queue drain. Frontend build verifies dashboard partial-loading code and the Policy add-rule modal.
 
 ## Docker Storage Maintenance
 
@@ -282,5 +282,9 @@ More docs:
 
 - [Backend review](docs/backend-review-summary.md)
 - [Note SE361 implementation report](docs/note-se361-implementation-report.md)
+- [Project state report](docs/bao-cao-hien-trang-project.md)
+- [Microservice technology usage guide](docs/huong-dan-su-dung-cong-nghe-microservices.md)
+- [Business flows and database](docs/luong-nghiep-vu-database.md)
+- [Microservice technologies](docs/cong-nghe-microservices.md)
 - [Frontend handoff](docs/frontend-handoff.md)
 - [Frontend test scenarios](docs/frontend-test-scenarios.md)

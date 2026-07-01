@@ -45,13 +45,15 @@ class CertificateService {
     private final MinioClient minio;
     private final RabbitTemplate rabbit;
     private final String bucket;
+    private final RecognitionProgressService progressService;
 
     CertificateService(CertificateRepository certificates, MinioClient minio, RabbitTemplate rabbit,
-                       @Value("${minio.bucket}") String bucket) {
+                       @Value("${minio.bucket}") String bucket, RecognitionProgressService progressService) {
         this.certificates = certificates;
         this.minio = minio;
         this.rabbit = rabbit;
         this.bucket = bucket;
+        this.progressService = progressService;
     }
 
     @RabbitListener(queues = RecognitionMessagingConfig.SEASON_CLOSED_QUEUE)
@@ -80,6 +82,7 @@ class CertificateService {
                     .stream(new ByteArrayInputStream(pdf), pdf.length, -1)
                     .build());
             certificates.save(certificate);
+            progressService.recordCertificate(certificate.studentId, certificate.issuedOn);
             rabbit.convertAndSend(EcoQuestRabbit.EXCHANGE, EcoQuestRabbit.CERTIFICATE_ISSUED,
                     new CertificateIssuedEvent(UUID.randomUUID().toString(), Instant.now(), certificate.id,
                             certificate.studentId, certificate.certificateType, certificate.objectKey));

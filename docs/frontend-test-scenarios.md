@@ -1,6 +1,6 @@
 # EcoQuest Frontend Test Scenarios
 
-Updated: 2026-06-26
+Updated: 2026-07-01
 
 ## Chuẩn bị
 
@@ -160,14 +160,17 @@ Admin:
 5. SSE dùng native `EventSource('/notifications/stream?accessToken=...')`; khi có notification mới, unread count tăng mà không cần refresh.
 6. Mission status changed, report created/reviewed, user reported và user status changed đều tạo notification đúng recipient/role.
 
-### 11. Certificates và reward claim
+### 11. Certificates và coupon claim
 
 1. Sau close season, certificate card xuất hiện.
 2. Download gọi API bằng bearer token, lưu file PDF attachment; không mở URL protected trực tiếp và không còn Whitelabel `401`.
 3. Render PDF A4 landscape một trang; tên/ID dài không tràn, mô tả và chữ ký không bị cắt.
 4. Close cùng season không duplicate certificate.
-5. Reward claim thành công và UI hiển thị voucher/history.
-6. Bấm lại cùng fixed reward không phát thêm voucher mới; backend trả lại claim cũ và UI hiển thị `Issued: <voucherCode>`.
+5. UI lấy coupon cards từ `GET /recognitions/rewards?studentId=...`, không hardcode reward demo.
+6. Offer đủ điều kiện hiển thị `Redeem`; offer thiếu điểm/badge/certificate/stock/expiry hiển thị locked và `eligibilityReason`.
+7. Reward claim thành công và UI hiển thị voucher/history, expiry và terms.
+8. Bấm lại cùng reward không phát thêm voucher mới; backend trả lại claim cũ, stock không giảm thêm và UI hiển thị `Issued: <voucherCode>`.
+9. Admin coupon offer CRUD: tạo offer mới, không delete khi active, deactivate rồi delete nếu chưa có issued voucher.
 
 ### 12. Notification dropdown và deep navigation
 

@@ -31,7 +31,53 @@ class RewardClaim {
     public String status;
     public String voucherCode;
     public Instant claimedOn;
+    public Instant expiresAt;
 }
 
 record RewardClaimRequest(String studentId, String rewardName) {
+}
+
+@Entity
+class RewardOffer {
+    @Id
+    public String id;
+    public String name;
+    public String description;
+    public String icon;
+    public String color;
+    public int requiredPoints;
+    public int requiredBadges;
+    public int requiredCertificates;
+    public int remainingStock;
+    public boolean active;
+    public Instant validUntil;
+    public String terms;
+}
+
+@Entity
+class StudentRecognitionProfile {
+    @Id
+    public String studentId;
+    public int totalPoints;
+    public int badgeCount;
+    public int certificateCount;
+    public Instant updatedOn;
+}
+
+record RewardOfferResponse(
+        String id,
+        String name,
+        String description,
+        String icon,
+        String color,
+        int requiredPoints,
+        int requiredBadges,
+        int requiredCertificates,
+        int remainingStock,
+        boolean active,
+        Instant validUntil,
+        String terms,
+        boolean eligible,
+        String eligibilityReason
+) {
 }

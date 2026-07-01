@@ -1,6 +1,6 @@
 # Luồng Nghiệp Vụ, Use Case Và Database EcoQuest Campus
 
-Cập nhật: 2026-06-26
+Cập nhật: 2026-07-01
 
 Tài liệu này mô tả bằng tiếng Việt cách ứng dụng EcoQuest Campus hoạt động ở mức nghiệp vụ, khi nào certificate/badge/coupon được tạo, các use case chính và database của từng microservice. Project dùng kiến trúc database-per-service, nên các "khóa ngoại" giữa service được quản lý bằng ID tham chiếu và event, không tạo foreign key vật lý xuyên database.
 
@@ -62,23 +62,32 @@ Ràng buộc chống trùng:
 
 ## 4. Coupon / Redeem Sustainability Rewards Hoạt Động Như Nào
 
-Coupon là luồng demo đổi thành tích thành voucher, thuộc Recognition service. Nó không phải đổi certificate thành tiền và không ảnh hưởng điểm.
+Coupon là luồng đổi thành tích thành voucher thật trong phạm vi demo local, thuộc Recognition service. Nó không phải đổi certificate thành tiền và không trừ điểm ở bản hiện tại, nhưng backend có catalog coupon, điều kiện nhận, stock, hạn dùng và idempotency.
 
 1. Student mở trang Certificates.
-2. UI hiển thị danh sách reward demo, ví dụ campus cafe voucher.
+2. UI gọi `GET /recognitions/rewards?studentId=...` để lấy danh sách reward offer đang active.
 3. Student bấm redeem, frontend gọi `POST /recognitions/rewards/{rewardId}/claim`.
-4. Recognition kiểm quyền self/admin, validate `studentId` và `rewardName`.
-5. Nếu student chưa claim reward đó, backend tạo `RewardClaim` với:
+4. Recognition kiểm quyền self/admin và kiểm điều kiện của offer:
+   - student có đủ `requiredPoints`;
+   - có đủ `requiredBadges`;
+   - có đủ `requiredCertificates`;
+   - offer còn `remainingStock`;
+   - offer chưa hết `validUntil`.
+5. Nếu student đủ điều kiện và chưa claim reward đó, backend tạo `RewardClaim` với:
    - `status = ISSUED`;
    - `voucherCode = ECO-...`;
-   - `claimedOn = now`.
-6. Nếu student bấm claim lại cùng `studentId + rewardId`, backend trả lại claim cũ, không phát thêm voucher mới.
+   - `claimedOn = now`;
+   - `expiresAt = offer.validUntil`.
+6. Backend trừ `remainingStock` của `RewardOffer`.
+7. Nếu student bấm claim lại cùng `studentId + rewardId`, backend trả lại claim cũ, không phát thêm voucher mới và không trừ stock lần hai.
 
 Ràng buộc nghiệp vụ hiện tại:
 
-- Fixed reward: một student chỉ nhận một voucher cho mỗi `rewardId`.
-- Custom reward có thể dùng `rewardId` riêng nếu muốn tạo quyền lợi khác.
-- Coupon không trừ điểm trong bản hiện tại; nếu muốn biến thành redemption thật, nên thêm service hoặc mở rộng Recognition/Reward bằng ledger giảm điểm có audit.
+- Recognition sở hữu `RewardOffer`, `RewardClaim` và `StudentRecognitionProfile`.
+- `StudentRecognitionProfile` được cập nhật bằng `PointsGrantedEvent`, `BadgeUnlockedEvent` và lúc phát certificate; Recognition không đọc Reward DB.
+- Một student chỉ nhận một voucher cho mỗi `rewardId`.
+- Admin có thể CRUD reward offer trong Recognition. Delete bị chặn nếu offer còn active hoặc đã có voucher issued.
+- Coupon không trừ điểm trong bản hiện tại; nếu muốn redemption có trừ điểm thì nên thêm transaction debit có audit ở Reward Ledger hoặc event phối hợp giữa Reward và Recognition.
 
 ## 5. Use Case Theo Vai Trò
 
@@ -94,7 +103,7 @@ Ràng buộc nghiệp vụ hiện tại:
 - Xem ví điểm, transaction và badge.
 - Xem leaderboard tuần/tháng.
 - Xem certificate và download PDF.
-- Redeem coupon demo.
+- Redeem coupon thật theo offer đủ điều kiện.
 - Tạo report cho user/mission/action.
 - Xem thông báo, mark read/read all.
 - Cập nhật profile/avatar.
@@ -191,9 +200,11 @@ Ghi chú: Redis phục vụ rank nhanh; PostgreSQL giữ snapshot lịch sử.
 | Bảng/entity | Khóa chính | Ràng buộc chính | Ý nghĩa |
 | --- | --- | --- | --- |
 | `CertificateRecord` | `id` | unique `studentId + seasonId` | Metadata certificate PDF |
+| `RewardOffer` | `id` | `active`, `requiredPoints`, `requiredBadges`, `requiredCertificates`, `remainingStock`, `validUntil` | Catalog coupon do Recognition sở hữu |
 | `RewardClaim` | `id` | logic idempotent theo `studentId + rewardId` | Coupon/voucher đã phát |
+| `StudentRecognitionProfile` | `studentId` | cập nhật từ event điểm/badge/certificate | Read model eligibility cho coupon |
 
-Ghi chú: PDF lưu MinIO; DB chỉ lưu metadata và `objectKey`.
+Ghi chú: PDF lưu MinIO; DB chỉ lưu metadata và `objectKey`. Recognition không đọc Reward DB để xét coupon mà dùng read model từ event.
 
 ### Report Service - PostgreSQL `report_db` + MinIO
 
