@@ -1,6 +1,6 @@
 # Công Nghệ Microservices Trong EcoQuest Campus
 
-Cập nhật: 2026-07-01
+Cập nhật: 2026-07-02
 
 Tài liệu này tổng hợp các công nghệ microservices đang có trong project EcoQuest Campus và chúng được dùng ở đâu, dùng như thế nào.
 
@@ -12,7 +12,7 @@ Project hiện có 9 microservice backend:
 | --- | --- | --- |
 | Identity Access | Auth, register, verify email, forgot/reset, profile, avatar, user management | `8086` |
 | Green Catalog | Mission, station, badge definition, station image | `8081` |
-| Eco Action | Draft, submit action, evidence, moderation, outbox | `8082` |
+| Eco Action | Draft, submit action, evidence nhiều ảnh/một video, moderation, outbox | `8082` |
 | Verification Policy | Rule policy, gRPC evaluation, direct admin REST | `8090` REST, `9090` gRPC |
 | Reward Ledger | Wallet, transaction, badge achievement, adjust points | `8083` |
 | Leaderboard | Weekly/monthly rank, season snapshot | `8084` |
@@ -113,7 +113,7 @@ Cách kiểm tra RabbitMQ:
 
 Action service gọi Verification Policy service bằng gRPC để evaluate action:
 
-- Input: `actionType`, `evidenceUrl`, `stationId`, số lần submit trong ngày.
+- Input: `actionType`, `evidenceUrl` đầu tiên trong `evidenceUrls`, `stationId`, số lần submit trong ngày.
 - Output: accepted/requires manual review/suggested points/reason.
 
 Vì sao dùng gRPC:
@@ -162,6 +162,7 @@ Nguyên tắc:
 - Service nào sở hữu nghiệp vụ thì sở hữu file.
 - DB chỉ lưu URL/object key.
 - Frontend upload file qua API của owning service, không upload trực tiếp vào bucket.
+- Với action evidence, Action hỗ trợ nhiều ảnh hoặc một video. MongoDB lưu danh sách `evidenceUrls`; `evidenceUrl` là URL đầu tiên để Policy/client cũ vẫn hoạt động. Backend cũng reject batch trộn ảnh/video hoặc PDF với media khác.
 
 MinIO console:
 
@@ -278,7 +279,7 @@ docker compose up -d --no-deps recognition-service
 Smoke test chính:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090
+powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090 -Web http://localhost:3000
 ```
 
 Smoke test kiểm:
@@ -288,7 +289,7 @@ Smoke test kiểm:
 - Role boundary.
 - Catalog CRUD.
 - Policy direct API CRUD.
-- Action draft/idempotency/evidence/submit.
+- Action draft/idempotency/evidence nhiều ảnh hoặc một video/submit.
 - gRPC Policy evaluation.
 - RabbitMQ event pipeline.
 - Reward wallet/badge.
@@ -328,13 +329,13 @@ Khi thuyết trình, nên demo theo thứ tự sau để người nghe thấy r�
 | Gateway health | `Invoke-RestMethod http://localhost:18080/actuator/health` | Frontend chỉ gọi Gateway; Gateway route, không chứa nghiệp vụ. |
 | Database per service | Mở các container `identity-db`, `catalog-db`, `reward-db`, `notification-db` | Mỗi service sở hữu dữ liệu riêng; không dùng foreign key vật lý xuyên service. |
 | Auth/JWT | Đăng nhập Student/Admin trên web | JWT giúp mỗi microservice tự kiểm quyền; role switcher frontend không thay được quyền backend. |
-| gRPC Policy | Submit một mission | Action gọi Policy qua gRPC để xét điểm/evidence/station/daily limit, không copy rule vào Action. |
+| gRPC Policy | Submit một mission | Action gọi Policy qua gRPC để xét điểm/evidence/station/daily limit, không copy rule vào Action. Policy chỉ cần biết có evidence chính; danh sách ảnh/video vẫn thuộc Action. |
 | RabbitMQ | `docker exec microservices-se361-rabbitmq-1 rabbitmqctl list_queues name messages consumers` | Event-driven: Action publish event, Reward/Leaderboard/Report/Notification tự consume. Queue cuối cùng 0 message nghĩa là event đã xử lý xong. |
 | Redis | `docker exec microservices-se361-redis-1 redis-cli --scan --pattern "ecoquest:*"` | Redis giữ draft/idempotency và leaderboard sorted set theo tuần/tháng để rank nhanh. |
-| MinIO | `http://localhost:9001` | File avatar/station/evidence/certificate không nhét base64 vào DB; service nào sở hữu nghiệp vụ thì sở hữu bucket/file. |
+| MinIO | `http://localhost:9001` | File avatar/station/evidence ảnh-video/certificate không nhét base64 vào DB; service nào sở hữu nghiệp vụ thì sở hữu bucket/file. |
 | Notification | Mở chuông ở Student/Moderator/Admin | Notification là microservice riêng có inbox seed, read/read-all và SSE realtime; các service khác không tự nhúng logic thông báo. |
 | Report Analytics | Admin -> Analytics -> export PDF | Report service dựng read model từ event, không đọc DB chéo nhưng vẫn tổng hợp được mission/action/user/points/badge/certificate. |
 | Coupon thật | Student -> Certificates -> Redeem | Recognition tự xét điều kiện coupon bằng profile read model, trừ stock và phát voucher idempotent. |
-| Smoke test | `powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090` | Đây là bằng chứng tích hợp: auth, CRUD, upload, event, notification, certificate, coupon và queue drain đều pass. |
+| Smoke test | `powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090 -Web http://localhost:3000` | Đây là bằng chứng tích hợp: auth, CRUD, upload nhiều ảnh/video, upload lớn qua Nginx web proxy, reject batch media sai, event, notification, certificate, coupon và queue drain đều pass. |
 
 Câu chốt nên nói: “EcoQuest dùng microservices không chỉ để tách thư mục code, mà tách ownership thật: mỗi service có API, database/storage, test và nghiệp vụ riêng. Dữ liệu tổng hợp đi qua event/read model, còn Gateway chỉ định tuyến.”

@@ -60,6 +60,8 @@ class EcoActionController {
                 request.missionId(),
                 request.actionType(),
                 httpRequest.getHeader("Authorization"));
+        List<String> evidenceUrls = EvidenceUrls.normalize(request.evidenceUrl(), request.evidenceUrls());
+        requireValidEvidenceBatch(evidenceUrls);
 
         String idempotencyKey = "ecoquest:idempotency:" + request.idempotencyKey();
         Boolean firstSubmission = redis.opsForValue().setIfAbsent(idempotencyKey, "1", Duration.ofHours(6));
@@ -80,17 +82,17 @@ class EcoActionController {
         action.missionId = request.missionId();
         action.stationId = request.stationId();
         action.actionType = request.actionType();
-        action.evidenceUrl = request.evidenceUrl();
+        action.evidenceUrls = evidenceUrls;
+        action.evidenceUrl = evidenceUrls.isEmpty() ? null : evidenceUrls.getFirst();
         action.points = policy.getSuggestedPoints();
-        action.policyReason = policy.getReason();
+        action.policyReason = policy.getAccepted()
+                ? "Policy passed. Waiting for moderator review."
+                : policy.getReason();
         action.submittedAt = Instant.now();
-        action.status = policy.getAccepted() ? ActionStatus.ACCEPTED
-                : policy.getRequiresManualReview() ? ActionStatus.PENDING_REVIEW : ActionStatus.REJECTED;
+        action.status = policy.getAccepted() || policy.getRequiresManualReview()
+                ? ActionStatus.PENDING_REVIEW
+                : ActionStatus.REJECTED;
         actions.save(action);
-
-        if (action.status == ActionStatus.ACCEPTED) {
-            publishAccepted(action);
-        }
         return action;
     }
 
@@ -175,6 +177,20 @@ class EcoActionController {
     private void requireText(String value, String message) {
         if (value == null || value.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+        }
+    }
+
+    private void requireValidEvidenceBatch(List<String> evidenceUrls) {
+        if (evidenceUrls.size() > 5) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Upload up to 5 evidence media files.");
+        }
+        long videoCount = evidenceUrls.stream().filter(EvidenceUrls::isVideoUrl).count();
+        if (videoCount > 0 && evidenceUrls.size() > 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Upload either multiple images or one video.");
+        }
+        long documentCount = evidenceUrls.stream().filter(EvidenceUrls::isDocumentUrl).count();
+        if (documentCount > 0 && evidenceUrls.size() > 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Upload a document by itself, or use multiple images instead.");
         }
     }
 

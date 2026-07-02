@@ -1,6 +1,6 @@
 # Mục Lục Tài Liệu EcoQuest Campus
 
-Cập nhật: 2026-07-01
+Cập nhật: 2026-07-02
 
 Đây là mục lục tài liệu hiện tại của project. Khi cần đọc nhanh trạng thái mới nhất, ưu tiên các file trong nhóm **nguồn sự thật hiện tại**.
 
@@ -10,7 +10,7 @@ Cập nhật: 2026-07-01
 | --- | --- |
 | `bao-cao-hien-trang-project.md` | Tổng hợp hiện trạng project, use case, seed data, công nghệ và test đã chạy. |
 | `tai-lieu-nguon-bao-cao-docx.md` | Bản tổng hợp đầy đủ để viết/copy vào báo cáo DOCX: database, use case, microservices, frontend, test, demo, hạn chế. |
-| `note-se361-implementation-report.md` | Đối chiếu 83 ý trong note SE361, trạng thái đã làm/chưa làm và lý do. |
+| `note-se361-implementation-report.md` | Đối chiếu 85 ý trong note SE361 và các yêu cầu bổ sung, trạng thái đã làm/chưa làm và lý do. |
 | `frontend-handoff.md` | API contract và dữ liệu cần thiết cho frontend agent/code reviewer. |
 | `frontend-test-scenarios.md` | Checklist test frontend theo role, workflow, upload, notification, analytics, certificate/coupon. |
 | `luong-nghiep-vu-database.md` | Luồng nghiệp vụ, khi nào tạo badge/certificate/coupon, database chi tiết và ràng buộc logic. |
@@ -32,7 +32,7 @@ Cập nhật: 2026-07-01
 $env:API_GATEWAY_PORT='18080'
 docker compose ps
 docker compose config --quiet
-powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090
+powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090 -Web http://localhost:3000
 cd web-apps\ecoquest-web
 npm.cmd test
 npm.cmd run build

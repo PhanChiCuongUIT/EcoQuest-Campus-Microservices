@@ -448,7 +448,7 @@ All buttons:
 **Interactions:**
 - Click mission "Submit" → opens Submit Action Modal
 - Student ID change → re-fetch all data
-- After submit ACCEPTED → delay 2-5s, re-fetch wallet + badges + leaderboard
+- After submit PENDING_REVIEW → show review status; after Moderator/Admin approve → delay 2-5s, re-fetch wallet + badges + leaderboard
 - After submit PENDING_REVIEW → show pending state immediately, no wallet refresh
 
 ---
@@ -463,11 +463,11 @@ All buttons:
 | Student ID | text input | Current student ID | App state |
 | Mission | select dropdown | Pre-selected from clicked mission | `GET /catalog/missions` |
 | Station | select dropdown | Empty / first station | `GET /catalog/stations` |
-| Evidence URL | text input | Empty | User input |
+| Evidence media | media tray | Empty | Upload through `POST /actions/evidence`; supports multiple photos or one video |
 
 **Buttons:**
 - **Save Draft** → `POST /actions/drafts` — saves to Redis, shows confirmation toast
-- **Submit** → `POST /actions/submit` with `idempotencyKey: crypto.randomUUID()`
+- **Submit** → `POST /actions/submit` with a client-generated idempotency key from `createClientId()`, which uses `crypto.randomUUID()` when available and falls back safely on HTTP/LAN/mobile contexts.
 
 **Result display:**
 | Status | Display |
@@ -697,7 +697,7 @@ Action Type, Points, Evidence Required, Station Required, Daily Limit, Active
 
 | Event | Immediate | Delayed (2-5s) |
 |---|---|---|
-| Submit ACCEPTED | Refresh action list | Refresh wallet, badges, leaderboard |
+| Submit PENDING_REVIEW | Refresh action list/review status | Wallet/badges/leaderboard update only after Moderator/Admin approval |
 | Submit PENDING | Refresh action list | — |
 | Submit REJECTED | Show reason | — |
 | Moderator Approve | Remove from queue | Refresh wallet, leaderboard |

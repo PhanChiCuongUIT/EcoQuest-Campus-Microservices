@@ -7,7 +7,7 @@ Updated: 2026-07-01
 ```powershell
 $env:API_GATEWAY_PORT='18080'
 docker compose up -d --build
-powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090
+powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090 -Web http://localhost:3000
 ```
 
 Web container: `http://localhost:3000`.
@@ -28,7 +28,7 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Current automated unit tests: 12/12 pass.
+Current automated unit tests: 15/15 pass.
 
 - student không thấy pending/rejected mission;
 - chỉ active mission được submit;
@@ -36,7 +36,7 @@ Current automated unit tests: 12/12 pass.
 - panel Moderator/Admin không lộ các trang Student;
 - report target options follow Student/Moderator rules;
 - manual point adjustment supports deductions but never a negative wallet;
-- upload validation enforces file type, size, and non-empty content.
+- upload validation enforces file type, size, non-empty content, multiple images, one video, and no mixed image/video batch.
 - reporting ranges are ordered and cannot include future periods.
 
 ## Kịch bản E2E bắt buộc
@@ -108,21 +108,25 @@ Admin:
 1. Chọn mission active.
 2. Mission `stationRequired=true` bắt buộc station.
 3. Mission `evidenceRequired=true` bắt buộc file/evidence.
-4. Upload ảnh hợp lệ:
+4. Upload nhiều ảnh hợp lệ:
    - preview xuất hiện;
-   - gọi `/actions/evidence`;
-   - nhận `/actions/evidence/{objectKey}`;
-   - URL mở được ảnh;
-   - submit dùng URL đó, không lưu raw base64 trong Action.
-5. File quá giới hạn/type sai bị chặn rõ.
-6. Recycle hợp lệ trả `ACCEPTED`, 10 điểm.
-7. Cleanup thiếu evidence trả `PENDING_REVIEW`.
-8. Double click/reuse idempotency key trả `409`.
-9. Save draft trả Redis key và UI báo thành công.
+   - gọi `/actions/evidence` cho từng ảnh;
+   - nhận các URL `/actions/evidence/{objectKey}`;
+   - các URL mở được ảnh;
+   - submit dùng `evidenceUrls` và giữ `evidenceUrl` là URL đầu tiên, không lưu raw base64 trong Action.
+5. Upload một video hợp lệ:
+   - chấp nhận `mp4`, `webm`, `mov`;
+   - preview bằng video player;
+   - submit một video riêng, không trộn với ảnh.
+6. Batch trộn ảnh và video, quá số lượng ảnh, quá giới hạn dung lượng hoặc type sai bị chặn rõ.
+7. Recycle hợp lệ trả `PENDING_REVIEW`, hiển thị thông báo chờ Moderator/Admin duyệt, chưa cộng điểm.
+8. Cleanup thiếu evidence trả `PENDING_REVIEW`.
+9. Double click/reuse idempotency key trả `409`.
+10. Save draft trả Redis key và UI báo thành công.
 
 ### 7. Reward, badge và leaderboard
 
-1. Sau accepted action, poll/refetch đến khi wallet tăng.
+1. Sau Moderator/Admin approve action, poll/refetch đến khi wallet tăng.
 2. Transaction có `sourceActionId`.
 3. `GREEN_STARTER` unlock.
 4. Sau 10 recycle accepted, `RECYCLING_HERO` xuất hiện.
@@ -261,7 +265,7 @@ Test tối thiểu ở `390x844`, `768x1024`, `1440x900`:
 ## Playwright nên bổ sung
 
 1. Register -> verify -> login -> profile.
-2. Student upload evidence -> accepted -> wallet/badge/leaderboard.
+2. Student upload nhiều ảnh hoặc một video evidence -> pending review -> Moderator/Admin approve -> wallet/badge/leaderboard.
 3. Moderator own submit -> self-review forbidden.
 4. Student pending cleanup -> Moderator approve -> reward update.
 5. Moderator create mission -> Admin activate -> Student submit.

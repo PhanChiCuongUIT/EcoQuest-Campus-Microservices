@@ -19,7 +19,7 @@ class PolicyVerificationClient {
                 .setMissionId(request.missionId())
                 .setStationId(request.stationId() == null ? "" : request.stationId())
                 .setActionType(request.actionType())
-                .setEvidenceUrl(request.evidenceUrl() == null ? "" : request.evidenceUrl())
+                .setEvidenceUrl(request.primaryEvidenceUrl())
                 .setSubmittedToday(Math.toIntExact(Math.min(submittedToday, Integer.MAX_VALUE)))
                 .build());
     }

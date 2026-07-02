@@ -5,6 +5,7 @@ import {
   isValidReportingRange,
   projectedWalletBalance,
   reportTargetOptions,
+  validateEvidenceBatch,
   validateUpload,
 } from '../src/utils/workflowRules.js';
 import { loginErrorMessage } from '../src/utils/authErrors.js';
@@ -28,6 +29,15 @@ test('upload validation enforces type, size, and non-empty files', () => {
   assert.equal(validateUpload({ type: 'text/plain', size: 5 }, options), 'Unsupported file type.');
   assert.equal(validateUpload({ type: 'image/png', size: 11 }, options), 'The file is too large.');
   assert.equal(validateUpload({ type: 'image/png', size: 0 }, options), 'The file is empty.');
+});
+
+test('action evidence accepts multiple images or one video, not mixed media', () => {
+  const image = { type: 'image/png', size: 5 };
+  const video = { type: 'video/mp4', size: 5 };
+  assert.equal(validateEvidenceBatch([], [image, image], { maxImages: 5 }), '');
+  assert.equal(validateEvidenceBatch([], [video], { maxImages: 5 }), '');
+  assert.equal(validateEvidenceBatch([image], [video], { maxImages: 5 }), 'Upload either multiple images or one video.');
+  assert.equal(validateEvidenceBatch([], [image, image, image], { maxImages: 2 }), 'Upload up to 2 images.');
 });
 
 test('login errors distinguish credentials, verification, inactive, banned and network failures', () => {

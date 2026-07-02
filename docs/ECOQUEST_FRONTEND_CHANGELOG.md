@@ -213,10 +213,9 @@ Login → POST /auth/login → token + user → Dashboard
      ↓
 [Submit Mission] → POST /actions/submit với idempotency key
      ↓
-  ACCEPTED → +points → Dashboard refresh (3s delay) → wallet/leaderboard update
-  PENDING_REVIEW → Moderator queue hiển thị
+  PENDING_REVIEW → Moderator/Admin queue hiển thị, chưa cộng điểm
      ↓
-[Moderator Approve] → PUT /actions/{id}/approve → RabbitMQ → Reward → Leaderboard
+[Moderator/Admin Approve] → PUT /actions/{id}/approve → RabbitMQ → Reward → Leaderboard
      ↓
 [Close Season] (Admin) → POST /leaderboards/seasons/{id}/close → Recognition → PDF
      ↓
@@ -257,7 +256,7 @@ npm run build  # ✅ Build thành công, 0 errors
 
 1. **Gateway port**: Docker Compose mặc định port 8080, nhưng local demo thường dùng `API_GATEWAY_PORT=18080`. `vite.config.js` hiện đọc `VITE_API_BASE_URL` và mặc định proxy đến `http://localhost:18080`.
 
-2. **Eventual Consistency**: Sau khi submit action, điểm/leaderboard không cập nhật ngay — cần đợi vài giây (RabbitMQ event flow). Dashboard tự refresh sau 3s.
+2. **Eventual Consistency**: Sau khi submit action, điểm/leaderboard chưa cập nhật vì action đang chờ duyệt. Sau khi Moderator/Admin approve, RabbitMQ event flow cập nhật Reward/Leaderboard trong vài giây; dashboard tự refresh/poll theo trạng thái.
 
 3. **Policy Admin** (`AdminPolicy.jsx`): Gọi thẳng Policy service (không qua Gateway). Mặc định dùng hostname hiện tại với port `8090`, hoặc cấu hình `VITE_POLICY_BASE_URL`; vẫn là local-only/direct service.
 
@@ -286,7 +285,7 @@ npm run build  # ✅ Build thành công, 0 errors
 - Replaced the notification modal with a dropdown under the bell, including toggle, outside-click close, mark-all-read, SSE updates, and role-safe navigation.
 - Added distinct charts/metrics for Student, Moderator, and Admin dashboards.
 - Admin Analytics displays points, badge and certificate event read models from Report service.
-- Latest verification: frontend tests 12/12, Vite build pass, backend full smoke pass, 20 RabbitMQ queues drained.
+- Latest verification: frontend tests 15/15, Vite build pass, backend full smoke pass, 20 RabbitMQ queues drained.
 
 # Update 2026-06-25 - Admin Analytics, Login Feedback, Help Content, Rich Charts
 
@@ -332,3 +331,16 @@ npm run build  # ✅ Build thành công, 0 errors
 - Backend smoke verifies seeded notification role inbox, read-all, recipient guard, event-created notifications, and RabbitMQ drain.
 - RabbitMQ healthcheck is stricter (`ping`, `check_running`, `check_port_connectivity`) so event consumers start after the broker application is actually ready.
 - Documentation now includes a microservices demo script covering Gateway, JWT, database-per-service, gRPC, RabbitMQ, Redis, MinIO, Notification, Report Analytics, coupon claims, and smoke tests.
+
+### 2026-07-02 - Action Evidence Multiple Images/Video
+
+- Submit Action now supports a media tray with multiple images or one video for evidence.
+- Frontend uploads each evidence media item through `POST /actions/evidence`, submits `evidenceUrls`, and keeps `evidenceUrl` as the first URL for compatibility.
+- Moderator Review displays an evidence gallery with image previews and a video player modal.
+- Verification updated to frontend tests 15/15 and backend smoke covering two-image evidence plus one-video evidence.
+
+### 2026-07-02 - Submit Action Idempotency Fallback
+
+- Fixed Submit Action failing before the backend request in browser contexts where `crypto.randomUUID()` is unavailable, such as some LAN/mobile HTTP sessions.
+- API client now generates idempotency keys through a safe fallback helper.
+- Submit errors now distinguish expired session, forbidden student ownership, backend HTTP errors, and true network/gateway failures.

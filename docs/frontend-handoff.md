@@ -23,6 +23,7 @@ Backend hiện có **9 microservices**:
 Infra: Spring Cloud Gateway, PostgreSQL per service, MongoDB, Redis, RabbitMQ, MinIO, Docker Compose.
 
 Gateway local thường dùng `http://localhost:18080` nếu host port `8080` bận. Web container chạy tại `http://localhost:3000` và dùng same-origin nginx proxy, nên frontend gọi relative paths như `/auth/login`, `/catalog/missions`, `/actions/submit`.
+Nginx web proxy và Gateway hiện cho phép evidence JSON body tới 100MB để tránh `413 Request Entity Too Large` khi upload ảnh/video dạng base64; SSE notification cũng được giữ kết nối dài.
 
 ## Files To Send Frontend Agent
 
@@ -323,7 +324,7 @@ Badge definition object:
 ## Action API
 
 - `POST /actions/drafts`
-- `POST /actions/evidence`
+- `POST /actions/evidence` - upload one evidence media file to Action-owned MinIO storage
 - `GET /actions/evidence/{objectKey}` - public preview/download
 - `POST /actions/submit`
 - `GET /actions/user/{studentId}`
@@ -340,7 +341,11 @@ Draft request:
   "missionId": "MISSION-RECYCLE-01",
   "stationId": "STATION-A1",
   "actionType": "RECYCLE_BOTTLE",
-  "evidenceUrl": "/actions/evidence/evidence.png"
+  "evidenceUrl": "/actions/evidence/evidence-1.png",
+  "evidenceUrls": [
+    "/actions/evidence/evidence-1.png",
+    "/actions/evidence/evidence-2.webp"
+  ]
 }
 ```
 
@@ -352,6 +357,13 @@ Evidence upload request:
   "dataUrl": "data:image/png;base64,iVBORw0KGgo..."
 }
 ```
+
+Supported evidence media:
+
+- Images: `image/png`, `image/jpeg`, `image/gif`, `image/webp`, up to 5 MB each. Frontend supports up to 5 images per action.
+- Video: `video/mp4`, `video/webm`, `video/quicktime`, up to 50 MB. Frontend should submit one video by itself, not mixed with images.
+- PDF remains accepted for legacy/document evidence, up to 5 MB, submitted by itself.
+- Backend also rejects more than 5 media URLs, mixed image/video evidence, or a PDF combined with other media.
 
 Evidence response:
 
@@ -368,11 +380,15 @@ Submit request:
   "missionId": "MISSION-RECYCLE-01",
   "stationId": "STATION-A1",
   "actionType": "RECYCLE_BOTTLE",
-  "evidenceUrl": "/actions/evidence/..."
+  "evidenceUrl": "/actions/evidence/evidence-1.png",
+  "evidenceUrls": [
+    "/actions/evidence/evidence-1.png",
+    "/actions/evidence/evidence-2.webp"
+  ]
 }
 ```
 
-Submit accepted:
+Submit valid action queued for review:
 
 ```json
 {
@@ -381,16 +397,22 @@ Submit accepted:
   "missionId": "MISSION-RECYCLE-01",
   "stationId": "STATION-A1",
   "actionType": "RECYCLE_BOTTLE",
-  "evidenceUrl": "/actions/evidence/...",
-  "status": "ACCEPTED",
+  "evidenceUrl": "/actions/evidence/evidence-1.png",
+  "evidenceUrls": [
+    "/actions/evidence/evidence-1.png",
+    "/actions/evidence/evidence-2.webp"
+  ],
+  "status": "PENDING_REVIEW",
   "points": 10,
-  "policyReason": "Accepted.",
+  "policyReason": "Policy passed. Waiting for moderator review.",
   "moderationNote": null,
   "reviewedByUserId": null,
   "submittedAt": "2026-06-24T06:00:00Z",
   "reviewedAt": null
 }
 ```
+
+Points are not granted by the submit response. The action must appear in `/actions/review?status=PENDING_REVIEW`; after Moderator/Admin calls `PUT /actions/{id}/approve`, the backend publishes `ActionAcceptedEvent` and Reward/Leaderboard/Notification update asynchronously.
 
 Important errors:
 
@@ -662,19 +684,19 @@ Already expected or implemented:
 - For Moderator, allow Student self view only for their own `studentId`.
 - For Admin, do not show Student submit view unless a future impersonation feature is explicitly added.
 - Treat async event flows as eventually consistent; refetch/poll after submit, approve, adjust, close season.
-- Evidence should be uploaded first via `/actions/evidence`; submit should send the returned URL.
+- Evidence should be uploaded first via `/actions/evidence`; submit should send `evidenceUrls` with all returned URLs and keep `evidenceUrl` as the first URL for backward compatibility.
 - Do not store raw evidence base64 in action submit payload.
 - Show clear messages for `401`, `403`, `409`, and validation `400`.
 
 ## Verification Status
 
-Last verified on 2026-07-01:
+Last verified on 2026-07-02:
 
 - Full Maven reactor 14/14 modules: pass.
 - `docker compose config --quiet`: pass.
-- Backend smoke test: pass, including current/previous week/month leaderboard period queries.
+- Backend smoke test: pass, including current/previous week/month leaderboard period queries, action evidence with multiple images plus one video, large upload through `http://localhost:3000` web proxy, and mixed image/video rejection.
 - RabbitMQ after smoke: 20 queues drained to 0 messages and have consumers.
-- Frontend unit tests after latest UI/API changes: 12/12 pass.
+- Frontend unit tests after latest UI/API changes: 15/15 pass.
 - Policy rule creation uses a modal overlay; dashboards render partial data while a backend service is warming up; Identity emails attach the real EcoQuest logo inline by CID.
 - Recognition certificate PDF download, reward offer CRUD, real coupon eligibility, locked coupon rejection, stock decrement and duplicate reward claim idempotency are covered by backend smoke.
 - Frontend production build after latest UI/API changes: pass.

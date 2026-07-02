@@ -121,13 +121,13 @@ Các điểm trên không làm sai boundary microservice hiện tại, nhưng l�
 
 ## Test đã xác minh
 
-Ngày 01/07/2026:
+Ngày 02/07/2026:
 
 ```powershell
 docker run --rm -v ${PWD}:/workspace -v ${PWD}/.m2:/root/.m2 -w /workspace maven:3.9.9-eclipse-temurin-21 mvn package -DskipTests
 $env:API_GATEWAY_PORT='18080'
 docker compose up -d --build
-powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090
+powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090 -Web http://localhost:3000
 cd web-apps\ecoquest-web
 npm.cmd test
 npm.cmd run build
@@ -137,10 +137,10 @@ Kết quả sau patch mới nhất:
 
 - Maven full reactor 14/14 modules: **PASS**.
 - `docker compose config --quiet`: **PASS**.
-- Backend smoke test: **PASS**.
+- Backend smoke test: **PASS**, bao gồm valid submit -> `PENDING_REVIEW`, Review Queue, approve mới publish accepted event/cộng điểm, reject không cộng điểm.
 - RabbitMQ queue drain after smoke: **PASS** với 20 queue, 0 pending message và mỗi queue có consumer.
-- Post-smoke log scan: **PASS** cho lỗi nghiệp vụ; lỗi duplicate profile ở Recognition đã được sửa. Gateway có thể có vài dòng `Connection refused` trong giây đầu nếu test gọi login trước khi Identity mở port, sau warm-up không lặp lại.
-- Frontend unit tests: **12/12 PASS**.
+- Post-smoke log scan: **PASS** cho lỗi nghiệp vụ; lỗi duplicate profile ở Recognition đã được sửa. Sau reset sạch chỉ còn một vài WARN Hibernate drop-constraint khi bootstrap schema mới, không có `ERROR` runtime.
+- Frontend unit tests: **15/15 PASS**.
 - Frontend production build after Policy modal, Student outcome layout, and dashboard partial-loading fixes: **PASS**.
 - Frontend Vite build: **PASS**.
 

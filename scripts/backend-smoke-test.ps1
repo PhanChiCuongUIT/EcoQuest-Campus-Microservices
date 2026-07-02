@@ -1,6 +1,7 @@
 param(
     [string]$Gateway = "http://localhost:18080",
     [string]$Policy = "http://localhost:8090",
+    [string]$Web = "",
     [switch]$SkipDockerChecks
 )
 
@@ -403,6 +404,7 @@ $studentCheckin = "SV_E2E_CHECKIN_$runId"
 $studentMissingStation = "SV_E2E_MISSING_STATION_$runId"
 $studentTrash = "SV_E2E_TRASH_$runId"
 $studentUnsupported = "SV_E2E_UNSUPPORTED_$runId"
+$studentVideo = "SV_E2E_VIDEO_$runId"
 
 function New-StudentSession([string]$EmailPrefix, [string]$StudentId) {
     $email = "$EmailPrefix-$runId@ecoquest.local"
@@ -431,6 +433,7 @@ $studentCheckinHeaders = New-StudentSession "checkin" $studentCheckin
 $studentMissingStationHeaders = New-StudentSession "missing-station" $studentMissingStation
 $studentTrashHeaders = New-StudentSession "trash" $studentTrash
 $studentUnsupportedHeaders = New-StudentSession "unsupported" $studentUnsupported
+$studentVideoHeaders = New-StudentSession "video" $studentVideo
 
 Write-Step "Checking seeded Notification inbox and recipient guards"
 $script:DefaultHeaders = $studentAcceptedHeaders
@@ -613,13 +616,37 @@ $evidenceUpload = Invoke-Api -Method "POST" -Uri "$Gateway/actions/evidence" -Bo
     dataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
 }
 Assert-True ($evidenceUpload.evidenceUrl -like "/actions/evidence/*") "Evidence upload should return an Action evidence URL"
+$evidenceUploadSecond = Invoke-Api -Method "POST" -Uri "$Gateway/actions/evidence" -Body @{
+    fileName = "evidence-second.webp"
+    dataUrl = "data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAQAcJaQAA3AA/vuUAAA="
+}
+Assert-True ($evidenceUploadSecond.evidenceUrl -like "/actions/evidence/*") "Second image evidence upload should return an Action evidence URL"
+$videoEvidenceUpload = Invoke-Api -Method "POST" -Uri "$Gateway/actions/evidence" -Body @{
+    fileName = "evidence-video.mp4"
+    contentType = "video/mp4"
+    base64 = "AAAAIGZ0eXBpc29tAAACAGlzb21pc28ybXA0MQ=="
+}
+Assert-True ($videoEvidenceUpload.evidenceUrl -like "/actions/evidence/*") "Video evidence upload should return an Action evidence URL"
 $authorizedHeaders = $script:DefaultHeaders
 $script:DefaultHeaders = @{}
 $evidenceDownloadStatus = Get-StatusCode -Uri "$Gateway$($evidenceUpload.evidenceUrl)"
 Assert-True ($evidenceDownloadStatus -eq 200) "Evidence download should be available for image preview"
+$videoEvidenceDownloadStatus = Get-StatusCode -Uri "$Gateway$($videoEvidenceUpload.evidenceUrl)"
+Assert-True ($videoEvidenceDownloadStatus -eq 200) "Video evidence download should be available for media preview"
 $script:DefaultHeaders = $authorizedHeaders
 
-Write-Step "Checking accepted submit, idempotency, Reward, badges, and Leaderboard"
+if (-not [string]::IsNullOrWhiteSpace($Web)) {
+    Write-Step "Checking large evidence upload through frontend nginx proxy"
+    $largeBase64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("A" * (1536 * 1024))))
+    $largeEvidenceUpload = Invoke-Api -Method "POST" -Uri "$Web/actions/evidence" -Body @{
+        fileName = "large-evidence.png"
+        contentType = "image/png"
+        base64 = $largeBase64
+    }
+    Assert-True ($largeEvidenceUpload.evidenceUrl -like "/actions/evidence/*") "Frontend nginx proxy should accept evidence JSON bodies larger than 1MB"
+}
+
+Write-Step "Checking submit queues action for review before Reward, badges, and Leaderboard"
 $acceptedPayload = @{
     idempotencyKey = New-Key "accepted"
     studentId = $studentAccepted
@@ -627,13 +654,23 @@ $acceptedPayload = @{
     stationId = "STATION-A1"
     actionType = "RECYCLE_BOTTLE"
     evidenceUrl = $evidenceUpload.evidenceUrl
+    evidenceUrls = @($evidenceUpload.evidenceUrl, $evidenceUploadSecond.evidenceUrl)
 }
 $accepted = Invoke-Api -Method "POST" -Uri "$Gateway/actions/submit" -Body $acceptedPayload
-Assert-True ($accepted.status -eq "ACCEPTED") "Recycle action should be accepted"
-Assert-True ($accepted.points -eq 10) "Recycle action should grant 10 suggested points"
+Assert-True ($accepted.status -eq "PENDING_REVIEW") "Recycle action should wait for moderator review before points are granted"
+Assert-True ($accepted.points -eq 10) "Recycle action should keep 10 suggested points for review"
+Assert-True (@($accepted.evidenceUrls).Count -eq 2) "Submitted action should persist multiple evidence URLs"
 $duplicateStatus = Get-StatusCode -Method "POST" -Uri "$Gateway/actions/submit" -Body $acceptedPayload
 Assert-True ($duplicateStatus -eq 409) "Same idempotency key should return HTTP 409"
-Wait-Until -Message "accepted action to update Reward Ledger and Leaderboard" -Attempts 45 -DelaySeconds 2 -Condition {
+$preApprovalWallet = Invoke-Api -Uri "$Gateway/rewards/wallets/$studentAccepted"
+Assert-True ($preApprovalWallet.totalPoints -eq 0) "Submitted action should not grant points before moderator approval"
+$script:DefaultHeaders = $moderatorHeaders
+$reviewBeforeApprove = @(Invoke-ApiList -Uri "$Gateway/actions/review?status=PENDING_REVIEW")
+Assert-True (Has-ItemWithValue $reviewBeforeApprove "id" $accepted.id) "Submitted action should appear in Moderator Review Queue"
+$accepted = Invoke-Api -Method "PUT" -Uri "$Gateway/actions/$($accepted.id)/approve"
+Assert-True ($accepted.status -eq "ACCEPTED") "Moderator approve should accept the recycle action"
+$script:DefaultHeaders = $studentAcceptedHeaders
+Wait-Until -Message "approved action to update Reward Ledger and Leaderboard" -Attempts 45 -DelaySeconds 2 -Condition {
     $wallet = Invoke-Api -Uri "$Gateway/rewards/wallets/$studentAccepted"
     $transactions = @(Invoke-ApiList -Uri "$Gateway/rewards/wallets/$studentAccepted/transactions")
     $rank = Invoke-Api -Uri "$Gateway/leaderboards/users/$studentAccepted/rank?type=weekly"
@@ -649,6 +686,31 @@ Assert-True ($acceptedWallet.totalPoints -eq 10) "Accepted student wallet should
 Assert-True (Has-ItemWithValue $acceptedTransactions "sourceActionId" $accepted.id) "Reward transaction should reference source action id"
 Assert-True (Has-ItemWithValue $acceptedBadges "badgeCode" "GREEN_STARTER") "First accepted action should unlock GREEN_STARTER"
 Assert-True ($null -ne $acceptedRank.rank) "Accepted student should appear on weekly leaderboard"
+
+Write-Step "Checking submit action with video evidence"
+$script:DefaultHeaders = $studentVideoHeaders
+$videoAction = Invoke-Api -Method "POST" -Uri "$Gateway/actions/submit" -Body @{
+    idempotencyKey = New-Key "video"
+    studentId = $studentVideo
+    missionId = "MISSION-BIKE-01"
+    actionType = "BIKE_TO_CAMPUS"
+    evidenceUrl = $videoEvidenceUpload.evidenceUrl
+    evidenceUrls = @($videoEvidenceUpload.evidenceUrl)
+}
+Assert-True ($videoAction.status -eq "PENDING_REVIEW") "Bike mission should wait for moderator review after one video evidence attachment"
+Assert-True (@($videoAction.evidenceUrls).Count -eq 1) "Video action should persist one evidence URL"
+
+Write-Step "Checking mixed image and video evidence is rejected"
+$mixedEvidenceStatus = Get-StatusCode -Method "POST" -Uri "$Gateway/actions/submit" -Body @{
+    idempotencyKey = New-Key "mixed-evidence"
+    studentId = $studentVideo
+    missionId = "MISSION-BIKE-01"
+    actionType = "BIKE_TO_CAMPUS"
+    evidenceUrl = $evidenceUpload.evidenceUrl
+    evidenceUrls = @($evidenceUpload.evidenceUrl, $videoEvidenceUpload.evidenceUrl)
+}
+Assert-True ($mixedEvidenceStatus -eq 400) "Action submit should reject mixed image and video evidence"
+$script:DefaultHeaders = $studentAcceptedHeaders
 
 Write-Step "Checking audited positive and negative admin point adjustments"
 $script:DefaultHeaders = $adminHeaders
@@ -688,7 +750,11 @@ for ($i = 2; $i -le 10; $i++) {
         actionType = "RECYCLE_BOTTLE"
         evidenceUrl = $evidenceUpload.evidenceUrl
     }
-    Assert-True ($recycle.status -eq "ACCEPTED") "Recycle action #$i should be accepted for count-based badge"
+    Assert-True ($recycle.status -eq "PENDING_REVIEW") "Recycle action #$i should wait for moderator review"
+    $script:DefaultHeaders = $moderatorHeaders
+    $approvedRecycle = Invoke-Api -Method "PUT" -Uri "$Gateway/actions/$($recycle.id)/approve"
+    Assert-True ($approvedRecycle.status -eq "ACCEPTED") "Recycle action #$i should be accepted after moderator approval"
+    $script:DefaultHeaders = $studentAcceptedHeaders
 }
 Wait-Until -Message "ten recycle transactions to unlock RECYCLING_HERO" -Attempts 45 -DelaySeconds 2 -Condition {
     $badges = @(Invoke-ApiList -Uri "$Gateway/rewards/wallets/$studentAccepted/badges")
@@ -725,8 +791,11 @@ $checkinAccepted = Invoke-Api -Method "POST" -Uri "$Gateway/actions/submit" -Bod
     actionType = "GREEN_CHECKIN"
     evidenceUrl = ""
 }
-Assert-True ($checkinAccepted.status -eq "ACCEPTED") "Green check-in should be accepted without evidence when station exists"
-Assert-True ($checkinAccepted.points -eq 5) "Green check-in should grant 5 points"
+Assert-True ($checkinAccepted.status -eq "PENDING_REVIEW") "Green check-in should wait for moderator review when station exists"
+Assert-True ($checkinAccepted.points -eq 5) "Green check-in should keep 5 suggested points"
+$script:DefaultHeaders = $moderatorHeaders
+$checkinAccepted = Invoke-Api -Method "PUT" -Uri "$Gateway/actions/$($checkinAccepted.id)/approve"
+Assert-True ($checkinAccepted.status -eq "ACCEPTED") "Moderator approve should accept green check-in"
 $script:DefaultHeaders = $studentMissingStationHeaders
 $missingStation = Invoke-Api -Method "POST" -Uri "$Gateway/actions/submit" -Body @{
     idempotencyKey = New-Key "checkin-missing-station"
@@ -746,8 +815,12 @@ $trashReport = Invoke-Api -Method "POST" -Uri "$Gateway/actions/submit" -Body @{
     actionType = "REPORT_TRASH"
     evidenceUrl = "https://example.com/evidence/trash.jpg"
 }
-Assert-True ($trashReport.status -eq "ACCEPTED") "Report trash should be accepted with evidence and without station"
-Assert-True ($trashReport.points -eq 15) "Report trash should grant 15 points"
+Assert-True ($trashReport.status -eq "PENDING_REVIEW") "Report trash should wait for moderator review with evidence and without station"
+Assert-True ($trashReport.points -eq 15) "Report trash should keep 15 suggested points"
+$script:DefaultHeaders = $moderatorHeaders
+$trashReport = Invoke-Api -Method "PUT" -Uri "$Gateway/actions/$($trashReport.id)/approve"
+Assert-True ($trashReport.status -eq "ACCEPTED") "Moderator approve should accept report trash action"
+$script:DefaultHeaders = $studentTrashHeaders
 Write-Step "Checking Report service create/list/review flow"
 $reportEvidence = Invoke-Api -Method "POST" -Uri "$Gateway/reports/evidence" -Body @{
     fileName = "report-evidence.png"
@@ -971,9 +1044,13 @@ $dailySecond = Invoke-Api -Method "POST" -Uri "$Gateway/actions/submit" -Body @{
     actionType = "E2E_DAILY_LIMIT"
     evidenceUrl = "https://example.com/evidence/daily-second.jpg"
 }
-Assert-True ($dailyFirst.status -eq "ACCEPTED") "First daily-limited action should be accepted"
+Assert-True ($dailyFirst.status -eq "PENDING_REVIEW") "First daily-limited action should wait for review before points are granted"
 Assert-True ($dailySecond.status -eq "REJECTED") "Second daily-limited action should be rejected"
 Assert-True ($dailySecond.policyReason -match "Daily limit") "Daily limit rejection should include reason"
+$script:DefaultHeaders = $moderatorHeaders
+$dailyFirst = Invoke-Api -Method "PUT" -Uri "$Gateway/actions/$($dailyFirst.id)/approve"
+Assert-True ($dailyFirst.status -eq "ACCEPTED") "Moderator approve should accept the first daily-limited action"
+$script:DefaultHeaders = $studentDailyHeaders
 Wait-Until -Message "daily-limited first action to update Reward Ledger" -Attempts 45 -DelaySeconds 2 -Condition {
     $wallet = Invoke-Api -Uri "$Gateway/rewards/wallets/$studentDaily"
     return $wallet.totalPoints -eq 7

@@ -1,6 +1,6 @@
 # Luồng Nghiệp Vụ, Use Case Và Database EcoQuest Campus
 
-Cập nhật: 2026-07-01
+Cập nhật: 2026-07-02
 
 Tài liệu này mô tả bằng tiếng Việt có dấu cách EcoQuest Campus hoạt động ở mức nghiệp vụ, khi nào badge/certificate/coupon được tạo, các use case chính và database của từng microservice. Project dùng kiến trúc **database-per-service**, vì vậy các quan hệ giữa service dùng ID logic và event, không dùng foreign key vật lý xuyên database.
 
@@ -9,21 +9,23 @@ Tài liệu này mô tả bằng tiếng Việt có dấu cách EcoQuest Campus 
 EcoQuest Campus là hệ thống gamification cho hoạt động xanh trong trường học:
 
 1. Student đăng ký tài khoản, xác minh email và đăng nhập.
-2. Student xem mission đang `ACTIVE`, chọn mission, upload minh chứng nếu cần và submit action.
+2. Student xem mission đang `ACTIVE`, chọn mission, upload minh chứng nhiều ảnh hoặc một video nếu cần và submit action.
 3. Action service validate mission qua Catalog và kiểm policy bằng gRPC sang Policy service.
-4. Nếu hợp lệ, Action lưu action và publish event qua RabbitMQ.
-5. Reward Ledger nhận event accepted, cộng điểm, ghi transaction và unlock badge nếu đủ điều kiện.
-6. Leaderboard nhận event điểm, cập nhật bảng xếp hạng tuần/tháng bằng Redis.
-7. Admin close season ở Leaderboard, Leaderboard tạo snapshot và publish event season closed.
-8. Recognition nhận event close season, tạo certificate PDF, lưu MinIO và metadata trong DB riêng.
-9. Report service nhận event để tạo analytics read model cho báo cáo tuần/tháng/năm.
-10. Notification service nhận event để tạo thông báo inbox/SSE cho user liên quan.
+4. Nếu policy hợp lệ, Action lưu action với trạng thái `PENDING_REVIEW` và đưa vào Review Queue, chưa publish accepted event và chưa cộng điểm.
+5. Moderator hoặc Admin xem evidence trong Review Queue và approve/reject.
+6. Chỉ khi approve, Action chuyển trạng thái `ACCEPTED`, ghi outbox và publish `ActionAcceptedEvent` qua RabbitMQ.
+7. Reward Ledger nhận event accepted, cộng điểm, ghi transaction và unlock badge nếu đủ điều kiện.
+8. Leaderboard nhận event điểm, cập nhật bảng xếp hạng tuần/tháng bằng Redis.
+9. Admin close season ở Leaderboard, Leaderboard tạo snapshot và publish event season closed.
+10. Recognition nhận event close season, tạo certificate PDF, lưu MinIO và metadata trong DB riêng.
+11. Report service nhận event để tạo analytics read model cho báo cáo tuần/tháng/năm.
+12. Notification service nhận event để tạo thông báo inbox/SSE cho user liên quan.
 
 ## 2. Khi Nào Badge Được Đạt
 
 Badge không được tạo trực tiếp từ frontend. Badge thuộc Reward Ledger service.
 
-- Khi action có trạng thái `ACCEPTED`, Reward Ledger cộng điểm và kiểm điều kiện badge.
+- Khi action được Moderator/Admin approve và có trạng thái `ACCEPTED`, Reward Ledger mới cộng điểm và kiểm điều kiện badge.
 - Badge theo điểm: đạt khi tổng điểm ví của student vượt ngưỡng trong badge definition.
 - Badge theo số lần action: đạt khi student có đủ số transaction accepted theo `actionType`.
 - Ràng buộc chống trùng: `BadgeAchievement` unique theo `studentId + badgeCode`.
@@ -90,7 +92,7 @@ Ràng buộc quan trọng:
 - Đăng ký, xác minh email, đăng nhập.
 - Xem dashboard cá nhân: điểm, rank, badge, certificate, trạng thái submit.
 - Xem mission active và submit action theo từng mission.
-- Upload evidence nếu mission yêu cầu.
+- Upload evidence nếu mission yêu cầu: nhiều ảnh hoặc một video, file do Action service validate và lưu MinIO.
 - Lưu draft action.
 - Xem lịch sử action của mình.
 - Xem ví điểm, transaction và badge.
@@ -151,10 +153,10 @@ Không có bảng sinh viên riêng. Sinh viên là user trong `user_accounts` c
 
 | Collection | Khóa chính | Trường quan trọng | Ràng buộc/logic | Ý nghĩa |
 | --- | --- | --- | --- | --- |
-| `eco_actions` | `id` | `studentId`, `missionId`, `stationId`, `actionType`, `evidenceUrl`, `status`, `points`, `policyReason`, `moderationNote`, `reviewedByUserId`, `submittedAt`, `reviewedAt` | status enum `ACCEPTED/PENDING_REVIEW/REJECTED` | Action student submit |
+| `eco_actions` | `id` | `studentId`, `missionId`, `stationId`, `actionType`, `evidenceUrl`, `evidenceUrls`, `status`, `points`, `policyReason`, `moderationNote`, `reviewedByUserId`, `submittedAt`, `reviewedAt` | status enum `ACCEPTED/PENDING_REVIEW/REJECTED`; `evidenceUrl` là URL đầu tiên để tương thích client cũ, `evidenceUrls` là danh sách media | Action student submit |
 | `action_outbox` | `id` | `routingKey`, `payload`, `createdAt`, `publishedAt`, `lastError` | Outbox Pattern | Event cần publish RabbitMQ |
 
-Redis của Action lưu draft và idempotency key. MinIO của Action lưu evidence file.
+Redis của Action lưu draft và idempotency key. MinIO của Action lưu evidence file ảnh/video; MongoDB chỉ lưu URL/object key, không lưu base64.
 
 ### 6.4. Verification Policy Service - PostgreSQL `policy_db`
 
@@ -222,8 +224,8 @@ Vì đây là microservices, các ràng buộc giữa service không dùng FK v�
 ## 8. Các Luồng Cần Test Khi Demo
 
 1. Register -> verify email -> login.
-2. Student submit mission recycle có evidence/station -> accepted -> điểm tăng -> leaderboard tăng -> badge có thể unlock.
-3. Submit mission thiếu evidence -> pending review -> moderator approve/reject.
+2. Student submit mission recycle có evidence/station -> `PENDING_REVIEW` -> Moderator/Admin approve -> điểm tăng -> leaderboard tăng -> badge có thể unlock.
+3. Submit mission thiếu evidence hoặc submit hợp lệ nhưng chưa duyệt -> pending review -> moderator approve/reject.
 4. Reuse idempotency key -> backend trả `409`.
 5. Unsupported/daily limit action -> rejected, không cộng điểm.
 6. Admin adjust điểm -> wallet và transaction thay đổi, không được làm ví âm.

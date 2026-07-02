@@ -16,7 +16,7 @@ Backend alignment has changed since the earlier frontend notes:
 - Latest alignment also includes report target pickers instead of raw Target ID input, Admin self-protection in User Management, and Admin Analytics period series for choosing any week/month/year before exporting that selected period.
 - Certificate download uses an authenticated blob request and saves a PDF attachment; email verify/reset links have dedicated frontend routes.
 - Notification is a dropdown under the bell with SSE, read-all, toggle, role-safe navigation, and seeded inbox data for Student/Moderator/Admin after a clean reset.
-- Current verification: `npm.cmd test` passes 12/12, `npm.cmd run build` passes, full backend smoke passes, full Maven reactor passes, and all 20 RabbitMQ queues drain to 0 messages after the smoke run.
+- Current verification: `npm.cmd test` passes 15/15, `npm.cmd run build` passes, full backend smoke passes, full Maven reactor passes, and all 20 RabbitMQ queues drain to 0 messages after the smoke run.
 - Admin now has separate `Reports` and `Analytics` sidebar pages. Analytics supports weekly/monthly/yearly summaries, student outcome lookup, period series tables, and authenticated selected-period PDF export from the Report-service event read model.
 - Policy & Privacy and Application Guide now have distinct content. Login errors distinguish credentials, email verification, inactive, banned, network, rate-limit, and server cases.
 - Student, Moderator, and Admin dashboards use reusable donut, column, and area charts with role-specific metrics.
@@ -69,13 +69,13 @@ Thư mục nguồn frontend nằm tại `web-apps/ecoquest-web/src` với cấu 
 
 ### 📤 2.2 Nộp Minh Chứng Hành Động (Eco Action Submission)
 - **Tải lên từ thiết bị (Upload từ máy)**: Thay thế hoàn toàn ô nhập URL văn bản thô bằng một widget Kéo & Thả (Drag & Drop) thông minh.
-- **Upload MinIO qua backend**: File hình ảnh/PDF vẫn được preview bằng data URL ở phía client, sau đó frontend gọi `POST /actions/evidence`; backend lưu file vào MinIO và trả về `evidenceUrl` dạng `/actions/evidence/{objectKey}` để gửi tiếp trong `POST /actions/submit`.
+- **Upload MinIO qua backend**: File hình ảnh/PDF/video vẫn được preview bằng data URL ở phía client, sau đó frontend gọi `POST /actions/evidence`; backend lưu file vào MinIO và trả về URL dạng `/actions/evidence/{objectKey}`. Khi submit, frontend gửi `evidenceUrls` cho nhiều ảnh hoặc một video, đồng thời giữ `evidenceUrl` là URL đầu tiên để tương thích API cũ.
 - **Giới hạn kích thước file**: Đã bổ sung bộ kiểm tra kích thước, giới hạn file dưới **5MB** và đưa ra cảnh báo đỏ ngay trên widget nếu người dùng cố nộp file quá lớn.
 - **Xem trước ảnh**: Hiển thị ảnh thumbnail thu nhỏ ngay khi chọn file thành công kèm theo nút xóa để chọn lại file khác.
 
 ### 📋 2.3 Duyệt Minh Chứng (Moderator Review Queue)
-- **Xem ảnh trực tiếp**: Đối với các minh chứng dạng `/actions/evidence/{objectKey}` hoặc link ảnh, Moderator sẽ thấy thumbnail **120x90px** trực tiếp trong thẻ duyệt thay vì đường dẫn text.
-- **Click-to-Zoom (Lightbox Modal)**: Moderator có thể click vào ảnh thumbnail để phóng to ảnh trên toàn màn hình qua một modal tối chuyên nghiệp, giúp duyệt nhanh hơn mà không cần rời tab.
+- **Xem minh chứng trực tiếp**: Đối với minh chứng dạng `/actions/evidence/{objectKey}`, Moderator thấy gallery ảnh/video trong thẻ duyệt thay vì đường dẫn text.
+- **Click-to-Zoom/Play (Lightbox Modal)**: Moderator có thể click thumbnail ảnh để phóng to hoặc mở video player trong modal tối, giúp duyệt nhanh hơn mà không cần rời tab.
 
 ### 📊 2.4 Bảng Xếp Hạng Cao Cấp (Premium Leaderboard)
 - **Bục vinh quang 3D (3D Podium)**: Vị trí Top 1, 2, 3 được xếp theo đúng thứ tự trực quan (2 - 1 - 3). Các bệ bục được thiết kế hiệu ứng đổ bóng và dải chuyển màu kim loại sang trọng (Vàng, Bạc, Đồng), kèm theo vương miện và huy hiệu riêng.

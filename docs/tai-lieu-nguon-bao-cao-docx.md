@@ -1,6 +1,6 @@
 # Tài Liệu Nguồn Viết Báo Cáo DOCX - EcoQuest Campus
 
-Cập nhật: 2026-07-01
+Cập nhật: 2026-07-02
 
 Tài liệu này là nguồn nội dung tiếng Việt có dấu để viết báo cáo DOCX cho project **EcoQuest Campus**. Nội dung đã được đối chiếu lại với source code backend, frontend, các entity/controller hiện có và trạng thái kiểm thử gần nhất.
 
@@ -16,7 +16,7 @@ Hiện trạng tổng quát:
 - RabbitMQ dùng cho event-driven communication.
 - gRPC dùng cho luồng kiểm policy nội bộ từ Action sang Policy.
 - Redis dùng cho draft action, idempotency và leaderboard realtime.
-- MinIO dùng cho avatar, ảnh station, evidence action, evidence report và certificate PDF.
+- MinIO dùng cho avatar, ảnh station, evidence action nhiều ảnh/một video, evidence report và certificate PDF.
 - Frontend React/Vite có 3 panel rõ ràng: Student, Moderator, Admin.
 - Backend smoke test gần nhất PASS; frontend unit test/build gần nhất PASS.
 - Seed sạch sau reset có 15 mission, 12 user demo, nhiều action mẫu theo nhiều mốc thời gian, leaderboard tuần/tháng hiện tại và quá khứ, report, notification, certificate, coupon.
@@ -37,7 +37,7 @@ Hiện trạng tổng quát:
 - Phân quyền Student, Moderator, Admin.
 - Quản lý profile và upload avatar.
 - Quản lý mission, station, badge definition.
-- Nộp eco action theo mission, upload evidence, lưu draft, chống submit trùng bằng idempotency.
+- Nộp eco action theo mission, upload evidence nhiều ảnh hoặc một video, lưu draft, chống submit trùng bằng idempotency.
 - Kiểm policy: required evidence, required station, daily limit, base points.
 - Moderator approve/reject action cần duyệt.
 - Reward wallet, transaction ledger, badge unlock, manual point adjustment.
@@ -89,7 +89,7 @@ Identity/Catalog/Action/Reward/Leaderboard/Recognition/Report
 | --- | ---: | --- | --- | --- |
 | Identity Access | 8086 | Auth, email verification, forgot/reset password, profile/avatar, user management | PostgreSQL `identity_db`, MinIO avatar, SMTP | `/auth/**` |
 | Green Catalog | 8081 | Mission, station, badge definition, mission workflow, station image | PostgreSQL `catalog_db`, MinIO station image | `/catalog/**` |
-| Eco Action | 8082 | Draft, evidence upload, submit action, moderation, idempotency, outbox | MongoDB `action_db`, Redis, MinIO evidence | `/actions/**` |
+| Eco Action | 8082 | Draft, evidence upload nhiều ảnh/một video, submit action, moderation, idempotency, outbox | MongoDB `action_db`, Redis, MinIO evidence | `/actions/**` |
 | Verification Policy | 8090 REST, 9090 gRPC | Policy rule, required evidence/station, daily limit, point decision | PostgreSQL `policy_db` | `/policies/rules`, gRPC internal |
 | Reward Ledger | 8083 | Wallet, transaction ledger, badge achievement, manual adjustment | PostgreSQL `reward_db` | `/rewards/**` |
 | Leaderboard | 8084 | Weekly/monthly rank, historical lookup, close season, snapshot | Redis, PostgreSQL `leaderboard_db` | `/leaderboards/**` |
@@ -151,7 +151,7 @@ Action dùng MongoDB vì action submission là dữ liệu event/document có th
 
 | Collection | Khóa chính | Trường quan trọng | Ràng buộc/logic | Ý nghĩa |
 | --- | --- | --- | --- | --- |
-| `eco_actions` | `id` | `studentId`, `missionId`, `stationId`, `actionType`, `evidenceUrl`, `status`, `points`, `policyReason`, `moderationNote`, `reviewedByUserId`, `submittedAt`, `reviewedAt` | status enum `ACCEPTED`, `PENDING_REVIEW`, `REJECTED` | Action do student submit |
+| `eco_actions` | `id` | `studentId`, `missionId`, `stationId`, `actionType`, `evidenceUrl`, `evidenceUrls`, `status`, `points`, `policyReason`, `moderationNote`, `reviewedByUserId`, `submittedAt`, `reviewedAt` | status enum `ACCEPTED`, `PENDING_REVIEW`, `REJECTED`; `evidenceUrl` là URL đầu tiên để tương thích client cũ, `evidenceUrls` là danh sách media | Action do student submit |
 | `action_outbox` | `id` | `routingKey`, `payload`, `createdAt`, `publishedAt`, `lastError` | outbox publish RabbitMQ và lưu lỗi publish nếu có | Chống mất event khi lưu action rồi publish event |
 
 Redis trong Action:
@@ -165,11 +165,11 @@ Redis trong Action:
 Ràng buộc nghiệp vụ:
 
 - Student chỉ submit mission `ACTIVE`.
-- Evidence upload qua Action, lưu MinIO bucket evidence.
-- Submit accepted/rejected/pending do Policy quyết định qua gRPC.
-- Nếu thiếu evidence nhưng mission/policy yêu cầu review, action thành `PENDING_REVIEW`.
+- Evidence upload qua Action, lưu MinIO bucket evidence. Mỗi action có thể có nhiều ảnh hoặc một video; file được validate MIME/dung lượng trước khi lưu, và backend reject batch trộn ảnh/video/PDF không hợp lệ.
+- Policy gRPC quyết định action bị reject do rule hay đủ điều kiện đưa vào review.
+- Nếu hợp lệ hoặc cần review thủ công, Action lưu `PENDING_REVIEW`; không cộng điểm ở thời điểm submit.
 - Duplicate idempotency key trả `409`.
-- Action không cộng điểm trực tiếp; chỉ publish event cho Reward.
+- Action không cộng điểm trực tiếp; chỉ publish accepted event cho Reward sau khi Moderator/Admin approve.
 
 ### 5.4. Verification Policy Service - PostgreSQL `policy_db`
 
@@ -300,7 +300,7 @@ Lý do chọn MongoDB: action evidence và trạng thái submit là document lin
 | --- | --- | --- |
 | Avatar | Identity | Ảnh đại diện user |
 | Station images | Catalog | Ảnh trạm xanh |
-| Action evidence | Action | Ảnh minh chứng submit action |
+| Action evidence | Action | Ảnh hoặc video minh chứng submit action |
 | Report evidence | Report | Ảnh minh chứng report |
 | Certificates | Recognition | PDF certificate |
 
@@ -365,7 +365,7 @@ Luồng:
 
 Kết quả: user dùng mật khẩu mới để đăng nhập.
 
-### UC-03 - Student Xem Mission Và Submit Action Accepted
+### UC-03 - Student Xem Mission Và Submit Action Hợp Lệ Chờ Duyệt
 
 Actor: Student.
 
@@ -376,17 +376,18 @@ Luồng:
 1. Student mở trang Missions.
 2. Frontend gọi `GET /catalog/missions`.
 3. Student chọn một mission và upload evidence nếu cần.
-4. Frontend upload evidence qua `POST /actions/evidence`.
-5. Frontend gửi `POST /actions/submit` kèm `idempotencyKey`.
+4. Frontend upload từng media qua `POST /actions/evidence`; có thể gửi nhiều ảnh hoặc một video.
+5. Frontend gửi `POST /actions/submit` kèm `idempotencyKey`, `evidenceUrls` và `evidenceUrl` là URL đầu tiên.
 6. Action validate mission qua Catalog.
 7. Action gọi Policy gRPC để evaluate rule.
-8. Nếu hợp lệ, Action lưu `eco_actions` status `ACCEPTED`.
-9. Action ghi outbox và publish event qua RabbitMQ.
-10. Reward cộng điểm, ghi transaction và có thể unlock badge.
-11. Leaderboard cập nhật Redis sorted set.
-12. Report analytics và Notification cập nhật qua event.
+8. Nếu hợp lệ, Action lưu `eco_actions` status `PENDING_REVIEW`, giữ `points` là điểm đề xuất và chưa publish accepted event.
+9. Action xuất hiện trong Review Queue của Moderator/Admin.
+10. Moderator/Admin approve thì Action chuyển status `ACCEPTED`, ghi outbox và publish event qua RabbitMQ.
+11. Reward cộng điểm, ghi transaction và có thể unlock badge.
+12. Leaderboard cập nhật Redis sorted set.
+13. Report analytics và Notification cập nhật qua event.
 
-Kết quả: điểm, badge, leaderboard, notification và báo cáo được cập nhật theo eventual consistency.
+Kết quả: submit thành công không cộng điểm ngay; điểm, badge, leaderboard, notification và báo cáo chỉ cập nhật sau khi action được duyệt, theo eventual consistency.
 
 ### UC-04 - Submit Action Cần Moderator Review
 
@@ -394,7 +395,7 @@ Actor: Student, Moderator.
 
 Luồng:
 
-1. Student submit action thiếu evidence hoặc action cần review.
+1. Student submit action hợp lệ, thiếu evidence cần review hoặc action cần review thủ công.
 2. Action lưu status `PENDING_REVIEW`.
 3. Moderator mở Review Queue.
 4. Moderator xem evidence preview.
@@ -640,7 +641,7 @@ Frontend nằm trong `web-apps/ecoquest-web`, dùng React + Vite + CSS thuần, 
 
 - **Dashboard**: KPI điểm, mission, badge, certificate, biểu đồ submit/action status.
 - **Missions**: danh sách mission active, lọc/tìm kiếm, submit theo từng mission.
-- **Submit Action Modal**: upload evidence, chọn station, xem kết quả accepted/pending/rejected.
+- **Submit Action Modal**: upload nhiều ảnh hoặc một video evidence, chọn station, submit thành `PENDING_REVIEW` và xem kết quả pending/approved/rejected sau khi Moderator/Admin xử lý.
 - **Wallet & Badges**: wallet total, transaction history, badge unlocked.
 - **Leaderboard**: weekly/monthly, kỳ hiện tại và kỳ cũ.
 - **Certificates**: certificate cards, preview, print, download PDF, redeem coupon.
@@ -715,7 +716,7 @@ Frontend nằm trong `web-apps/ecoquest-web`, dùng React + Vite + CSS thuần, 
 ### Action
 
 - `POST /actions/drafts`
-- `POST /actions/evidence`
+- `POST /actions/evidence` - upload một file media; Action hỗ trợ ảnh/PDF 5MB và video `mp4/webm/mov` 50MB.
 - `POST /actions/submit`
 - `GET /actions/user/{studentId}`
 - `GET /actions/review`
@@ -795,7 +796,7 @@ Frontend nằm trong `web-apps/ecoquest-web`, dùng React + Vite + CSS thuần, 
 | SMTP/Gmail App Password | Gửi email verify/reset/status |
 | iText/OpenHTML/PDF renderer | Render certificate/report PDF |
 | React + Vite | Frontend web app |
-| Nginx | Serve frontend container và same-origin proxy |
+| Nginx | Serve frontend container và same-origin proxy; cấu hình upload body 100MB và giữ SSE notification stream lâu hơn |
 | Docker Compose | Chạy toàn bộ stack local |
 | PowerShell smoke test | Kiểm thử end-to-end backend |
 | Vitest/Vite build | Kiểm thử và build frontend |
@@ -846,7 +847,7 @@ Lệnh chạy:
 ```powershell
 $env:API_GATEWAY_PORT='18080'
 docker compose up -d --build
-powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090
+powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090 -Web http://localhost:3000
 ```
 
 Smoke test đang bao phủ:
@@ -856,7 +857,7 @@ Smoke test đang bao phủ:
 - Admin self-protection.
 - Catalog CRUD và mission workflow.
 - Policy CRUD, active delete guard.
-- Draft, idempotency, submit accepted/pending/rejected.
+- Draft, idempotency, submit hợp lệ vào `PENDING_REVIEW`, approve mới accepted/grant points, reject không cộng điểm.
 - Upload action evidence/report evidence/station image/avatar.
 - Reward wallet, transaction, badge, adjust points.
 - Leaderboard weekly/monthly, historical period, close season.
@@ -876,7 +877,7 @@ npm.cmd run build
 
 Trạng thái gần nhất:
 
-- Frontend unit test: 12/12 PASS.
+- Frontend unit test: 15/15 PASS.
 - Frontend production build: PASS.
 
 ### 12.3. Audit Sau Reset Sạch
@@ -886,7 +887,8 @@ Sau khi reset bằng `docker compose down -v` rồi `docker compose up -d`, audi
 - Gateway `UP`.
 - 15 mission.
 - 12 user demo.
-- 0 user E2E test còn sót.
+- 0 user/action E2E test còn sót.
+- 36 action demo sạch theo nhiều mốc thời gian.
 - Notification seed theo 3 role có dữ liệu.
 - RabbitMQ queue drained.
 
@@ -980,7 +982,7 @@ Gợi ý bố cục:
 - Có Outbox Pattern trong Action để giảm rủi ro mất event.
 - Có admin analytics và export PDF theo kỳ.
 - Có coupon thật với eligibility, stock, expiry và idempotent claim.
-- Có upload file bền vững qua MinIO.
+- Có upload file bền vững qua MinIO; đã kiểm upload lớn qua Nginx web proxy, Gateway và Action service để tránh lỗi HTTP 413.
 - Có test tự động bằng smoke test và frontend unit/build.
 
 ## 16. Hạn Chế Và Hướng Phát Triển

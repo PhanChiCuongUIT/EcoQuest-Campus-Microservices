@@ -1,6 +1,6 @@
 # Hướng Dẫn Sử Dụng Công Nghệ Microservices Trong EcoQuest Campus
 
-Cập nhật: 2026-07-01
+Cập nhật: 2026-07-02
 
 ## 1. Chạy Hệ Thống Từ Đầu
 
@@ -97,7 +97,7 @@ docker exec -it microservices-se361-action-db-1 mongosh
 
 RabbitMQ dùng để service giao tiếp bất đồng bộ:
 
-- Action accepted -> Reward cộng điểm.
+- Moderator/Admin approve action -> Action publish accepted event -> Reward cộng điểm.
 - Reward points -> Leaderboard update rank.
 - Leaderboard close season -> Recognition tạo certificate.
 - Reward badge/certificate/action/report/user events -> Notification và Report analytics.
@@ -135,7 +135,7 @@ Khi submit action:
 1. Action nhận request submit.
 2. Action gọi Catalog kiểm mission active.
 3. Action gọi Policy bằng gRPC.
-4. Policy trả decision: accepted, pending review hoặc rejected.
+4. Policy trả decision: đủ điều kiện review hoặc rejected. Với luồng hiện tại, action hợp lệ được lưu `PENDING_REVIEW`; chỉ sau khi Moderator/Admin approve thì Action mới publish accepted event để Reward cộng điểm.
 
 Policy admin REST chạy direct:
 
@@ -176,7 +176,7 @@ MinIO lưu file thay vì nhét base64 vào DB:
 | --- | --- |
 | Avatar | Identity |
 | Station image | Catalog |
-| Action evidence | Action |
+| Action evidence ảnh/video | Action |
 | Report evidence | Report |
 | Certificate PDF | Recognition |
 
@@ -191,6 +191,7 @@ minioadmin / minioadmin
 
 - DB chỉ lưu URL/object key.
 - Service nào sở hữu nghiệp vụ thì sở hữu file.
+- Action evidence hỗ trợ nhiều ảnh hoặc một video. Khi thuyết trình, nói rõ frontend gửi file qua Action API, Action validate MIME/dung lượng/batch media rồi lưu MinIO; Gateway không xử lý file và DB không lưu base64.
 - Dễ thay MinIO bằng S3/Cloudinary/CDN sau này nếu deploy public.
 
 ## 9. Coupon Thật Trong Recognition
@@ -270,7 +271,7 @@ Backend smoke:
 ```powershell
 $env:API_GATEWAY_PORT='18080'
 docker compose up -d --build
-powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090
+powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090 -Web http://localhost:3000
 ```
 
 Frontend:
@@ -328,11 +329,11 @@ Nên demo theo thứ tự từ hạ tầng đến nghiệp vụ:
 4. Submit một mission: nói Action gọi Catalog để validate mission và gọi Policy bằng gRPC để xét rule.
 5. Mở RabbitMQ UI hoặc chạy `rabbitmqctl list_queues name messages consumers`: nói event-driven giúp Reward, Leaderboard, Report, Notification xử lý bất đồng bộ; queue 0 message là đã drain.
 6. Mở Redis keys: nói Redis dùng cho draft, idempotency và leaderboard sorted set theo kỳ.
-7. Mở MinIO console: nói file evidence/avatar/station/certificate thuộc service sở hữu, không lưu base64 trong DB.
+7. Mở MinIO console: nói file evidence ảnh/video/avatar/station/certificate thuộc service sở hữu, không lưu base64 trong DB.
 8. Mở chuông Notification ở 3 role: nói Notification là service riêng, có seed inbox, read/read-all và SSE realtime.
 9. Admin -> Analytics -> Export PDF: nói Report service dựng read model từ event, không đọc DB chéo.
 10. Student -> Certificates -> Redeem coupon: nói Recognition tự xét điều kiện, stock và idempotency voucher.
-11. Chạy smoke test: nói đây là bằng chứng hệ thống chạy xuyên service, không chỉ test từng API lẻ.
+11. Chạy smoke test: nói đây là bằng chứng hệ thống chạy xuyên service, không chỉ test từng API lẻ; smoke hiện kiểm cả upload hai ảnh, một video, upload lớn qua Nginx web proxy và reject batch trộn ảnh/video cho action evidence.
 
 Câu nói gợi ý khi kết luận:
 

@@ -1,6 +1,6 @@
 # EcoQuest Campus Microservices
 
-EcoQuest Campus la he thong gamification cho hoat dong xanh trong truong hoc. Student thuc hien mission, upload minh chung, nhan diem va badge; Moderator duyet action/report; Admin quan tri user, catalog, policy, reward adjustment, analytics va season certificate.
+EcoQuest Campus la he thong gamification cho hoat dong xanh trong truong hoc. Student thuc hien mission, upload minh chung bang nhieu anh hoac mot video, nhan diem va badge; Moderator duyet action/report; Admin quan tri user, catalog, policy, reward adjustment, analytics va season certificate.
 
 ## Current Architecture
 
@@ -31,7 +31,7 @@ The system currently has **9 microservices**. Each service owns its own data and
 | --- | --- | --- |
 | Identity Access | Register, verify email, login, forgot/reset password, profile/avatar, role/status/user management | `8086` |
 | Green Catalog | Mission workflow, stations, station image upload, badge definitions | `8081` |
-| Eco Action | Draft, evidence upload, submit, idempotency, moderation, outbox | `8082` |
+| Eco Action | Draft, evidence upload nhieu anh/mot video, submit, idempotency, moderation, outbox | `8082` |
 | Verification Policy | Internal gRPC rule evaluation; direct admin REST | `9090` gRPC, `8090` REST |
 | Reward Ledger | Wallet, transaction ledger, badge achievement, manual point adjustment | `8083` |
 | Leaderboard | Weekly/monthly period rank read model, historical week/month lookup, season snapshots | `8084` |
@@ -43,17 +43,18 @@ The system currently has **9 microservices**. Each service owns its own data and
 
 1. User registers, verifies email, then logs in.
 2. Student, or Moderator in Student panel for their own `studentId`, selects an `ACTIVE` mission.
-3. Action service calls Catalog to validate mission status and `actionType`, then calls Policy by gRPC.
-4. Draft/idempotency use Redis; accepted/rejected actions are persisted in MongoDB.
-5. Action outbox publishes RabbitMQ events.
-6. Reward Ledger grants points by `sourceActionId`, records transactions, and unlocks point/action-count badges.
-7. Leaderboard consumes point events and updates Redis sorted sets by period, so the UI can view current and previous weeks/months in the selected year.
-8. Admin closes a season; Recognition creates a PDF certificate in MinIO and publishes notification.
-9. Missing evidence/station can create `PENDING_REVIEW`; Moderator/Admin approve or reject. Moderators cannot review their own actions.
-10. Report service consumes action, mission, user registration, points, badge, and certificate events into its own analytics read model and handles report create/review without reading other DBs.
-11. Admin analytics can show bounded week/month/year ranges without future periods; export downloads the selected week/month/year as the polished single-period PDF report.
-12. Policy Admin on direct port `8090` supports create/update/delete; deleting requires the rule to be inactive first so active mission action types are not accidentally made unsupported. The Admin UI creates rules through a modal overlay while the backend keeps all rule ownership inside the Policy service.
-13. Student coupon redemption is handled by Recognition: active reward offers define points/badge/certificate/stock/expiry requirements; claiming the same reward twice returns the existing voucher instead of issuing a duplicate code.
+3. Student uploads action evidence through Action-owned MinIO storage. Each action can keep multiple image evidence URLs or one video URL; `evidenceUrl` remains the first URL for old clients.
+4. Action service calls Catalog to validate mission status and `actionType`, then calls Policy by gRPC.
+5. Draft/idempotency use Redis; valid submissions are persisted in MongoDB as `PENDING_REVIEW`, while policy failures are persisted as `REJECTED`.
+6. Moderator/Admin approve or reject pending actions in Review Queue. Only approve changes the action to `ACCEPTED` and writes the Action outbox event.
+7. Action outbox publishes RabbitMQ events; Reward Ledger grants points by `sourceActionId`, records transactions, and unlocks point/action-count badges only after `ActionAcceptedEvent`.
+8. Leaderboard consumes point events and updates Redis sorted sets by period, so the UI can view current and previous weeks/months in the selected year.
+9. Admin closes a season; Recognition creates a PDF certificate in MinIO and publishes notification.
+10. Missing evidence/station and all valid submit actions are reviewed through `PENDING_REVIEW`; Moderators cannot review their own actions.
+11. Report service consumes action, mission, user registration, points, badge, and certificate events into its own analytics read model and handles report create/review without reading other DBs.
+12. Admin analytics can show bounded week/month/year ranges without future periods; export downloads the selected week/month/year as the polished single-period PDF report.
+13. Policy Admin on direct port `8090` supports create/update/delete; deleting requires the rule to be inactive first so active mission action types are not accidentally made unsupported. The Admin UI creates rules through a modal overlay while the backend keeps all rule ownership inside the Policy service.
+14. Student coupon redemption is handled by Recognition: active reward offers define points/badge/certificate/stock/expiry requirements; claiming the same reward twice returns the existing voucher instead of issuing a duplicate code.
 
 Mission statuses: `PENDING`, `ACTIVE`, `REJECTED`, `CANCELLED`, `COMPLETED`. New missions are `PENDING`; only Admin changes mission status; only `ACTIVE` missions can be submitted.
 
@@ -195,7 +196,7 @@ Backend smoke:
 ```powershell
 $env:API_GATEWAY_PORT='18080'
 docker compose up -d --build
-powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090
+powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090 -Web http://localhost:3000
 ```
 
 Frontend:
@@ -206,18 +207,18 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Latest verification on 2026-07-01 after real Recognition coupon offers, reward offer CRUD, Recognition profile race fix, clean seed reset, certificate signature/mobile UI fixes, Policy modal, email logo, dashboard resilience, Student outcome layout fixes, dark theme input/search fixes, leaderboard historical period lookup, expanded current seed data, and seeded Notification inbox verification:
+Latest verification on 2026-07-02 after real Recognition coupon offers, reward offer CRUD, Recognition profile race fix, clean seed reset, certificate signature/mobile UI fixes, Policy modal, email logo, dashboard resilience, Student outcome layout fixes, dark theme input/search fixes, leaderboard historical period lookup, expanded current seed data, seeded Notification inbox verification, Action evidence support for multiple images or one video, frontend Nginx/Gateway upload limit fixes, and the corrected submit-review flow where valid submissions wait for Moderator/Admin approval before points are granted:
 
 - Full Maven reactor 14/14 modules: PASS.
 - `docker compose config --quiet`: PASS.
-- Backend smoke test: PASS, including current/previous week/month leaderboard queries and Notification seeded inbox/recipient guards.
+- Backend smoke test: PASS, including current/previous week/month leaderboard queries, Notification seeded inbox/recipient guards, upload of two image evidence files, large evidence upload through `http://localhost:3000` web proxy, valid submit -> `PENDING_REVIEW` -> Review Queue -> approve -> Reward/Leaderboard, submit action with video evidence, and mixed image/video rejection.
 - RabbitMQ queues after smoke: 20 queues, 0 pending messages, 1 consumer each.
 - Post-smoke logs: no Recognition duplicate profile errors after the race fix. A few Gateway `Connection refused` lines can appear during initial startup while Identity is still opening port `8086`; they disappear once services are healthy.
-- Frontend unit tests: 12/12 PASS.
+- Frontend unit tests: 15/15 PASS.
 - Frontend production build: PASS.
-- Final audit reset: Gateway `UP`, 15 missions, 12 demo users, 0 E2E users, Student/Moderator/Admin notification seeds present, and 20 RabbitMQ queues drained with consumers.
+- Final audit reset: Gateway `UP`, 15 missions, 12 demo users, 36 demo actions, 0 E2E users/actions, Student/Moderator/Admin notification seeds present, and 20 RabbitMQ queues drained with consumers.
 
-Smoke currently covers auth/verify/reset/profile/user management, admin self-protection, Moderator -> Student demotion, report target lookup, RBAC, moderator mission ownership, Catalog CRUD/workflow including badge update, station image upload, seeded mission/policy counts, Policy Admin create/update/delete guard, seeded demo action visibility, current/previous week/month leaderboard data, mission eligibility, Redis draft/idempotency, MinIO uploads, gRPC Policy, Action outbox/RabbitMQ, Reward/badges, Leaderboard, moderation, Report workflow, Report analytics including mission/user/badge/certificate events, Admin analytics range guards + student outcome report + selected weekly/monthly/yearly PDF export, Notification seeded role inbox, Notification mark-read/read-all/recipient guard, event-created notifications, daily limit, season close idempotency, authenticated certificate PDF attachment, Recognition reward offer CRUD, real coupon eligibility, locked coupon rejection, coupon stock decrement, duplicate reward claim idempotency, and queue drain. Frontend build verifies dashboard partial-loading code, dark theme form/search styling, leaderboard period selector, and the Policy add-rule modal.
+Smoke currently covers auth/verify/reset/profile/user management, admin self-protection, Moderator -> Student demotion, report target lookup, RBAC, moderator mission ownership, Catalog CRUD/workflow including badge update, station image upload, seeded mission/policy counts, Policy Admin create/update/delete guard, seeded demo action visibility, current/previous week/month leaderboard data, mission eligibility, Redis draft/idempotency, MinIO uploads for multiple action images and one action video, large upload through web Nginx proxy, mixed image/video evidence rejection, gRPC Policy, Action submit approval gate, Action outbox/RabbitMQ, Reward/badges, Leaderboard, moderation, Report workflow, Report analytics including mission/user/badge/certificate events, Admin analytics range guards + student outcome report + selected weekly/monthly/yearly PDF export, Notification seeded role inbox, Notification mark-read/read-all/recipient guard, event-created notifications, daily limit, season close idempotency, authenticated certificate PDF attachment, Recognition reward offer CRUD, real coupon eligibility, locked coupon rejection, coupon stock decrement, duplicate reward claim idempotency, and queue drain. Frontend build verifies dashboard partial-loading code, dark theme form/search styling, leaderboard period selector, the Policy add-rule modal, and evidence validation for multiple images versus one video.
 
 ## Docker Storage Maintenance
 
@@ -278,7 +279,8 @@ docker compose up -d
 - Action uses outbox for accepted/rejected events.
 - Identity uses Flyway and MapStruct.
 - Older PostgreSQL services still use schema bootstrap/`ddl-auto:update`; full Flyway migration for every service is a production hardening backlog.
-- Avatar, station image, action evidence, report evidence, and certificate files are stored by owning services in MinIO buckets.
+- Avatar, station image, action evidence images/videos, report evidence, and certificate files are stored by owning services in MinIO buckets.
+- Web Nginx proxy and Gateway allow evidence JSON bodies up to 100MB, covering base64 overhead for images and one 50MB video; Nginx also keeps long SSE notification streams open.
 
 More docs:
 
