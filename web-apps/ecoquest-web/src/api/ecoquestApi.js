@@ -4,6 +4,7 @@
  * Uses VITE_API_BASE_URL if set (dev outside container), otherwise relative paths (nginx proxy).
  */
 import axios from 'axios';
+import { createClientId } from '../utils/clientIds.js';
 
 const BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
@@ -67,7 +68,7 @@ export const uploadEvidence = (data) =>
 export const submitAction = (data) =>
   client.post('/actions/submit', {
     ...data,
-    idempotencyKey: crypto.randomUUID(),
+    idempotencyKey: data.idempotencyKey || createClientId('action-submit'),
   }).then(r => r.data);
 
 export const getUserActions = (studentId) =>

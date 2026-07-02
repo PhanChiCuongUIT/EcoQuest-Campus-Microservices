@@ -24,9 +24,11 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @Service
 class EvidenceStorageService {
-    private static final long MAX_BYTES = 5L * 1024L * 1024L;
+    private static final long MAX_IMAGE_OR_DOCUMENT_BYTES = 5L * 1024L * 1024L;
+    private static final long MAX_VIDEO_BYTES = 50L * 1024L * 1024L;
     private static final Set<String> ALLOWED_TYPES = Set.of(
-            "image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"
+            "image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf",
+            "video/mp4", "video/webm", "video/quicktime"
     );
 
     private final MinioClient minio;
@@ -43,8 +45,12 @@ class EvidenceStorageService {
             if (parsed.bytes.length == 0) {
                 throw new ResponseStatusException(BAD_REQUEST, "Evidence file is empty.");
             }
-            if (parsed.bytes.length > MAX_BYTES) {
-                throw new ResponseStatusException(BAD_REQUEST, "Evidence file exceeds the 5MB limit.");
+            var maxBytes = isVideo(parsed.contentType) ? MAX_VIDEO_BYTES : MAX_IMAGE_OR_DOCUMENT_BYTES;
+            if (parsed.bytes.length > maxBytes) {
+                throw new ResponseStatusException(BAD_REQUEST,
+                        isVideo(parsed.contentType)
+                                ? "Evidence video exceeds the 50MB limit."
+                                : "Evidence file exceeds the 5MB limit.");
             }
             if (!ALLOWED_TYPES.contains(parsed.contentType)) {
                 throw new ResponseStatusException(BAD_REQUEST, "Unsupported evidence content type.");
@@ -116,8 +122,15 @@ class EvidenceStorageService {
             case "image/gif" -> ".gif";
             case "image/webp" -> ".webp";
             case "application/pdf" -> ".pdf";
+            case "video/mp4" -> ".mp4";
+            case "video/webm" -> ".webm";
+            case "video/quicktime" -> ".mov";
             default -> "";
         };
+    }
+
+    private boolean isVideo(String contentType) {
+        return contentType != null && contentType.startsWith("video/");
     }
 
     private record ParsedEvidence(String fileName, String contentType, byte[] bytes) {

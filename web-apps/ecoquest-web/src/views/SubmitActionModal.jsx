@@ -1,20 +1,22 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Leaf, Camera, MapPin, CheckCircle2, Clock, XCircle, AlertTriangle, Upload, X, Image } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  Leaf, Camera, MapPin, CheckCircle2, Clock, XCircle, AlertTriangle,
+  Upload, X, Image, FileVideo, FileText,
+} from 'lucide-react';
 import Modal from '../components/Modal.jsx';
-import AsyncBanner from '../components/AsyncBanner.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { getMissions, getStations, saveDraft, submitAction, uploadEvidence } from '../api/ecoquestApi.js';
 import { activeMissions } from '../utils/accessRules.js';
+import { validateEvidenceBatch, validateUpload } from '../utils/workflowRules.js';
 
-const ALLOWED_EVIDENCE_TYPES = new Set([
-  'image/png',
-  'image/jpeg',
-  'image/gif',
-  'image/webp',
-  'application/pdf',
-]);
+const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+const VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
+const DOCUMENT_TYPES = ['application/pdf'];
+const ALLOWED_EVIDENCE_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES, ...DOCUMENT_TYPES];
+const MAX_IMAGE_OR_DOCUMENT_BYTES = 5 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
+const MAX_IMAGE_COUNT = 5;
 
-/* ── File upload → data URL helper ───────────────────────────── */
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -24,153 +26,159 @@ function fileToDataUrl(file) {
   });
 }
 
-/* ── Evidence Upload Widget ──────────────────────────────────── */
-function EvidenceUpload({ evidenceUrl, onEvidenceChange, required }) {
+function evidenceId() {
+  return globalThis.crypto?.randomUUID?.() || `evidence-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function evidenceKind(contentType) {
+  if (contentType?.startsWith('image/')) return 'image';
+  if (contentType?.startsWith('video/')) return 'video';
+  if (contentType === 'application/pdf') return 'document';
+  return 'file';
+}
+
+function maxBytesFor(file) {
+  return file.type?.startsWith('video/') ? MAX_VIDEO_BYTES : MAX_IMAGE_OR_DOCUMENT_BYTES;
+}
+
+function EvidenceUpload({ items, onItemsChange, required }) {
   const fileRef = useRef(null);
-  const [preview, setPreview] = useState(null); // local preview URL
   const [dragOver, setDragOver] = useState(false);
-  const [fileName, setFileName] = useState('');
   const [uploadError, setUploadError] = useState('');
+  const hasVideoOrDocument = items.some(item => item.kind === 'video' || item.kind === 'document');
+  const imageCount = items.filter(item => item.kind === 'image').length;
 
-  const handleFile = async (file) => {
-    if (!file) return;
+  const handleFiles = async (fileList) => {
+    const files = Array.from(fileList || []);
+    if (files.length === 0) return;
 
-    if (!ALLOWED_EVIDENCE_TYPES.has(file.type)) {
-      setUploadError('Unsupported file type. Please upload PNG, JPG, GIF, WebP, or PDF.');
+    const batchError = validateEvidenceBatch(items, files, { maxImages: MAX_IMAGE_COUNT });
+    if (batchError) {
+      setUploadError(batchError);
       return;
     }
 
-    // Limit size to 5MB
-    if (file.size > 5 * 1024 * 1024) {
-      setUploadError('File size exceeds the 5MB limit. Please select a smaller file.');
-      return;
+    for (const file of files) {
+      const error = validateUpload(file, {
+        allowedTypes: ALLOWED_EVIDENCE_TYPES,
+        maxBytes: maxBytesFor(file),
+      });
+      if (error) {
+        setUploadError(file.type?.startsWith('video/')
+          ? `${error} Videos must be MP4, WebM or MOV under 50MB.`
+          : `${error} Images/PDF must be under 5MB.`);
+        return;
+      }
     }
+
     setUploadError('');
+    const mapped = await Promise.all(files.map(async file => {
+      const kind = evidenceKind(file.type);
+      return {
+        id: evidenceId(),
+        fileName: file.name,
+        contentType: file.type,
+        sizeBytes: file.size,
+        kind,
+        dataUrl: await fileToDataUrl(file),
+        previewUrl: kind === 'image' || kind === 'video' ? URL.createObjectURL(file) : '',
+      };
+    }));
 
-    const localUrl = URL.createObjectURL(file);
-    setPreview(file.type.startsWith('image/') ? localUrl : null);
-    setFileName(file.name);
-    try {
-      // Keep a data URL for preview; submit uploads it to Action/MinIO first.
-      const dataUrl = await fileToDataUrl(file);
-      onEvidenceChange(dataUrl);
-    } catch {
-      // fallback: use local object URL
-      onEvidenceChange(localUrl);
-    }
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  };
-
-  const clearEvidence = () => {
-    setPreview(null);
-    setFileName('');
-    setUploadError('');
-    onEvidenceChange('');
+    const next = mapped.some(item => item.kind === 'video' || item.kind === 'document')
+      ? mapped
+      : [...items, ...mapped];
+    onItemsChange(next);
     if (fileRef.current) fileRef.current.value = '';
   };
 
-  const hasEvidence = !!evidenceUrl;
+  const removeItem = (id) => {
+    const target = items.find(item => item.id === id);
+    if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+    onItemsChange(items.filter(item => item.id !== id));
+  };
+
+  const clearAll = () => {
+    items.forEach(item => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl); });
+    onItemsChange([]);
+    setUploadError('');
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const openPicker = () => fileRef.current?.click();
+  const canAddMoreImages = !hasVideoOrDocument && imageCount < MAX_IMAGE_COUNT;
 
   return (
     <div className="form-group">
       <label className="form-label">
-        Evidence Attachment (Photo / Document)
+        Evidence media
         {required && <span style={{ color: 'var(--color-danger)', marginLeft: 4 }}>*</span>}
       </label>
 
-      {/* Upload zone */}
-      {!hasEvidence ? (
-        <div
-          style={{
-            border: `2px dashed ${uploadError ? 'var(--color-danger)' : (dragOver ? 'var(--color-primary)' : 'var(--color-border)')}`,
-            borderRadius: 'var(--radius-lg)',
-            padding: 'var(--space-6)',
-            textAlign: 'center',
-            cursor: 'pointer',
-            background: uploadError ? 'var(--color-danger-bg)' : (dragOver ? 'var(--color-primary-dim)' : 'var(--color-background)'),
-            transition: 'all 150ms ease',
-          }}
-          onClick={() => fileRef.current?.click()}
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-        >
-          <Upload size={28} color={uploadError ? 'var(--color-danger)' : (dragOver ? 'var(--color-primary)' : 'var(--color-text-faint)')} style={{ marginBottom: 8 }} />
-          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4, color: uploadError ? 'var(--color-danger-text)' : 'inherit' }}>
-            {uploadError ? uploadError : (dragOver ? 'Drop to upload' : 'Click to select file or drag & drop here')}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-            Supports PNG, JPG, GIF, WebP, or PDF under 5MB
-          </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/png,image/jpeg,image/gif,image/webp,application/pdf"
-            style={{ display: 'none' }}
-            onChange={e => { const f = e.target.files[0]; if (f) handleFile(f); }}
-          />
+      <div
+        className={`evidence-dropzone${dragOver ? ' is-dragover' : ''}${uploadError ? ' has-error' : ''}`}
+        onClick={items.length === 0 || canAddMoreImages ? openPicker : undefined}
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={e => {
+          e.preventDefault();
+          setDragOver(false);
+          handleFiles(e.dataTransfer.files);
+        }}
+      >
+        <Upload size={28} />
+        <div>
+          <strong>{items.length ? 'Add more evidence' : 'Drop evidence here or choose files'}</strong>
+          <span>Upload up to {MAX_IMAGE_COUNT} photos, or one MP4/WebM/MOV video under 50MB.</span>
         </div>
-      ) : (
-        <div style={{
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--color-primary)',
-          overflow: 'hidden',
-          position: 'relative',
-        }}>
-          {preview ? (
-            <img
-              src={preview}
-              alt="Evidence preview"
-              style={{ width: '100%', maxHeight: 200, objectFit: 'cover', display: 'block' }}
-            />
-          ) : (
-            <div style={{
-              padding: 'var(--space-4)',
-              background: 'var(--color-primary-dim)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-3)',
-            }}>
-              <Image size={24} color="var(--color-primary)" />
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>{fileName || 'Evidence document'}</div>
-                <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Attachment ready for verification</div>
+        <button
+          type="button"
+          className="btn btn-outline btn-sm"
+          onClick={e => { e.stopPropagation(); openPicker(); }}
+          disabled={items.length > 0 && !canAddMoreImages}
+        >
+          {items.length ? 'Add media' : 'Choose media'}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          accept={[...ALLOWED_EVIDENCE_TYPES].join(',')}
+          style={{ display: 'none' }}
+          onChange={e => handleFiles(e.target.files)}
+        />
+      </div>
+
+      {items.length > 0 && (
+        <div className="evidence-media-grid">
+          {items.map((item, index) => (
+            <div key={item.id} className="evidence-media-card">
+              <div className="evidence-media-preview">
+                {item.kind === 'image' && <img src={item.previewUrl || item.uploadedUrl} alt={item.fileName} />}
+                {item.kind === 'video' && <video src={item.previewUrl || item.uploadedUrl} controls muted />}
+                {item.kind === 'document' && <FileText size={30} />}
+                {item.kind === 'file' && <Image size={30} />}
               </div>
+              <div className="evidence-media-meta">
+                <strong>{item.fileName || `Evidence ${index + 1}`}</strong>
+                <span>
+                  {item.kind === 'image' ? 'Photo evidence' : item.kind === 'video' ? 'Video evidence' : 'Document evidence'}
+                  {item.sizeBytes ? ` · ${(item.sizeBytes / 1024 / 1024).toFixed(2)} MB` : ''}
+                </span>
+              </div>
+              <button type="button" className="btn btn-ghost btn-icon" onClick={() => removeItem(item.id)} title="Remove evidence">
+                <X size={14} />
+              </button>
             </div>
-          )}
-          {/* Success overlay + remove */}
-          <div style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0,
-            background: 'linear-gradient(transparent, rgba(0,0,0,0.6))',
-            padding: 'var(--space-2) var(--space-3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
-            <span style={{ color: 'white', fontSize: 12, fontWeight: 600 }}>
-              <CheckCircle2 size={12} style={{ display: 'inline', marginRight: 4 }} />
-              {fileName || 'Evidence file attached'}
-            </span>
-            <button
-              type="button"
-              onClick={clearEvidence}
-              style={{
-                background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 4,
-                color: 'white', cursor: 'pointer', padding: '2px 6px', fontSize: 11,
-                display: 'flex', alignItems: 'center', gap: 4,
-              }}
-            >
-              <X size={12} /> Change File
-            </button>
-          </div>
+          ))}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={clearAll}>
+            Clear all evidence
+          </button>
         </div>
       )}
+
       {uploadError && (
-        <div style={{ color: 'var(--color-danger)', fontSize: 11, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div className="form-error" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <AlertTriangle size={12} /> {uploadError}
         </div>
       )}
@@ -178,38 +186,36 @@ function EvidenceUpload({ evidenceUrl, onEvidenceChange, required }) {
   );
 }
 
-/* ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── */
 export default function SubmitActionModal({ isOpen, onClose, studentId, prefillMission }) {
   const toast = useToast();
-  const [missions, setMissions]   = useState([]);
-  const [stations, setStations]   = useState([]);
-  const [form, setForm]           = useState({
+  const [missions, setMissions] = useState([]);
+  const [stations, setStations] = useState([]);
+  const [form, setForm] = useState({
     studentId,
     missionId: '',
     stationId: '',
-    evidenceUrl: '',
+    evidenceItems: [],
   });
-  const [result, setResult]       = useState(null);
+  const [result, setResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
-  const [fieldError, setFieldError]   = useState('');
+  const [fieldError, setFieldError] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
-    setResult(null); setFieldError('');
+    setResult(null);
+    setFieldError('');
     Promise.all([getMissions(), getStations()])
       .then(([m, s]) => { setMissions(activeMissions(m)); setStations(s); })
       .catch(() => {});
   }, [isOpen]);
 
-  // Pre-fill when clicking mission Submit button
   useEffect(() => {
     if (prefillMission) {
-      setForm(f => ({ ...f, missionId: prefillMission.id, stationId: '', evidenceUrl: '' }));
+      setForm(f => ({ ...f, missionId: prefillMission.id, stationId: '', evidenceItems: [] }));
     }
   }, [prefillMission]);
 
-  // Keep studentId in sync
   useEffect(() => {
     setForm(f => ({ ...f, studentId }));
   }, [studentId]);
@@ -224,11 +230,37 @@ export default function SubmitActionModal({ isOpen, onClose, studentId, prefillM
 
   const validate = () => {
     if (!form.missionId) return 'Please select a mission.';
-    if (selectedMission?.evidenceRequired && !form.evidenceUrl.trim())
-      return 'Evidence is required for this mission — please upload a photo or document.';
-    if (selectedMission?.stationRequired && !form.stationId)
+    if (selectedMission?.evidenceRequired && form.evidenceItems.length === 0) {
+      return 'Evidence is required for this mission. Upload multiple photos or one short video.';
+    }
+    if (selectedMission?.stationRequired && !form.stationId) {
       return 'Station is required for this mission.';
+    }
     return '';
+  };
+
+  const uploadEvidenceItems = async () => {
+    const uploadedItems = [];
+    const evidenceUrls = [];
+
+    for (const item of form.evidenceItems) {
+      if (item.uploadedUrl) {
+        uploadedItems.push(item);
+        evidenceUrls.push(item.uploadedUrl);
+        continue;
+      }
+      const uploaded = await uploadEvidence({
+        fileName: item.fileName,
+        contentType: item.contentType,
+        dataUrl: item.dataUrl,
+      });
+      const nextItem = { ...item, uploadedUrl: uploaded.evidenceUrl, objectKey: uploaded.objectKey };
+      uploadedItems.push(nextItem);
+      evidenceUrls.push(uploaded.evidenceUrl);
+    }
+
+    setForm(f => ({ ...f, evidenceItems: uploadedItems }));
+    return evidenceUrls;
   };
 
   const handleDraft = async () => {
@@ -236,41 +268,45 @@ export default function SubmitActionModal({ isOpen, onClose, studentId, prefillM
     if (err) { setFieldError(err); return; }
     setSavingDraft(true);
     try {
-      await saveDraft({ ...form, actionType: selectedMission?.actionType });
+      const evidenceUrls = form.evidenceItems.map(item => item.uploadedUrl || item.dataUrl).filter(Boolean);
+      await saveDraft({
+        studentId: form.studentId,
+        missionId: form.missionId,
+        stationId: form.stationId || undefined,
+        actionType: selectedMission?.actionType,
+        evidenceUrl: evidenceUrls[0],
+        evidenceUrls,
+      });
       toast({ type: 'success', message: 'Draft saved successfully', sub: 'You can submit it later.' });
     } catch {
       toast({ type: 'error', message: 'Failed to save draft' });
-    } finally { setSavingDraft(false); }
+    } finally {
+      setSavingDraft(false);
+    }
   };
 
   const handleSubmit = async () => {
     const err = validate();
     if (err) { setFieldError(err); return; }
-    setSubmitting(true); setResult(null);
+    setSubmitting(true);
+    setResult(null);
     try {
-      let evidenceUrl = form.evidenceUrl || undefined;
-      if (typeof evidenceUrl === 'string' && evidenceUrl.startsWith('data:')) {
-        const uploaded = await uploadEvidence({
-          fileName: evidenceUrl.startsWith('data:application/pdf') ? 'evidence.pdf' : 'evidence.png',
-          dataUrl: evidenceUrl,
-        });
-        evidenceUrl = uploaded.evidenceUrl;
-        setForm(f => ({ ...f, evidenceUrl }));
-      }
+      const evidenceUrls = await uploadEvidenceItems();
       const data = await submitAction({
         studentId: form.studentId,
         missionId: form.missionId,
         stationId: form.stationId || undefined,
         actionType: selectedMission?.actionType,
-        evidenceUrl,
+        evidenceUrl: evidenceUrls[0],
+        evidenceUrls,
       });
       setResult(data);
 
       if (data.status === 'ACCEPTED') {
-        toast({ type: 'success', message: `Action accepted! +${data.points} points 🎉`, sub: 'Wallet and leaderboard will update shortly.' });
+        toast({ type: 'success', message: `Action accepted! +${data.points} points`, sub: 'Wallet and leaderboard will update shortly.' });
         setTimeout(() => { window.__eqRefreshDashboard?.(true); }, 500);
       } else if (data.status === 'PENDING_REVIEW') {
-        toast({ type: 'warning', message: 'Sent for moderator review 📋', sub: 'You will earn points after approval.' });
+        toast({ type: 'warning', message: 'Sent for moderator review', sub: 'You will earn points after approval.' });
         setTimeout(() => { window.__eqRefreshDashboard?.(); }, 500);
       } else {
         toast({ type: 'error', message: 'Action rejected', sub: data.policyReason || 'Policy check failed.' });
@@ -280,25 +316,39 @@ export default function SubmitActionModal({ isOpen, onClose, studentId, prefillM
         setFieldError('This action was already submitted (duplicate idempotency key).');
       } else if (e.response?.status === 400) {
         setFieldError(e.response?.data?.message || 'Validation error. Please check your inputs.');
+      } else if (e.response?.status === 401) {
+        toast({ type: 'error', message: 'Session expired', sub: 'Please sign in again before submitting this action.' });
+      } else if (e.response?.status === 403) {
+        toast({ type: 'error', message: 'Submission not allowed', sub: 'This account can only submit actions for its own student profile.' });
+      } else if (e.response?.status === 413) {
+        toast({ type: 'error', message: 'Evidence file is too large', sub: 'Use photos under 5MB each or one video under 50MB.' });
+      } else if (e.response) {
+        toast({
+          type: 'error',
+          message: 'Submission failed',
+          sub: e.response?.data?.message || e.response?.data?.detail || `Backend returned HTTP ${e.response.status}.`,
+        });
       } else {
-        toast({ type: 'error', message: 'Submission failed', sub: 'Check backend connection.' });
+        toast({ type: 'error', message: 'Submission failed', sub: e.message || 'Cannot reach the backend gateway.' });
       }
-    } finally { setSubmitting(false); }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const ResultDisplay = () => {
     if (!result) return null;
     const isAccepted = result.status === 'ACCEPTED';
-    const isPending  = result.status === 'PENDING_REVIEW';
+    const isPending = result.status === 'PENDING_REVIEW';
     const isRejected = result.status === 'REJECTED';
     return (
       <div className={`modal-result ${isAccepted ? 'accepted' : isPending ? 'pending' : 'rejected'}`}>
         {isAccepted && <CheckCircle2 size={20} />}
-        {isPending  && <Clock size={20} />}
+        {isPending && <Clock size={20} />}
         {isRejected && <XCircle size={20} />}
         <div>
           {isAccepted && <><strong>Accepted! +{result.points} points</strong><br /><span style={{ fontSize: 'var(--font-size-sm)', opacity: 0.8 }}>Wallet and leaderboard update in a moment.</span></>}
-          {isPending  && <><strong>Pending Review</strong><br /><span style={{ fontSize: 'var(--font-size-sm)', opacity: 0.8 }}>A moderator will review your submission.</span></>}
+          {isPending && <><strong>Pending Review</strong><br /><span style={{ fontSize: 'var(--font-size-sm)', opacity: 0.8 }}>A moderator will review your submission.</span></>}
           {isRejected && <><strong>Rejected</strong><br /><span style={{ fontSize: 'var(--font-size-sm)', opacity: 0.8 }}>{result.policyReason}</span></>}
         </div>
       </div>
@@ -309,14 +359,14 @@ export default function SubmitActionModal({ isOpen, onClose, studentId, prefillM
     <>
       {!result && (
         <button className="btn btn-secondary" onClick={handleDraft} disabled={savingDraft || submitting}>
-          {savingDraft ? 'Saving…' : 'Save Draft'}
+          {savingDraft ? 'Saving...' : 'Save Draft'}
         </button>
       )}
       {result ? (
         <button className="btn btn-primary" onClick={onClose}>Done</button>
       ) : (
         <button className="btn btn-primary" onClick={handleSubmit} disabled={submitting || savingDraft}>
-          {submitting ? 'Submitting…' : <><Leaf size={16} /> Submit Action</>}
+          {submitting ? 'Submitting...' : <><Leaf size={16} /> Submit Action</>}
         </button>
       )}
     </>
@@ -346,7 +396,7 @@ export default function SubmitActionModal({ isOpen, onClose, studentId, prefillM
       <div className="form-group">
         <label className="form-label" htmlFor="modal-mission">Mission</label>
         <select id="modal-mission" className={`form-select${!form.missionId ? ' error' : ''}`} value={form.missionId} onChange={e => set('missionId')(e.target.value)}>
-          <option value="">— Select a mission —</option>
+          <option value="">Select a mission</option>
           {missions.map(m => (
             <option key={m.id} value={m.id}>{m.title} ({m.basePoints} pts)</option>
           ))}
@@ -386,17 +436,16 @@ export default function SubmitActionModal({ isOpen, onClose, studentId, prefillM
           value={form.stationId}
           onChange={e => set('stationId')(e.target.value)}
         >
-          <option value="">— No station —</option>
+          <option value="">No station</option>
           {stations.filter(s => s.active !== false).map(s => (
-            <option key={s.id} value={s.id}>{s.name} ({s.location}) — {s.stationType}</option>
+            <option key={s.id} value={s.id}>{s.name} ({s.location}) - {s.stationType}</option>
           ))}
         </select>
       </div>
 
-      {/* Evidence Upload (file picker with size validation) */}
       <EvidenceUpload
-        evidenceUrl={form.evidenceUrl}
-        onEvidenceChange={val => set('evidenceUrl')(val)}
+        items={form.evidenceItems}
+        onItemsChange={val => set('evidenceItems')(val)}
         required={selectedMission?.evidenceRequired}
       />
 

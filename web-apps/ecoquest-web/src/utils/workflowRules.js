@@ -22,6 +22,26 @@ export function validateUpload(file, { maxBytes, allowedTypes }) {
   return '';
 }
 
+export function validateEvidenceBatch(existingItems = [], files = [], { maxImages = 5 } = {}) {
+  const nextFiles = Array.from(files || []);
+  if (nextFiles.length === 0) return 'A file is required.';
+  const combined = [...existingItems, ...nextFiles];
+  const videoCount = combined.filter(item => (item.contentType || item.type || '').startsWith('video/')).length;
+  const documentCount = combined.filter(item => (item.contentType || item.type || '') === 'application/pdf').length;
+  const imageCount = combined.filter(item => (item.contentType || item.type || '').startsWith('image/')).length;
+
+  if (videoCount > 0 && combined.length > 1) {
+    return 'Upload either multiple images or one video.';
+  }
+  if (documentCount > 0 && combined.length > 1) {
+    return 'Upload a document by itself, or use multiple images instead.';
+  }
+  if (imageCount > maxImages) {
+    return `Upload up to ${maxImages} images.`;
+  }
+  return '';
+}
+
 export function isValidReportingRange({ period, year, from, to, currentYear, currentMonth, currentWeek }) {
   if (from > to) return false;
   if (period === 'yearly') return to <= currentYear;

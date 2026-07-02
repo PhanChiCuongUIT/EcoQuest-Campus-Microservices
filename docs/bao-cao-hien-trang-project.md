@@ -1,12 +1,12 @@
 # Báo Cáo Hiện Trạng Project EcoQuest Campus
 
-Cập nhật: 2026-07-01
+Cập nhật: 2026-07-02
 
 Chi tiết database, use case, frontend và nội dung dùng để viết báo cáo DOCX nằm ở `tai-lieu-nguon-bao-cao-docx.md`; phần luồng nghiệp vụ và bảng/collection theo từng service nằm ở `luong-nghiep-vu-database.md`.
 
 ## 1. Mục Tiêu Hệ Thống
 
-EcoQuest Campus là hệ thống gamification cho hoạt động xanh trong trường học. Student tham gia mission, submit hành động xanh, upload minh chứng, nhận điểm, badge, certificate và coupon. Moderator duyệt action/report và tạo mission ở trạng thái pending. Admin quản trị hệ thống, duyệt catalog, quản lý user/policy/điểm, đóng season và xem báo cáo tuần/tháng/năm.
+EcoQuest Campus là hệ thống gamification cho hoạt động xanh trong trường học. Student tham gia mission, submit hành động xanh, upload minh chứng bằng nhiều ảnh hoặc một video, nhận điểm, badge, certificate và coupon. Moderator duyệt action/report và tạo mission ở trạng thái pending. Admin quản trị hệ thống, duyệt catalog, quản lý user/policy/điểm, đóng season và xem báo cáo tuần/tháng/năm.
 
 ## 2. Hiện Trạng Microservices
 
@@ -16,7 +16,7 @@ Backend hiện có 9 microservice, mỗi service có database hoặc storage ri�
 | --- | --- | --- |
 | Identity Access | Đăng ký, xác minh email, đăng nhập, quên/reset mật khẩu, profile/avatar, user role/status | PostgreSQL `identity_db`, MinIO avatar |
 | Green Catalog | Mission, station, badge definition, ảnh station, workflow mission pending/active/rejected | PostgreSQL `catalog_db`, MinIO station image |
-| Eco Action | Draft Redis, evidence upload, submit action, idempotency, moderator review, outbox | MongoDB `action_db`, Redis, MinIO evidence |
+| Eco Action | Draft Redis, evidence upload nhiều ảnh/một video, submit action, idempotency, moderator review, outbox | MongoDB `action_db`, Redis, MinIO evidence |
 | Verification Policy | Rule policy, daily limit, evidence/station requirement, gRPC evaluation | PostgreSQL `policy_db` |
 | Reward Ledger | Wallet, transaction, badge achievement, adjust points có audit | PostgreSQL `reward_db` |
 | Leaderboard | Weekly/monthly ranking theo kỳ, xem tuần/tháng cũ trong năm, close season, snapshot winner | Redis, PostgreSQL `leaderboard_db` |
@@ -44,9 +44,9 @@ Gateway chỉ route API, CORS và correlation ID. Gateway không chứa nghiệp
 1. Student chọn mission `ACTIVE`.
 2. Action service kiểm tra mission với Catalog.
 3. Action gọi Policy service bằng gRPC để xét evidence/station/daily limit/points.
-4. Action lưu MongoDB, dùng Redis chống duplicate idempotency.
-5. Action publish event qua RabbitMQ.
-6. Reward cộng điểm, unlock badge; Leaderboard update rank; Report update analytics; Notification tạo thông báo.
+4. Action lưu MongoDB với trạng thái `PENDING_REVIEW`, dùng Redis chống duplicate idempotency; chưa cộng điểm.
+5. Moderator/Admin approve trong Review Queue thì Action chuyển `ACCEPTED` và publish accepted event qua RabbitMQ; reject thì không publish accepted event.
+6. Reward cộng điểm, unlock badge; Leaderboard update rank; Report update analytics; Notification tạo thông báo sau event accepted/rejected tương ứng.
 
 ### Badge, Certificate, Coupon
 
@@ -96,24 +96,24 @@ Demo accounts:
 - MongoDB cho action document/outbox.
 - Redis cho draft, idempotency và leaderboard sorted set theo kỳ `weekly:YYYY-Www`, `monthly:YYYY-MM`.
 - RabbitMQ event-driven architecture với 20 queue.
-- MinIO object storage cho avatar, station image, action evidence, report evidence, certificate PDF.
+- MinIO object storage cho avatar, station image, action evidence nhiều ảnh/một video, report evidence, certificate PDF.
 - gRPC cho Action -> Policy.
 - Resilience4j cho Policy gRPC client.
 - Flyway và MapStruct ở Identity; một số service cũ còn dùng Hibernate schema bootstrap.
-- React/Vite frontend, Nginx same-origin proxy.
+- React/Vite frontend, Nginx same-origin proxy. Nginx/Gateway cho phép evidence body 100MB để upload ảnh/video base64 qua `localhost:3000` không bị HTTP 413.
 - Docker Compose chạy toàn bộ local stack.
 
 ## 6. Kiểm Thử Đã Chạy
 
-Ngày 01/07/2026:
+Ngày 02/07/2026:
 
-- Maven targeted reactor Recognition + dependencies: PASS.
+- Maven targeted reactor Action + dependencies: PASS.
 - Backend smoke test `scripts/backend-smoke-test.ps1`: PASS.
-- Frontend unit test: 12/12 PASS.
+- Frontend unit test: 15/15 PASS.
 - Frontend production build: PASS.
 - RabbitMQ: 20 queue, 0 pending message, mỗi queue có 1 consumer.
-- Smoke test đã kiểm auth, role boundary, upload media, Catalog CRUD, Policy CRUD, Action submit/review, Reward/badge, Leaderboard hiện tại và kỳ cũ, Report/analytics/export, Notification seeded inbox/recipient guard/read-all/event notification, Recognition certificate PDF, RewardOffer CRUD và coupon claim thật.
-- Final audit sau reset sạch: Gateway `UP`, 15 mission, 12 user demo, 0 user/action E2E, Student/Moderator/Admin notification seed có dữ liệu, RabbitMQ 20 queue đều drained.
+- Smoke test đã kiểm auth, role boundary, upload media, upload lớn qua Nginx web proxy, Catalog CRUD, Policy CRUD, Action submit/review với nhiều ảnh hoặc một video, valid submit -> `PENDING_REVIEW` -> approve mới cộng điểm, reject batch trộn ảnh/video, Reward/badge, Leaderboard hiện tại và kỳ cũ, Report/analytics/export, Notification seeded inbox/recipient guard/read-all/event notification, Recognition certificate PDF, RewardOffer CRUD và coupon claim thật.
+- Final audit sau reset sạch: Gateway `UP`, 15 mission, 12 user demo, 36 action demo, 0 user/action E2E, Student/Moderator/Admin notification seed có dữ liệu, RabbitMQ 20 queue đều drained.
 
 ## 7. Giới Hạn Còn Lại
 

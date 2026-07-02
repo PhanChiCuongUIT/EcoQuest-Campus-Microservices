@@ -65,6 +65,7 @@ class ActionDemoSeeder implements CommandLineRunner {
             action.stationId = item.stationId();
             action.actionType = item.actionType();
             action.evidenceUrl = "/logo.png";
+            action.evidenceUrls = java.util.List.of("/logo.png");
             action.status = item.status();
             action.points = item.points();
             action.policyReason = item.status() == ActionStatus.REJECTED ? "Demo rejected evidence." : "Demo seed.";
