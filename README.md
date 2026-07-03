@@ -199,6 +199,18 @@ docker compose up -d --build
 powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090 -Web http://localhost:3000
 ```
 
+The shorter command below is also valid for backend-only smoke testing. It skips only the optional large upload check through the web Nginx proxy:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090
+```
+
+After smoke testing, clean only generated E2E data while keeping seed data and manual UI data:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\cleanup-smoke-test-data.ps1
+```
+
 Frontend:
 
 ```powershell
@@ -207,14 +219,14 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Latest verification on 2026-07-02 after real Recognition coupon offers, reward offer CRUD, Recognition profile race fix, clean seed reset, certificate signature/mobile UI fixes, Policy modal, email logo, dashboard resilience, Student outcome layout fixes, dark theme input/search fixes, leaderboard historical period lookup, expanded current seed data, seeded Notification inbox verification, Action evidence support for multiple images or one video, frontend Nginx/Gateway upload limit fixes, and the corrected submit-review flow where valid submissions wait for Moderator/Admin approval before points are granted:
+Latest verification on 2026-07-02 after real Recognition coupon offers, reward offer CRUD, Recognition profile race fix, clean seed reset, certificate signature/mobile UI fixes, Policy modal, email logo, dashboard resilience, Student outcome layout fixes, dark theme input/search fixes, leaderboard historical period lookup, expanded current seed data, seeded Notification inbox verification, Action evidence support for multiple images or one video, frontend Nginx/Gateway upload limit fixes, and the corrected submit-review flow where valid submissions wait for Moderator/Admin approval before points are granted. Frontend verification on 2026-07-03 additionally covers the Admin/Moderator leaderboard identity fix where admin accounts without `studentId` no longer show personal standing or `YOU` row markers:
 
 - Full Maven reactor 14/14 modules: PASS.
 - `docker compose config --quiet`: PASS.
 - Backend smoke test: PASS, including current/previous week/month leaderboard queries, Notification seeded inbox/recipient guards, upload of two image evidence files, large evidence upload through `http://localhost:3000` web proxy, valid submit -> `PENDING_REVIEW` -> Review Queue -> approve -> Reward/Leaderboard, submit action with video evidence, and mixed image/video rejection.
 - RabbitMQ queues after smoke: 20 queues, 0 pending messages, 1 consumer each.
 - Post-smoke logs: no Recognition duplicate profile errors after the race fix. A few Gateway `Connection refused` lines can appear during initial startup while Identity is still opening port `8086`; they disappear once services are healthy.
-- Frontend unit tests: 15/15 PASS.
+- Frontend unit tests: 16/16 PASS.
 - Frontend production build: PASS.
 - Final audit reset: Gateway `UP`, 15 missions, 12 demo users, 36 demo actions, 0 E2E users/actions, Student/Moderator/Admin notification seeds present, and 20 RabbitMQ queues drained with consumers.
 

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   canApplyPointAdjustment,
   isValidReportingRange,
+  hasStudentIdentity,
+  normalizeStudentId,
   projectedWalletBalance,
   reportTargetOptions,
   validateEvidenceBatch,
@@ -59,4 +61,14 @@ test('reporting ranges are ordered and cannot include future periods', () => {
   assert.equal(isValidReportingRange({ period: 'yearly', from: 2024, to: 2026, ...now }), true);
   assert.equal(isValidReportingRange({ period: 'yearly', from: 2027, to: 2026, ...now }), false);
   assert.equal(isValidReportingRange({ period: 'yearly', from: 2025, to: 2027, ...now }), false);
+});
+
+test('leaderboard viewer identity is empty for admin accounts without student id', () => {
+  assert.equal(normalizeStudentId(undefined), '');
+  assert.equal(normalizeStudentId(null), '');
+  assert.equal(normalizeStudentId('  '), '');
+  assert.equal(hasStudentIdentity(undefined), false);
+  assert.equal(hasStudentIdentity(''), false);
+  assert.equal(hasStudentIdentity(' SV001 '), true);
+  assert.equal(normalizeStudentId(' SV001 '), 'SV001');
 });

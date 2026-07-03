@@ -28,7 +28,7 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Current automated unit tests: 15/15 pass.
+Current automated unit tests: 16/16 pass.
 
 - student không thấy pending/rejected mission;
 - chỉ active mission được submit;
