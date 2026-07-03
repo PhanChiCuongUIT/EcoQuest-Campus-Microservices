@@ -1,6 +1,8 @@
 # Hướng Dẫn Sử Dụng Công Nghệ Microservices Trong EcoQuest Campus
 
-Cập nhật: 2026-07-02
+Cập nhật: 2026-07-03
+
+Ghi chú: đây là file hướng dẫn thao tác/chạy công nghệ. Nếu cần file tổng hợp để báo cáo, gồm công nghệ, cách show và câu hỏi có thể bị hỏi, dùng `cam-nang-bao-cao-microservices.md`.
 
 ## 1. Chạy Hệ Thống Từ Đầu
 

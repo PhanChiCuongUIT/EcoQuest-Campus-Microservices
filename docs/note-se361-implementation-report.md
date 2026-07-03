@@ -1,6 +1,6 @@
 # Báo Cáo Đối Chiếu Note SE361
 
-Cập nhật: 2026-07-02
+Cập nhật: 2026-07-03
 
 Tài liệu này đối chiếu project với file `Note SE361 - Microservices (2).docx`. File note ban đầu có 46 gạch đầu dòng, trong đó 2 dòng là ảnh minh họa, tương ứng 44 ý chức năng. Ngày 25/06/2026 bổ sung 7 yêu cầu, sau đó bổ sung 4 yêu cầu, tiếp theo bổ sung 4 yêu cầu về export báo cáo/CRUD/audit/seed data, tiếp theo bổ sung 9 yêu cầu về topbar, report target, self-management, admin analytics theo toàn bộ tuần/tháng/năm, sidebar và reset seed sạch, tiếp theo bổ sung 4 yêu cầu về ràng buộc kỳ báo cáo, Student outcome report, evidence preview và Policy Rules CRUD, tiếp theo bổ sung 4 yêu cầu về Policy modal, Student outcome one-student layout, logo email thật và dashboard resilient loading, ngày 01/07/2026 bổ sung 4 yêu cầu về chữ ký certificate, coupon thật, reset seed sạch và kiểm lại CRUD, bổ sung 2 yêu cầu về dark theme/search UI cùng leaderboard theo tuần/tháng cũ trong năm, bổ sung 1 yêu cầu về seed/kiểm tra Notification, ngày 02/07/2026 bổ sung 1 yêu cầu evidence action nhiều ảnh hoặc video, và bổ sung 1 yêu cầu submit action phải chờ Moderator/Admin duyệt mới cộng điểm. Bảng dưới theo dõi tổng cộng **85 ý**. Backend hiện có 9 microservice tách ownership rõ ràng; upload dùng MinIO theo service sở hữu; SMTP thật đang bật và Actuator mail health trả `UP`.
 
