@@ -49,3 +49,11 @@ export function isValidReportingRange({ period, year, from, to, currentYear, cur
   if (period === 'monthly') return year < currentYear || to <= currentMonth;
   return year < currentYear || to <= currentWeek;
 }
+
+export function normalizeStudentId(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+export function hasStudentIdentity(value) {
+  return normalizeStudentId(value).length > 0;
+}

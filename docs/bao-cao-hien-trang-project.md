@@ -109,7 +109,7 @@ Ngày 02/07/2026:
 
 - Maven targeted reactor Action + dependencies: PASS.
 - Backend smoke test `scripts/backend-smoke-test.ps1`: PASS.
-- Frontend unit test: 15/15 PASS.
+- Frontend unit test: 16/16 PASS.
 - Frontend production build: PASS.
 - RabbitMQ: 20 queue, 0 pending message, mỗi queue có 1 consumer.
 - Smoke test đã kiểm auth, role boundary, upload media, upload lớn qua Nginx web proxy, Catalog CRUD, Policy CRUD, Action submit/review với nhiều ảnh hoặc một video, valid submit -> `PENDING_REVIEW` -> approve mới cộng điểm, reject batch trộn ảnh/video, Reward/badge, Leaderboard hiện tại và kỳ cũ, Report/analytics/export, Notification seeded inbox/recipient guard/read-all/event notification, Recognition certificate PDF, RewardOffer CRUD và coupon claim thật.

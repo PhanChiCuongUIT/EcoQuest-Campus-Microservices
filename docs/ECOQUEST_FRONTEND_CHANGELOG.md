@@ -285,7 +285,7 @@ npm run build  # ✅ Build thành công, 0 errors
 - Replaced the notification modal with a dropdown under the bell, including toggle, outside-click close, mark-all-read, SSE updates, and role-safe navigation.
 - Added distinct charts/metrics for Student, Moderator, and Admin dashboards.
 - Admin Analytics displays points, badge and certificate event read models from Report service.
-- Latest verification: frontend tests 15/15, Vite build pass, backend full smoke pass, 20 RabbitMQ queues drained.
+- Latest verification: frontend tests 16/16, Vite build pass, backend full smoke pass from the latest backend run, 20 RabbitMQ queues drained.
 
 # Update 2026-06-25 - Admin Analytics, Login Feedback, Help Content, Rich Charts
 
@@ -337,7 +337,7 @@ npm run build  # ✅ Build thành công, 0 errors
 - Submit Action now supports a media tray with multiple images or one video for evidence.
 - Frontend uploads each evidence media item through `POST /actions/evidence`, submits `evidenceUrls`, and keeps `evidenceUrl` as the first URL for compatibility.
 - Moderator Review displays an evidence gallery with image previews and a video player modal.
-- Verification updated to frontend tests 15/15 and backend smoke covering two-image evidence plus one-video evidence.
+- Verification updated to frontend tests 16/16 and backend smoke covering two-image evidence plus one-video evidence.
 
 ### 2026-07-02 - Submit Action Idempotency Fallback
 

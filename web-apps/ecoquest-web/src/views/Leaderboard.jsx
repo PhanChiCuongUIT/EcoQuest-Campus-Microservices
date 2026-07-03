@@ -8,6 +8,7 @@ import {
   getStudentRank, closeSeason,
 } from '../api/ecoquestApi.js';
 import { buildLeaderboardPeriodOptions, periodParamsFromKey } from '../utils/leaderboardPeriods.js';
+import { normalizeStudentId, hasStudentIdentity } from '../utils/workflowRules.js';
 
 /* ── Rank medal helpers ──────────────────────────────────────── */
 const RANK_META = {
@@ -94,9 +95,11 @@ function PodiumStage({ row, rank }) {
 
 export default function Leaderboard({ studentId, role }) {
   const toast = useToast();
+  const viewerStudentId = normalizeStudentId(studentId);
+  const hasViewerStudentId = hasStudentIdentity(viewerStudentId);
   const [tab, setTab]           = useState('weekly');
   const [board, setBoard]       = useState([]);
-  const [lookupId, setLookupId] = useState(studentId || 'SV001');
+  const [lookupId, setLookupId] = useState(viewerStudentId);
   const [lookupResult, setLookupResult] = useState(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
@@ -114,6 +117,11 @@ export default function Leaderboard({ studentId, role }) {
     setPeriodKey(periodOptions[0]?.key || '');
   }, [tab, periodOptions]);
 
+  useEffect(() => {
+    setLookupId(viewerStudentId);
+    setLookupResult(null);
+  }, [viewerStudentId]);
+
   // Admin close season state
   const today = new Date().toISOString().slice(0, 10);
   const [seasonId, setSeasonId] = useState(`WEEK-${today}`);
@@ -130,20 +138,27 @@ export default function Leaderboard({ studentId, role }) {
         : await getMonthlyLeaderboard(20, periodParams);
       setBoard(data);
       // Also load current user rank
-      if (studentId) {
-        const r = await getStudentRank(studentId, tab, periodParams).catch(() => null);
+      if (hasViewerStudentId) {
+        const r = await getStudentRank(viewerStudentId, tab, periodParams).catch(() => null);
         setMyRank(r);
+      } else {
+        setMyRank(null);
       }
     } catch {
       setError('Could not load leaderboard. Make sure Leaderboard service is running.');
     } finally { setLoading(false); }
-  }, [tab, studentId, periodParams]);
+  }, [tab, hasViewerStudentId, viewerStudentId, periodParams]);
 
   useEffect(() => { loadBoard(); }, [loadBoard]);
 
   const handleLookup = async () => {
+    const sid = normalizeStudentId(lookupId);
+    if (!sid) {
+      setLookupResult(null);
+      return;
+    }
     try {
-      const r = await getStudentRank(lookupId, tab, periodParams);
+      const r = await getStudentRank(sid, tab, periodParams);
       setLookupResult(r);
     } catch {
       setLookupResult({ rank: null, score: null });
@@ -166,7 +181,7 @@ export default function Leaderboard({ studentId, role }) {
   const top3 = board.slice(0, 3);
   const rest  = board.slice(3);
 
-  const isCurrentUser = (sid) => sid === studentId;
+  const isCurrentUser = (sid) => hasViewerStudentId && sid === viewerStudentId;
 
   return (
     <div>
@@ -397,7 +412,7 @@ export default function Leaderboard({ studentId, role }) {
               aria-label="Student ID to look up"
               style={{ flex: 1 }}
             />
-            <button className="btn btn-primary" onClick={handleLookup} style={{ gap: 6 }}>
+            <button className="btn btn-primary" onClick={handleLookup} disabled={!normalizeStudentId(lookupId)} style={{ gap: 6 }}>
               <Search size={14} /> Search Standing
             </button>
           </div>
@@ -427,14 +442,14 @@ export default function Leaderboard({ studentId, role }) {
                   <>
                     <div style={{ fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Standing Found</div>
                     <div style={{ fontSize: 15, color: 'var(--color-text)' }}>
-                      Student <strong>{lookupId}</strong> ranks <strong>#{lookupResult.rank}</strong> with <strong>{lookupResult.score?.toLocaleString()} pts</strong> in this period.
+                      Student <strong>{normalizeStudentId(lookupId)}</strong> ranks <strong>#{lookupResult.rank}</strong> with <strong>{lookupResult.score?.toLocaleString()} pts</strong> in this period.
                     </div>
                   </>
                 ) : (
                   <>
                     <div style={{ fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>No Rank Found</div>
                     <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                      Student ID <strong>{lookupId}</strong> has no registered points in the {tab} period.
+                      Student ID <strong>{normalizeStudentId(lookupId)}</strong> has no registered points in the {tab} period.
                     </div>
                   </>
                 )}

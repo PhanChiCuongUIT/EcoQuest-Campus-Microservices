@@ -16,7 +16,7 @@ Backend alignment has changed since the earlier frontend notes:
 - Latest alignment also includes report target pickers instead of raw Target ID input, Admin self-protection in User Management, and Admin Analytics period series for choosing any week/month/year before exporting that selected period.
 - Certificate download uses an authenticated blob request and saves a PDF attachment; email verify/reset links have dedicated frontend routes.
 - Notification is a dropdown under the bell with SSE, read-all, toggle, role-safe navigation, and seeded inbox data for Student/Moderator/Admin after a clean reset.
-- Current verification: `npm.cmd test` passes 15/15, `npm.cmd run build` passes, full backend smoke passes, full Maven reactor passes, and all 20 RabbitMQ queues drain to 0 messages after the smoke run.
+- Current verification: `npm.cmd test` passes 16/16 and `npm.cmd run build` passes after the Admin/Moderator leaderboard identity fix. The latest full backend smoke/full Maven reactor verification remains PASS from the previous backend run, with all 20 RabbitMQ queues drained to 0 messages after that smoke run.
 - Admin now has separate `Reports` and `Analytics` sidebar pages. Analytics supports weekly/monthly/yearly summaries, student outcome lookup, period series tables, and authenticated selected-period PDF export from the Report-service event read model.
 - Policy & Privacy and Application Guide now have distinct content. Login errors distinguish credentials, email verification, inactive, banned, network, rate-limit, and server cases.
 - Student, Moderator, and Admin dashboards use reusable donut, column, and area charts with role-specific metrics.

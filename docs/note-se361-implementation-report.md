@@ -97,11 +97,12 @@ Tài liệu này đối chiếu project với file `Note SE361 - Microservices (
 | 78 | Coupon không được chỉ là demo, cần dùng coupon thật | Đã sửa | Recognition service hiện sở hữu `RewardOffer`, `RewardClaim` và `StudentRecognitionProfile`. Frontend lấy danh sách coupon qua `GET /recognitions/rewards?studentId=...`, backend kiểm điểm/badge/certificate/stock/expiry trước khi phát voucher, trừ stock khi claim, và duplicate claim trả lại voucher cũ. Admin có CRUD coupon offer trong Recognition; Gateway chỉ route. |
 | 79 | Làm mới database, xóa dữ liệu E2E test cũ và seed thêm dữ liệu hiện tại | Đã làm | Đã chạy reset volume EcoQuest (`docker compose down -v`) và `docker compose up -d` sau smoke. Trạng thái cuối cùng chỉ còn seed sạch, không còn user/action `SV_E2E_*`; quick check xác nhận 15 mission, 12 user demo, 36 action demo và 0 action E2E. |
 | 80 | Check lại CRUD toàn project sau các thay đổi mới | Đã kiểm chứng | Backend smoke ngày 02/07/2026 PASS. Smoke kiểm Catalog mission/station/badge CRUD, Policy rule CRUD có guard inactive, Recognition reward offer CRUD có guard active/no issued voucher, User role/status/self-protection, Report review, Reward adjust, notification read và các luồng submit/review/certificate/coupon. |
-| 81 | Dark theme còn lỗi ở thanh search/input/select | Đã sửa | CSS đã bổ sung token dark cho `.form-input`, `.form-select`, `.form-textarea`, `.search-field`, `.select-field`, `.student-selector`, `.student-picker-field`, placeholder và option dropdown. Frontend unit 15/15 và Vite build PASS. |
+| 81 | Dark theme còn lỗi ở thanh search/input/select | Đã sửa | CSS đã bổ sung token dark cho `.form-input`, `.form-select`, `.form-textarea`, `.search-field`, `.select-field`, `.student-selector`, `.student-picker-field`, placeholder và option dropdown. Frontend unit 16/16 và Vite build PASS. |
 | 82 | Thêm mission/action mẫu cho tuần này/tháng này; Leaderboard xem được tuần/tháng trước trong năm | Đã sửa | Catalog/Policy seed thêm 3 mission/action type; Action/Reward/Report/Identity/Recognition seed thêm student/action/ledger/profile hiện tại. Leaderboard đổi sang Redis key theo kỳ `weekly:YYYY-Www`, `monthly:YYYY-MM`, API nhận `year/week/month`, UI có period selector và smoke test kiểm current/previous week/month. |
 | 83 | Thêm dữ liệu Notification và kiểm lại notification chưa ổn | Đã sửa | `notification-service` có `NotificationDemoSeeder` idempotent cho Student/Moderator/Admin và SV001/SV009. Smoke test kiểm seeded inbox theo role, mark-all-read, student không mark-read notification của Admin, notification từ action/badge/certificate event, và RabbitMQ queue drain. Sau reset sạch: Student có 4 notification, Moderator 3, Admin 3; không còn dữ liệu E2E. |
 | 84 | Minh chứng của mỗi action cần gửi được nhiều ảnh hoặc video | Đã sửa | `eco-action-service` mở rộng `EcoAction`/`SubmitActionRequest` thêm `evidenceUrls`, vẫn giữ `evidenceUrl` làm URL đầu tiên để tương thích Policy gRPC và client cũ. Upload Action evidence cho phép nhiều ảnh/PDF 5MB hoặc một video `mp4/webm/mov` tối đa 50MB trong bucket MinIO của Action; backend reject quá 5 media hoặc trộn ảnh/video/PDF sai batch. Frontend Submit Action có media tray nhiều ảnh hoặc một video; Moderator Review hiển thị gallery ảnh/video player. Đã tăng Nginx/Gateway upload body 100MB để tránh HTTP 413 qua `localhost:3000`. Smoke test ngày 02/07/2026 kiểm upload 2 ảnh, upload lớn qua web proxy, submit action với `evidenceUrls`, upload video, submit action video, batch trộn ảnh/video trả `400`, và approve mới grant points; PASS. |
 | 85 | Submit action hợp lệ phải gửi sang Moderator/Admin duyệt, chưa được cộng điểm ngay | Đã sửa | `eco-action-service` đổi `POST /actions/submit` để policy hợp lệ hoặc cần review đều lưu `PENDING_REVIEW`; chỉ `PUT /actions/{id}/approve` mới chuyển `ACCEPTED` và publish `ActionAcceptedEvent` cho Reward/Leaderboard/Report/Notification. Smoke test xác nhận ví trước approve = 0, action xuất hiện trong Review Queue, approve mới cộng điểm, daily-limit action đầu cũng phải approve mới grant. |
+| 86 | Admin xem Leaderboard trong Moderator panel bị mặc định thành SV001 và hiện `YOU` | Đã sửa | `AuthContext` không còn fallback `SV001` khi account không có `studentId`; `Leaderboard` chỉ hiện personal standing/highlight `YOU` khi có MSSV thật. Admin không có MSSV vẫn xem leaderboard chung và dùng lookup thủ công nếu cần. Frontend unit test thêm case admin không có student id; `npm.cmd test` 16/16 PASS và Vite build PASS. |
 
 ## Các Điểm Còn Phụ Thuộc Môi Trường
 
@@ -166,7 +167,7 @@ Các luồng đã/đang được kiểm bởi `scripts/backend-smoke-test.ps1`:
 
 Frontend đã có:
 
-- Unit tests cho workflow rules, panel navigation, phân loại lỗi đăng nhập, reporting range guard, leaderboard period options, rule evidence nhiều ảnh/một video và fallback idempotency key khi browser không có `crypto.randomUUID`: 15/15.
+- Unit tests cho workflow rules, panel navigation, phân loại lỗi đăng nhập, reporting range guard, leaderboard period options, rule evidence nhiều ảnh/một video, admin leaderboard không có MSSV và fallback idempotency key khi browser không có `crypto.randomUUID`: 16/16.
 - Production build Vite.
 - Kịch bản manual test trong `docs/frontend-test-scenarios.md`.
 
@@ -175,7 +176,7 @@ Kết quả cập nhật đến ngày 02/07/2026:
 - Backend full smoke sau khi patch coupon thật, reward offer CRUD, Recognition profile race, leaderboard period key và seed reset: PASS.
 - RabbitMQ: 20 queue, 0 pending message, mỗi queue có 1 consumer.
 - Log sau smoke: không còn lỗi duplicate key ở Recognition. Một vài lỗi Gateway `Connection refused` chỉ xuất hiện trong vài giây warm-up nếu test login trước khi Identity mở port `8086`; sau khi service sẵn sàng smoke pass và không lặp lại trong nghiệp vụ.
-- Frontend unit: 15/15 PASS; Vite production build PASS.
+- Frontend unit: 16/16 PASS; Vite production build PASS.
 - PDF được tải qua bearer token và render trực quan thành A4 landscape một trang.
 - Final audit sau reset sạch: Gateway `UP`, 15 mission, 12 user demo, 36 action demo, 0 E2E user/action, notification seed theo 3 role có dữ liệu, RabbitMQ 20 queue drained.
 - Smoke ngày 02/07/2026 sau khi sửa submit-review gate và evidence nhiều ảnh/video: PASS; RabbitMQ 20 queue 0 message/1 consumer; log runtime sau reset không có `ERROR`, chỉ có vài WARN Hibernate drop-constraint khi schema sạch lần đầu.

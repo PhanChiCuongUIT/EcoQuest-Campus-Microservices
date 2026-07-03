@@ -878,7 +878,7 @@ npm.cmd run build
 
 Trạng thái gần nhất:
 
-- Frontend unit test: 15/15 PASS.
+- Frontend unit test: 16/16 PASS.
 - Frontend production build: PASS.
 
 ### 12.3. Audit Sau Reset Sạch

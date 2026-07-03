@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { authLogin, authRegister, authMe } from '../api/ecoquestApi.js';
+import { normalizeStudentId } from '../utils/workflowRules.js';
 
 /**
  * AuthContext — manages JWT session and user profile.
@@ -70,8 +71,8 @@ export function AuthProvider({ children }) {
   /** The UI role label ("Student" / "Moderator" / "Admin") for current user */
   const uiRole = user ? (ROLE_MAP[user.role] || 'Student') : 'Student';
 
-  /** Student ID from the logged-in user profile */
-  const studentId = user?.studentId || 'SV001';
+  /** Student ID from the logged-in user profile. Admin accounts may not have one. */
+  const studentId = normalizeStudentId(user?.studentId);
 
   return (
     <AuthContext.Provider value={{

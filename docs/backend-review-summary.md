@@ -140,7 +140,7 @@ Kết quả sau patch mới nhất:
 - Backend smoke test: **PASS**, bao gồm valid submit -> `PENDING_REVIEW`, Review Queue, approve mới publish accepted event/cộng điểm, reject không cộng điểm.
 - RabbitMQ queue drain after smoke: **PASS** với 20 queue, 0 pending message và mỗi queue có consumer.
 - Post-smoke log scan: **PASS** cho lỗi nghiệp vụ; lỗi duplicate profile ở Recognition đã được sửa. Sau reset sạch chỉ còn một vài WARN Hibernate drop-constraint khi bootstrap schema mới, không có `ERROR` runtime.
-- Frontend unit tests: **15/15 PASS**.
+- Frontend unit tests: **16/16 PASS**.
 - Frontend production build after Policy modal, Student outcome layout, and dashboard partial-loading fixes: **PASS**.
 - Frontend Vite build: **PASS**.
 

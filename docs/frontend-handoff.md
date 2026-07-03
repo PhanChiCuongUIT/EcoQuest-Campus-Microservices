@@ -696,7 +696,7 @@ Last verified on 2026-07-02:
 - `docker compose config --quiet`: pass.
 - Backend smoke test: pass, including current/previous week/month leaderboard period queries, action evidence with multiple images plus one video, large upload through `http://localhost:3000` web proxy, and mixed image/video rejection.
 - RabbitMQ after smoke: 20 queues drained to 0 messages and have consumers.
-- Frontend unit tests after latest UI/API changes: 15/15 pass.
+- Frontend unit tests after latest UI/API changes: 16/16 pass.
 - Policy rule creation uses a modal overlay; dashboards render partial data while a backend service is warming up; Identity emails attach the real EcoQuest logo inline by CID.
 - Recognition certificate PDF download, reward offer CRUD, real coupon eligibility, locked coupon rejection, stock decrement and duplicate reward claim idempotency are covered by backend smoke.
 - Frontend production build after latest UI/API changes: pass.
