@@ -1,6 +1,6 @@
 # Mục Lục Tài Liệu EcoQuest Campus
 
-Cập nhật: 2026-07-02
+Cập nhật: 2026-07-03
 
 Đây là mục lục tài liệu hiện tại của project. Khi cần đọc nhanh trạng thái mới nhất, ưu tiên các file trong nhóm **nguồn sự thật hiện tại**.
 
@@ -8,6 +8,7 @@ Cập nhật: 2026-07-02
 
 | File | Dùng để làm gì |
 | --- | --- |
+| `cam-nang-bao-cao-microservices.md` | File chính để chuẩn bị thuyết trình microservices: công nghệ, cách chạy, cách show khi báo cáo và câu hỏi phản biện thường gặp. |
 | `bao-cao-hien-trang-project.md` | Tổng hợp hiện trạng project, use case, seed data, công nghệ và test đã chạy. |
 | `tai-lieu-nguon-bao-cao-docx.md` | Bản tổng hợp đầy đủ để viết/copy vào báo cáo DOCX: database, use case, microservices, frontend, test, demo, hạn chế. |
 | `note-se361-implementation-report.md` | Đối chiếu 85 ý trong note SE361 và các yêu cầu bổ sung, trạng thái đã làm/chưa làm và lý do. |
@@ -19,6 +20,8 @@ Cập nhật: 2026-07-02
 | `backend-review-summary.md` | Kết luận review backend, kiến trúc service và các giới hạn production-hardening. |
 
 ## Tài Liệu Lịch Sử / Tham Khảo
+
+Các file dưới đây không còn là nguồn sự thật hiện tại nhưng vẫn được giữ lại để truy vết quyết định thiết kế/frontend qua các phiên trước. Không nên dùng chúng làm tài liệu chính khi báo cáo.
 
 | File | Lý do giữ lại |
 | --- | --- |
