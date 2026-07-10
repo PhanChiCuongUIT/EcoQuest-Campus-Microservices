@@ -219,7 +219,7 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Latest verification on 2026-07-02 after real Recognition coupon offers, reward offer CRUD, Recognition profile race fix, clean seed reset, certificate signature/mobile UI fixes, Policy modal, email logo, dashboard resilience, Student outcome layout fixes, dark theme input/search fixes, leaderboard historical period lookup, expanded current seed data, seeded Notification inbox verification, Action evidence support for multiple images or one video, frontend Nginx/Gateway upload limit fixes, and the corrected submit-review flow where valid submissions wait for Moderator/Admin approval before points are granted. Frontend verification on 2026-07-03 additionally covers the Admin/Moderator leaderboard identity fix where admin accounts without `studentId` no longer show personal standing or `YOU` row markers:
+Verification snapshot from 2026-07-02 after real Recognition coupon offers, reward offer CRUD, Recognition profile race fix, clean seed reset, certificate signature/mobile UI fixes, Policy modal, email logo, dashboard resilience, Student outcome layout fixes, dark theme input/search fixes, leaderboard historical period lookup, expanded current seed data, seeded Notification inbox verification, Action evidence support for multiple images or one video, frontend Nginx/Gateway upload limit fixes, and the corrected submit-review flow where valid submissions wait for Moderator/Admin approval before points are granted. Frontend verification on 2026-07-03 additionally covers the Admin/Moderator leaderboard identity fix where admin accounts without `studentId` no longer show personal standing or `YOU` row markers:
 
 - Full Maven reactor 14/14 modules: PASS.
 - `docker compose config --quiet`: PASS.
@@ -297,13 +297,12 @@ docker compose up -d
 More docs:
 
 - [Docs index](docs/README.md)
-- [Microservices reporting handbook](docs/cam-nang-bao-cao-microservices.md)
 - [DOCX report source document](docs/tai-lieu-nguon-bao-cao-docx.md)
-- [Backend review](docs/backend-review-summary.md)
-- [Note SE361 implementation report](docs/note-se361-implementation-report.md)
 - [Project state report](docs/bao-cao-hien-trang-project.md)
-- [Microservice technology usage guide](docs/huong-dan-su-dung-cong-nghe-microservices.md)
 - [Business flows and database](docs/luong-nghiep-vu-database.md)
 - [Microservice technologies](docs/cong-nghe-microservices.md)
-- [Frontend handoff](docs/frontend-handoff.md)
+- [Microservices reporting handbook](docs/cam-nang-bao-cao-microservices.md)
+- [Microservices demo script](docs/kich-ban-demo-microservices.md)
+- [Slide script supplement and Q&A](docs/bo-sung-kich-ban-bao-cao-slide.md)
+- [Backend smoke test guide](docs/backend-smoke-test-guide.md)
 - [Frontend test scenarios](docs/frontend-test-scenarios.md)

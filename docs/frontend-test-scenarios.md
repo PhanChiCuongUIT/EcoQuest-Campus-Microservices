@@ -1,6 +1,6 @@
-# EcoQuest Frontend Test Scenarios
+# Kịch Bản Kiểm Thử Frontend EcoQuest
 
-Updated: 2026-07-01
+Cập nhật: 2026-07-10
 
 ## Chuẩn bị
 
@@ -20,7 +20,7 @@ Demo accounts, password `EcoQuest@123`:
 | Moderator | `moderator@ecoquest.local` | `SVMOD001` |
 | Admin | `admin@ecoquest.local` | không có |
 
-## Automated baseline
+## Kiểm Thử Tự Động
 
 ```powershell
 cd web-apps\ecoquest-web
@@ -28,7 +28,7 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Current automated unit tests: 16/16 pass.
+Kết quả kỳ vọng của bộ unit test hiện tại: 16/16 pass.
 
 - student không thấy pending/rejected mission;
 - chỉ active mission được submit;

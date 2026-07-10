@@ -1,8 +1,8 @@
 # Cẩm Nang Báo Cáo Microservices EcoQuest Campus
 
-Cập nhật: 2026-07-03
+Cập nhật: 2026-07-10
 
-File này là tài liệu chính để chuẩn bị thuyết trình phần microservices của EcoQuest Campus. Nếu cần viết báo cáo DOCX chi tiết về toàn project thì đọc thêm `tai-lieu-nguon-bao-cao-docx.md`; nếu cần API/frontend thì đọc `frontend-handoff.md`.
+File này là tài liệu chính để chuẩn bị thuyết trình phần microservices của EcoQuest Campus. Nếu cần viết báo cáo DOCX chi tiết về toàn project thì đọc thêm `tai-lieu-nguon-bao-cao-docx.md`; nếu cần kịch bản thao tác demo thì đọc `kich-ban-demo-microservices.md`; nếu cần checklist frontend thì đọc `frontend-test-scenarios.md`.
 
 ## 1. Tóm Tắt Nói Nhanh
 
@@ -572,5 +572,5 @@ Smoke test kiểm auth, RBAC, Catalog CRUD, Policy CRUD, Action evidence, submit
 - `docs/tai-lieu-nguon-bao-cao-docx.md`: nguồn nội dung đầy đủ cho báo cáo DOCX.
 - `docs/bao-cao-hien-trang-project.md`: tổng quan hiện trạng project.
 - `docs/luong-nghiep-vu-database.md`: luồng nghiệp vụ và database chi tiết.
-- `docs/frontend-handoff.md`: API contract và dữ liệu frontend.
+- `docs/frontend-test-scenarios.md`: checklist kiểm thử frontend theo role và workflow.
 - `README.md`: cách chạy nhanh và trạng thái verification.

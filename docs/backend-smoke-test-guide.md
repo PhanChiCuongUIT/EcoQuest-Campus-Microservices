@@ -1,12 +1,12 @@
 # Hướng Dẫn Smoke Test Backend EcoQuest
 
-Cập nhật: 2026-07-03
+Cập nhật: 2026-07-10
 
 File này giải thích lệnh test backend, nội dung script đang kiểm thử, kết quả mong đợi và cách xóa dữ liệu E2E sau khi test.
 
-## Lệnh Bạn Vừa Chạy Có Đúng Không?
+## Lệnh Smoke Test Chuẩn
 
-Có. Lệnh này là đúng để chạy backend smoke test qua API Gateway và Policy Admin API:
+Lệnh sau dùng để chạy backend smoke test qua API Gateway và Policy Admin API:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090
@@ -196,9 +196,9 @@ notification.eco-action-accepted 0     1
 report.eco-action-accepted      0      1
 ```
 
-## Kết Quả Kiểm Sau Lần Dọn Gần Nhất
+## Kết Quả Kiểm Sau Cleanup
 
-Sau khi bạn chạy smoke test, mình đã chạy cleanup và kiểm lại dữ liệu E2E:
+Sau khi chạy smoke test, có thể chạy cleanup và kiểm lại dữ liệu E2E theo các nhóm sau:
 
 | Khu vực | Kết quả |
 | --- | --- |
@@ -216,7 +216,7 @@ Sau khi bạn chạy smoke test, mình đã chạy cleanup và kiểm lại dữ
 | Redis leaderboard E2E members | `0` |
 | RabbitMQ queues | 20 queue, `0` pending messages, mỗi queue có 1 consumer |
 
-Như vậy dữ liệu test E2E do smoke sinh ra đã được dọn. Seed/demo data và dữ liệu thao tác UI không dùng tiền tố `E2E`, `SV_E2E`, `SV_AUTH` vẫn được giữ.
+Khi tất cả nhóm trên về `0`, dữ liệu test E2E do smoke sinh ra đã được dọn. Seed/demo data và dữ liệu thao tác UI không dùng tiền tố `E2E`, `SV_E2E`, `SV_AUTH` vẫn được giữ.
 
 ## Cách Xóa Dữ Liệu Test Sau Khi Chạy Smoke
 
@@ -248,7 +248,7 @@ powershell -ExecutionPolicy Bypass -File scripts\cleanup-smoke-test-data.ps1 -Sk
 
 ## Khi Nào Mới Cần Reset Volume?
 
-Chỉ dùng reset volume khi bạn muốn quay về seed sạch hoàn toàn và chấp nhận mất dữ liệu thao tác UI:
+Chỉ dùng reset volume khi cần quay về seed sạch hoàn toàn và chấp nhận mất dữ liệu thao tác UI:
 
 ```powershell
 $env:API_GATEWAY_PORT='18080'

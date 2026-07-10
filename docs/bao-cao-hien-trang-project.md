@@ -1,6 +1,6 @@
 # Báo Cáo Hiện Trạng Project EcoQuest Campus
 
-Cập nhật: 2026-07-03
+Cập nhật: 2026-07-10
 
 Chi tiết database, use case, frontend và nội dung dùng để viết báo cáo DOCX nằm ở `tai-lieu-nguon-bao-cao-docx.md`; phần luồng nghiệp vụ và bảng/collection theo từng service nằm ở `luong-nghiep-vu-database.md`; phần công nghệ microservices, cách chạy, cách show khi báo cáo và câu hỏi phản biện nằm ở `cam-nang-bao-cao-microservices.md`.
 

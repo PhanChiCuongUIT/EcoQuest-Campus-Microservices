@@ -1,6 +1,6 @@
 # Công Nghệ Microservices Trong EcoQuest Campus
 
-Cập nhật: 2026-07-03
+Cập nhật: 2026-07-10
 
 Tài liệu này tổng hợp các công nghệ microservices đang có trong project EcoQuest Campus và chúng được dùng ở đâu, dùng như thế nào.
 

@@ -1,6 +1,6 @@
 # Tài Liệu Nguồn Viết Báo Cáo DOCX - EcoQuest Campus
 
-Cập nhật: 2026-07-03
+Cập nhật: 2026-07-10
 
 Tài liệu này là nguồn nội dung tiếng Việt có dấu để viết báo cáo DOCX cho project **EcoQuest Campus**. Nội dung đã được đối chiếu lại với source code backend, frontend, các entity/controller hiện có và trạng thái kiểm thử gần nhất.
 Khi cần chuẩn bị phần thuyết trình microservices, demo công nghệ và câu hỏi phản biện, dùng thêm `cam-nang-bao-cao-microservices.md`.

@@ -1,6 +1,6 @@
 # Luồng Nghiệp Vụ, Use Case Và Database EcoQuest Campus
 
-Cập nhật: 2026-07-03
+Cập nhật: 2026-07-10
 
 Tài liệu này mô tả bằng tiếng Việt có dấu cách EcoQuest Campus hoạt động ở mức nghiệp vụ, khi nào badge/certificate/coupon được tạo, các use case chính và database của từng microservice. Project dùng kiến trúc **database-per-service**, vì vậy các quan hệ giữa service dùng ID logic và event, không dùng foreign key vật lý xuyên database.
 
