@@ -1,0 +1,162 @@
+# Chạy Lại EcoQuest Campus Và Cập Nhật Dữ Liệu
+
+Ngày cập nhật: 19/09/2026.
+
+## 1. Thay đổi trong lần cập nhật
+
+- Giữ kiến trúc 9 microservice và quyền sở hữu dữ liệu hiện có.
+- Thêm named volume riêng cho 8 PostgreSQL, MongoDB, Redis, RabbitMQ và MinIO. Redis bật AOF. RabbitMQ có hostname ổn định để sử dụng lại dữ liệu broker sau khi tạo lại container.
+- MinIO dùng `quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z` vì địa chỉ Docker Hub cũ không tải được khi kiểm tra. Đây là thay đổi registry cùng phiên bản, chưa phải nâng cấp bảo mật MinIO lên phiên bản mới.
+- Sửa seed: không ghi đè role/status người dùng, tiêu chí badge/cấu hình mission, điểm đã điều chỉnh, stock coupon và read model báo cáo mỗi lần restart. Leaderboard seed thực hiện một lần bằng Lua, giữ điểm đã có.
+- Đồng bộ lại số điểm seed giữa Reward, Leaderboard, Recognition và Report; không cấp sẵn badge đếm hành động hoặc badge 250 điểm khi bộ action mẫu chưa đủ điều kiện.
+- Frontend dùng các phiên bản đã có trong lockfile, thay `latest` bằng phiên bản cụ thể và build bằng `npm ci`.
+- Thêm `scripts/start-project.ps1` để khởi động, chờ Gateway và 9 service báo health `UP`, kiểm tra web và in các cổng thực tế.
+- Thêm `scripts/refresh-demo-data.ps1` để bổ sung hoạt động hiện tại qua API; không sửa thời gian của dữ liệu lịch sử và không xóa dữ liệu thao tác.
+
+## 2. Chạy trên máy tính
+
+Mở Docker Desktop, chờ Docker Engine hoạt động. Máy không cần cài Maven hoặc Java 21 nếu build trong Docker. Frontend development dùng Node.js 24; Java 17 trên host không đủ để build backend trực tiếp.
+
+```powershell
+cd C:\Users\ADMIN\Downloads\Microservices-SE361
+docker version
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+powershell -ExecutionPolicy Bypass -File scripts\start-project.ps1 -Build
+```
+
+`-Build` dùng khi lấy code mới hoặc thay đổi code. Lần sau chỉ cần:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start-project.ps1
+```
+
+Script đọc `.env` hiện có; không ghi đè thông tin SMTP, mật khẩu hoặc cấu hình riêng. Nếu báo không kết nối được Docker API, mở Docker Desktop trước. Nếu báo cổng bị chiếm, đổi cổng host tương ứng trong `.env`; giữ nguyên cổng nội bộ giữa các container.
+
+| Mục | Địa chỉ hiện tại |
+| --- | --- |
+| Giao diện | http://localhost:3000 |
+| Gateway health | http://localhost:18080/actuator/health |
+| RabbitMQ Management | http://localhost:25673, `guest` / `guest` |
+| MinIO Console | http://localhost:9001, `minioadmin` / `minioadmin` |
+| Policy REST | http://localhost:8090, API yêu cầu token Admin |
+
+Các cổng mặc định mới tránh xung đột với các project đang dùng 8080, 5432, 5433, 6379, 5672 và 15672 trên máy này.
+
+| Kho dữ liệu | Cổng host → container | Database |
+| --- | --- | --- |
+| Catalog PostgreSQL | 15432 → 5432 | catalog_db |
+| Policy PostgreSQL | 15433 → 5432 | policy_db |
+| Reward PostgreSQL | 5434 → 5432 | reward_db |
+| Leaderboard PostgreSQL | 5435 → 5432 | leaderboard_db |
+| Recognition PostgreSQL | 5436 → 5432 | recognition_db |
+| Identity PostgreSQL | 5437 → 5432 | identity_db |
+| Report PostgreSQL | 5438 → 5432 | report_db |
+| Notification PostgreSQL | 5439 → 5432 | notification_db |
+| MongoDB | 27017 → 27017 | action_db |
+| Redis | 16379 → 6379 | namespace theo Action/Leaderboard |
+| RabbitMQ AMQP | 25672 → 5672 | broker riêng của EcoQuest |
+
+PostgreSQL demo dùng `ecoquest` / `ecoquest`. Cổng hạ tầng này phục vụ phát triển cục bộ; không công khai ra Internet với mật khẩu demo.
+
+## 3. Đăng nhập và bổ sung dữ liệu
+
+Tài khoản mặc định dùng mật khẩu `EcoQuest@123`:
+
+- Student: `student@ecoquest.local`, MSSV `SV001`.
+- Các Student khác: `student2@ecoquest.local` đến `student10@ecoquest.local`.
+- Moderator: `moderator@ecoquest.local`.
+- Admin: `admin@ecoquest.local`.
+
+Nếu đã đổi mật khẩu hoặc role trong dữ liệu cũ, hệ thống giữ thay đổi đó. Không tự đặt lại mật khẩu khi khởi động.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\refresh-demo-data.ps1 -Gateway http://localhost:18080
+```
+
+Mỗi tháng có 3 mission chiến dịch mới; mỗi lần chạy vào một ngày UTC mới bổ sung tối đa 30 action cho 10 sinh viên. Trong bộ 30 action có 20 action được Moderator duyệt qua API và 10 action để chờ duyệt. Logo project được upload làm **minh chứng mẫu**, không đại diện cho bằng chứng hoạt động thực tế. Mọi điểm mới đi qua Action → RabbitMQ → Reward; Leaderboard, Recognition, Report và Notification nhận event theo cấu hình hiện có.
+
+Chạy lại trong cùng ngày không thêm action trùng. Script tìm action đã lưu trong MongoDB thông qua API, nên vẫn chống lặp sau khi idempotency key Redis hết TTL. Nếu lần trước dừng giữa chừng, có thể chạy lại để tiếp tục. Không chạy hai bản script đồng thời. Script tôn trọng mission đã bị Admin đóng và giới hạn ngày của Policy; nếu tài khoản đã hoạt động nhiều trong ngày, script có thể báo giới hạn để kiểm tra thay vì nới policy.
+
+Dữ liệu seed lịch sử vẫn giữ nguyên thời gian. Các mùa giải/certificate cũ được giữ làm dữ liệu mẫu; cập nhật dữ liệu không tự phát thêm certificate. Muốn có certificate mới, Admin đóng mùa giải theo luồng hiện có.
+
+## 4. Kiểm thử
+
+Frontend:
+
+```powershell
+cd web-apps\ecoquest-web
+npm.cmd ci
+npm.cmd test
+npm.cmd run build
+cd ..\..
+```
+
+Backend build kèm unit test:
+
+```powershell
+docker run --rm -v "${PWD}:/workspace" -v "${PWD}/.m2:/root/.m2" -w /workspace maven:3.9.9-eclipse-temurin-21 mvn -B package
+```
+
+Smoke test dùng token email cục bộ. `-LocalMail` không sửa `.env` và không gửi thư test ra ngoài:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start-project.ps1 -LocalMail
+powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090 -Web http://localhost:3000
+powershell -ExecutionPolicy Bypass -File scripts\cleanup-smoke-test-data.ps1
+powershell -ExecutionPolicy Bypass -File scripts\test-restart-persistence.ps1
+```
+
+Smoke test tạo dữ liệu E2E và có thao tác đánh dấu đọc notification, thay đổi rule mẫu tạm thời và đóng mùa giải test. Nên chạy trên môi trường demo. Cleanup chỉ dọn các dữ liệu nhận diện là E2E, không phải công cụ hoàn tác toàn bộ hành vi của một phiên test. Không dùng `down -v` để dọn E2E nếu cần giữ dữ liệu thao tác.
+
+Chạy `scripts/start-project.ps1` không có `-LocalMail` sau kiểm thử để khôi phục cấu hình SMTP trong `.env`. Việc SMTP gửi thư ra ngoài phụ thuộc tài khoản/App Password, mạng và cấu hình Gmail; không suy ra từ kết quả smoke dùng token cục bộ.
+
+## 5. Dữ liệu và vận hành lâu dài
+
+```powershell
+docker compose stop
+# Khi cần chạy lại:
+powershell -ExecutionPolicy Bypass -File scripts\start-project.ps1
+# Kiểm tra:
+docker compose ps
+docker compose logs --tail=100 eco-action-service reward-ledger-service
+docker compose exec -T rabbitmq rabbitmqctl list_queues name messages consumers
+docker compose exec -T redis redis-cli INFO persistence
+docker system df
+```
+
+Không chạy `docker compose down -v` hoặc `docker volume prune` khi muốn giữ dữ liệu. Named volume sống độc lập với container; `down` không có `-v` giữ named volume. Xem [tài liệu Docker về volumes](https://docs.docker.com/engine/storage/volumes/) và [hành vi Compose down](https://docs.docker.com/reference/cli/docker/compose/down/).
+
+Nếu nâng từ bản cũ còn container với anonymous volume hoặc MinIO lưu ngay trong container: sao lưu database và file trước khi áp dụng cấu hình volume mới. Việc đổi sang named volume không tự chuyển dữ liệu từ anonymous volume. Trong lần kiểm tra máy này, không có container thuộc Compose EcoQuest đang tồn tại; các project khác được giữ nguyên.
+
+Khi chỉ đổi một service, build và tạo lại riêng service đó:
+
+```powershell
+docker compose build report-service
+docker compose up -d --no-deps report-service
+```
+
+## 6. Mở trên điện thoại
+
+Điện thoại và máy tính cùng mạng Wi-Fi. Dùng `ipconfig` lấy IPv4 máy tính rồi mở `http://<IPv4>:3000`. Cho phép cổng 3000 trong Windows Firewall khi cần. Nếu mở link xác minh/reset email trên điện thoại, đặt `FRONTEND_BASE_URL=http://<IPv4>:3000` trong `.env` rồi chạy lại script khởi động. API từ frontend dùng proxy cùng origin.
+
+## 7. Kết quả xác minh
+
+Kiểm tra ngày 19/09/2026 trên stack cục bộ:
+
+| Hạng mục | Kết quả |
+| --- | --- |
+| Maven Java 21 | 14/14 module build thành công; 4 unit test mới về seed PASS |
+| Frontend | 16/16 test PASS; production build PASS |
+| Backend smoke qua Gateway và web proxy | PASS, gồm upload lớn, auth/RBAC, CRUD, submit → duyệt → điểm, badge, certificate/coupon, report và notification |
+| Cleanup sau smoke | Hoàn thành; API audit không còn user/action E2E hoặc dòng E2E trong leaderboard tuần/tháng hiện tại |
+| Bổ sung dữ liệu ngày hiện tại | Thêm 3 mission tháng, 30 action; 20 action được duyệt có transaction tương ứng trong Reward |
+| Chạy lại refresh cùng ngày | PASS: 0 action mới, nhận diện 30 action đã tồn tại và kiểm tra lại 20 transaction |
+| Restart 6 service có seed liên quan | PASS: 9 nhóm dữ liệu API trước/sau giống nhau, gồm user, mission, badge, ví/transaction SV001, leaderboard, reward offer và báo cáo SV001 |
+| RabbitMQ sau cùng | 20 queue, mỗi queue 0 message và 1 consumer |
+| Khởi động theo `.env` sau test | 23 container chạy; Gateway và 9 service health `UP`, web trả HTTP 200 |
+
+Dữ liệu sau cleanup và refresh: **12 tài khoản, 18 mission, 66 action** (50 `ACCEPTED`, 13 `PENDING_REVIEW`, 3 `REJECTED`). Leaderboard tuần/tháng hiện tại đều có 10 sinh viên. Đây là số liệu tại thời điểm kiểm tra, sẽ thay đổi khi người dùng thao tác hoặc chạy refresh ngày khác.
+
+Smoke chạy ở chế độ email cục bộ; sau đó đã khôi phục cấu hình SMTP từ `.env` và Identity health báo `UP`. Chưa kiểm chứng gửi/nhận email thật trong lượt này. Frontend được kiểm bằng test tự động và build, chưa có lượt kiểm tra trực quan trình duyệt mới.
+
+Trong thử nghiệm restart chủ động, Gateway có log `Connection refused` khi service tạm dừng. Lần refresh đầu gặp lỗi ghép URL ví trong script; lỗi đã được sửa và chạy lại PASS. Không coi log lịch sử này là lỗi phát sinh của lượt kiểm tra cuối, cũng không dùng kết quả trên để khẳng định hệ thống không còn mọi lỗi hoặc đã chịu tải production.

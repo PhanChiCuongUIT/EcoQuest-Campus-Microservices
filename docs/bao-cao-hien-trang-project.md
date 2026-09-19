@@ -1,6 +1,8 @@
 # Báo Cáo Hiện Trạng Project EcoQuest Campus
 
-Cập nhật: 2026-07-10
+Cập nhật vận hành: 2026-09-19. [Chi tiết chạy lại và dữ liệu mới](chay-lai-project.md).
+
+Hệ thống vẫn có 9 microservice. Bản cập nhật bổ sung named volume cho các kho dữ liệu, Redis AOF, sửa seed ghi đè dữ liệu khi restart và thêm `refresh-demo-data.ps1` để tạo hoạt động trong ngày qua API. Các số liệu kiểm thử tháng 7 bên dưới là lịch sử, không đại diện cho lần chạy mới.
 
 Chi tiết database, use case, frontend và nội dung dùng để viết báo cáo DOCX nằm ở `tai-lieu-nguon-bao-cao-docx.md`; phần luồng nghiệp vụ và bảng/collection theo từng service nằm ở `luong-nghiep-vu-database.md`; phần công nghệ microservices, cách chạy, cách show khi báo cáo và câu hỏi phản biện nằm ở `cam-nang-bao-cao-microservices.md`.
 
@@ -70,7 +72,7 @@ Gateway chỉ route API, CORS và correlation ID. Gateway không chứa nghiệp
 
 ## 4. Dữ Liệu Seed Hiện Tại
 
-Sau `docker compose down -v` và `docker compose up -d --build`, hệ thống seed dữ liệu demo sạch:
+Trên bộ volume mới, hệ thống khởi tạo dữ liệu mẫu dưới đây. Không cần xóa volume để cập nhật hoạt động hiện tại; dùng `scripts/refresh-demo-data.ps1` để bổ sung qua API và giữ dữ liệu đã thao tác.
 
 - 12 demo users: 10 student, 1 moderator, 1 admin.
 - 15 mission, 7 station, 6 badge definition.
@@ -88,6 +90,8 @@ Demo accounts:
 | Moderator | `moderator@ecoquest.local` | `EcoQuest@123` | `SVMOD001` |
 | Admin | `admin@ecoquest.local` | `EcoQuest@123` | none |
 
+Audit ngày 19/09/2026 sau cleanup và refresh: **12 tài khoản, 18 mission, 66 action** (50 đã duyệt, 13 chờ duyệt, 3 từ chối). Leaderboard tuần/tháng hiện tại có 10 sinh viên và không còn dòng E2E. Seed khi restart không đặt lại role, điểm đã điều chỉnh, cấu hình badge/mission hoặc stock reward.
+
 ## 5. Công Nghệ Chính
 
 - Java 21, Spring Boot 3, Spring Security JWT.
@@ -104,6 +108,8 @@ Demo accounts:
 - Docker Compose chạy toàn bộ local stack.
 
 ## 6. Kiểm Thử Đã Chạy
+
+Ngày 19/09/2026: Maven 14/14 module và 4 unit test seed PASS; frontend 16/16 test và build PASS; full backend smoke qua Gateway/web proxy PASS; refresh cùng ngày không tạo trùng; restart 6 service giữ nguyên 9 nhóm snapshot API; 20 queue drained. Xem [phạm vi và giới hạn kiểm chứng](chay-lai-project.md#7-kết-quả-xác-minh).
 
 Ngày 02/07/2026:
 

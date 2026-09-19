@@ -1,6 +1,8 @@
 # Tài Liệu Nguồn Viết Báo Cáo DOCX - EcoQuest Campus
 
-Cập nhật: 2026-07-10
+Cập nhật đặc tả: 2026-07-10. Cập nhật vận hành, seed và kiểm thử: 2026-09-19.
+
+Stack hiện dùng named volume cho các kho dữ liệu, Redis AOF, seed không ghi đè dữ liệu đã thao tác khi restart và script refresh theo ngày qua API. Kiến trúc vẫn gồm 9 microservice. Xem [hướng dẫn khởi động và kết quả kiểm chứng mới](chay-lai-project.md) để phân biệt dữ liệu khởi tạo với dữ liệu sau khi bổ sung hoạt động.
 
 Tài liệu này là nguồn nội dung tiếng Việt có dấu để viết báo cáo DOCX cho project **EcoQuest Campus**. Nội dung đã được đối chiếu lại với source code backend, frontend, các entity/controller hiện có và trạng thái kiểm thử gần nhất.
 Khi cần chuẩn bị phần thuyết trình microservices, demo công nghệ và câu hỏi phản biện, dùng thêm `cam-nang-bao-cao-microservices.md`.
@@ -881,17 +883,21 @@ Trạng thái gần nhất:
 - Frontend unit test: 16/16 PASS.
 - Frontend production build: PASS.
 
-### 12.3. Audit Sau Reset Sạch
+### 12.3. Audit Dữ Liệu Và Restart
 
-Sau khi reset bằng `docker compose down -v` rồi `docker compose up -d`, audit gần nhất ghi nhận:
+Ngày 19/09/2026, sau cleanup dữ liệu smoke và bổ sung hoạt động mới qua API:
 
-- Gateway `UP`.
-- 15 mission.
+- Gateway và 9 service health `UP`.
+- 18 mission.
 - 12 user demo.
 - 0 user/action E2E test còn sót.
-- 36 action demo sạch theo nhiều mốc thời gian.
-- Notification seed theo 3 role có dữ liệu.
-- RabbitMQ queue drained.
+- 66 action: 50 đã duyệt, 13 chờ duyệt, 3 từ chối.
+- Leaderboard tuần/tháng hiện tại có 10 sinh viên, không có dòng E2E.
+- RabbitMQ 20 queue đều 0 message và mỗi queue 1 consumer.
+- Maven 14/14 module, 4 unit test seed và full backend smoke PASS.
+- Restart 6 service giữ nguyên 9 nhóm snapshot API; chạy lại refresh cùng ngày không tạo action trùng.
+
+Audit này không thay thế kiểm thử tải hoặc kiểm tra trực quan frontend. SMTP đã khôi phục theo `.env`, nhưng chưa kiểm tra gửi/nhận email thật trong lượt này.
 
 ## 13. Hướng Dẫn Chạy Project
 
@@ -899,8 +905,7 @@ Sau khi reset bằng `docker compose down -v` rồi `docker compose up -d`, audi
 
 ```powershell
 cd C:\Users\ADMIN\Downloads\Microservices-SE361
-$env:API_GATEWAY_PORT='18080'
-docker compose up -d --build
+powershell -ExecutionPolicy Bypass -File scripts\start-project.ps1 -Build
 ```
 
 Truy cập:
@@ -908,28 +913,26 @@ Truy cập:
 - Frontend: `http://localhost:3000`
 - Gateway: `http://localhost:18080`
 - Policy Admin direct: `http://localhost:8090`
-- RabbitMQ Management: `http://localhost:15672`
+- RabbitMQ Management: `http://localhost:25673` (cổng host mới, container vẫn dùng `15672`)
 - MinIO Console: `http://localhost:9001`
 
 ### 13.2. Chạy Frontend Dev
 
 ```powershell
 cd web-apps\ecoquest-web
-npm.cmd install
+npm.cmd ci
 npm.cmd run dev
 ```
 
 Frontend gọi API relative path qua proxy, không hardcode port service.
 
-### 13.3. Reset Dữ Liệu Sạch
+### 13.3. Cập Nhật Dữ Liệu Không Xóa Dữ Liệu Cũ
 
 ```powershell
-$env:API_GATEWAY_PORT='18080'
-docker compose down -v
-docker compose up -d --build
+powershell -ExecutionPolicy Bypass -File scripts\refresh-demo-data.ps1 -Gateway http://localhost:18080
 ```
 
-Lưu ý: `down -v` xóa volume database hiện tại và seed lại dữ liệu demo sạch.
+Script tạo mission chiến dịch tháng và action của ngày UTC hiện tại qua API; chạy lại cùng ngày không tạo trùng. Dùng `docker compose stop` để dừng mà giữ dữ liệu. Chỉ dùng `down -v` khi chủ ý xóa toàn bộ volume sau khi sao lưu, không dùng để cập nhật dữ liệu.
 
 ## 14. Nội Dung Nên Đưa Vào Báo Cáo DOCX
 

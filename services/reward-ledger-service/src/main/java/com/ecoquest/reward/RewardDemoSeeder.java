@@ -8,6 +8,7 @@ import com.ecoquest.reward.infrastructure.persistence.RewardTransactionRepositor
 import com.ecoquest.reward.infrastructure.persistence.RewardWalletRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -28,6 +29,7 @@ class RewardDemoSeeder implements CommandLineRunner {
     }
 
     @Override
+    @Transactional
     public void run(String... args) {
         DemoTx[] txs = {
                 new DemoTx("DEMO-TX-001", "SV001", "DEMO-ACTION-001", "MISSION-RECYCLE-01", "RECYCLE_BOTTLE", 10, 1),
@@ -63,8 +65,8 @@ class RewardDemoSeeder implements CommandLineRunner {
         };
         Map<String, Integer> totals = new HashMap<>();
         for (DemoTx tx : txs) {
-            totals.merge(tx.studentId(), tx.points(), Integer::sum);
             if (!transactions.existsBySourceActionId(tx.sourceActionId())) {
+                totals.merge(tx.studentId(), tx.points(), Integer::sum);
                 RewardTransaction record = new RewardTransaction();
                 record.id = tx.id();
                 record.studentId = tx.studentId();
@@ -83,13 +85,16 @@ class RewardDemoSeeder implements CommandLineRunner {
                 created.studentId = studentId;
                 return created;
             });
-            wallet.totalPoints = Math.max(wallet.totalPoints, points);
+            wallet.totalPoints += points;
             wallets.save(wallet);
         });
         badge("DEMO-BADGE-SV001-STARTER", "SV001", "GREEN_STARTER", "Green Starter", 12);
         badge("DEMO-BADGE-SV002-STARTER", "SV002", "GREEN_STARTER", "Green Starter", 14);
-        badge("DEMO-BADGE-SV005-ZERO", "SV005", "ZERO_WASTE_ADVOCATE", "Zero Waste Advocate", 27);
-        badge("DEMO-BADGE-SV006-TREE", "SV006", "CLEANUP_CHAMPION", "Cleanup Champion", 35);
+        badge("DEMO-BADGE-SV005-STARTER", "SV005", "GREEN_STARTER", "Green Starter", 27);
+        badge("DEMO-BADGE-SV006-STARTER", "SV006", "GREEN_STARTER", "Green Starter", 35);
+        badge("DEMO-BADGE-SV003-STARTER", "SV003", "GREEN_STARTER", "Green Starter", 18);
+        badge("DEMO-BADGE-SV004-STARTER", "SV004", "GREEN_STARTER", "Green Starter", 110);
+        badge("DEMO-BADGE-SV007-STARTER", "SV007", "GREEN_STARTER", "Green Starter", 8);
         badge("DEMO-BADGE-SV008-REFILL", "SV008", "GREEN_STARTER", "Green Starter", 53);
         badge("DEMO-BADGE-SV009-STARTER", "SV009", "GREEN_STARTER", "Green Starter", 0);
         badge("DEMO-BADGE-SV010-STARTER", "SV010", "GREEN_STARTER", "Green Starter", 0);

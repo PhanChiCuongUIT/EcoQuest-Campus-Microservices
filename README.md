@@ -1,308 +1,218 @@
 # EcoQuest Campus Microservices
 
-EcoQuest Campus la he thong gamification cho hoat dong xanh trong truong hoc. Student thuc hien mission, upload minh chung bang nhieu anh hoac mot video, nhan diem va badge; Moderator duyet action/report; Admin quan tri user, catalog, policy, reward adjustment, analytics va season certificate.
+EcoQuest Campus is a sustainability activity platform for university communities. Students complete missions, submit evidence, and earn points after moderator approval. The platform includes badges, weekly and monthly leaderboards, certificates, reward coupons, campus reports, and notifications.
 
-## Current Architecture
+## Architecture
+
+The backend consists of nine business services behind Spring Cloud Gateway. Each service owns its database and business rules. Services communicate through HTTP APIs, gRPC, and RabbitMQ integration events.
 
 ```text
-React/Vite Web
-      |
-Spring Cloud Gateway (routing, CORS, correlation ID)
-      |
-      +-- Identity Access ------ PostgreSQL identity_db + MinIO avatars
-      +-- Green Catalog -------- PostgreSQL catalog_db + MinIO station images
-      +-- Eco Action ----------- MongoDB action_db + Redis + MinIO evidence
-      |       +-- gRPC --------- Verification Policy + PostgreSQL policy_db
-      +-- Reward Ledger -------- PostgreSQL reward_db
-      +-- Leaderboard ---------- Redis + PostgreSQL leaderboard_db
-      +-- Recognition ---------- PostgreSQL recognition_db + MinIO certificates/coupons
-      +-- Report --------------- PostgreSQL report_db + MinIO report evidence
-      +-- Notification --------- PostgreSQL notification_db
+React / Vite Web -> Nginx API proxy -> Spring Cloud Gateway
+                                        |
+    +-- Identity Access ------ PostgreSQL + MinIO avatars
+    +-- Green Catalog -------- PostgreSQL + MinIO station images
+    +-- Eco Action ----------- MongoDB + Redis + MinIO evidence
+    |       +-- gRPC --------- Verification Policy + PostgreSQL
+    +-- Reward Ledger -------- PostgreSQL
+    +-- Leaderboard ---------- Redis + PostgreSQL snapshots
+    +-- Recognition ---------- PostgreSQL + MinIO certificates
+    +-- Report --------------- PostgreSQL analytics + MinIO evidence
+    +-- Notification --------- PostgreSQL inbox + SSE
 
-RabbitMQ:
-Action -> Reward -> Leaderboard -> Recognition
-Action/Catalog/Identity/Report/Reward/Recognition -> Notification
-Action/Catalog/Identity/Reward/Recognition -> Report analytics read model
+Approved action -> Action outbox -> RabbitMQ -> Reward Ledger
+Points granted -> RabbitMQ -> Leaderboard, Recognition, Report, Notification
+Season closed -> RabbitMQ -> Recognition -> Certificate issued
 ```
 
-The system currently has **9 microservices**. Each service owns its own data and business rules. The Gateway only routes traffic and does not contain domain logic. No service reads another service database directly.
-
-| Service | Responsibility | Port |
+| Service | Responsibilities | Host port |
 | --- | --- | --- |
-| Identity Access | Register, verify email, login, forgot/reset password, profile/avatar, role/status/user management | `8086` |
-| Green Catalog | Mission workflow, stations, station image upload, badge definitions | `8081` |
-| Eco Action | Draft, evidence upload nhieu anh/mot video, submit, idempotency, moderation, outbox | `8082` |
-| Verification Policy | Internal gRPC rule evaluation; direct admin REST | `9090` gRPC, `8090` REST |
-| Reward Ledger | Wallet, transaction ledger, badge achievement, manual point adjustment | `8083` |
-| Leaderboard | Weekly/monthly period rank read model, historical week/month lookup, season snapshots | `8084` |
-| Recognition | Certificate PDF/MinIO, reward offer catalog, coupon eligibility and idempotent voucher claims | `8085` |
-| Report | Student/Moderator reports, moderation queue, analytics read model | `8087` |
-| Notification | Inbox, read/read-all, SSE, event consumers | `8088` |
+| Identity Access | Registration, email verification, login, password reset, profiles, roles and account status | 8086 |
+| Green Catalog | Mission approval workflow, stations, badge definitions and station images | 8081 |
+| Eco Action | Drafts, image/video evidence, submissions, idempotency and moderation | 8082 |
+| Verification Policy | Action rules, evidence requirements and daily limits | 8090 HTTP, 9090 gRPC |
+| Reward Ledger | Wallets, point transactions, badge achievements and audited adjustments | 8083 |
+| Leaderboard | Current and historical weekly/monthly rankings and season snapshots | 8084 |
+| Recognition | Certificate PDFs, reward offers, eligibility, stock and coupon claims | 8085 |
+| Report | Campus report workflow, period analytics, student outcomes and PDF exports | 8087 |
+| Notification | Event-driven inbox, read state and server-sent events | 8088 |
 
-## Main Flows
+The Gateway handles routing and cross-cutting request concerns. Authorization and business validation remain in the owning services. The Policy administration API is accessed directly rather than routed through the Gateway.
 
-1. User registers, verifies email, then logs in.
-2. Student, or Moderator in Student panel for their own `studentId`, selects an `ACTIVE` mission.
-3. Student uploads action evidence through Action-owned MinIO storage. Each action can keep multiple image evidence URLs or one video URL; `evidenceUrl` remains the first URL for old clients.
-4. Action service calls Catalog to validate mission status and `actionType`, then calls Policy by gRPC.
-5. Draft/idempotency use Redis; valid submissions are persisted in MongoDB as `PENDING_REVIEW`, while policy failures are persisted as `REJECTED`.
-6. Moderator/Admin approve or reject pending actions in Review Queue. Only approve changes the action to `ACCEPTED` and writes the Action outbox event.
-7. Action outbox publishes RabbitMQ events; Reward Ledger grants points by `sourceActionId`, records transactions, and unlocks point/action-count badges only after `ActionAcceptedEvent`.
-8. Leaderboard consumes point events and updates Redis sorted sets by period, so the UI can view current and previous weeks/months in the selected year.
-9. Admin closes a season; Recognition creates a PDF certificate in MinIO and publishes notification.
-10. Missing evidence/station and all valid submit actions are reviewed through `PENDING_REVIEW`; Moderators cannot review their own actions.
-11. Report service consumes action, mission, user registration, points, badge, and certificate events into its own analytics read model and handles report create/review without reading other DBs.
-12. Admin analytics can show bounded week/month/year ranges without future periods; export downloads the selected week/month/year as the polished single-period PDF report.
-13. Policy Admin on direct port `8090` supports create/update/delete; deleting requires the rule to be inactive first so active mission action types are not accidentally made unsupported. The Admin UI creates rules through a modal overlay while the backend keeps all rule ownership inside the Policy service.
-14. Student coupon redemption is handled by Recognition: active reward offers define points/badge/certificate/stock/expiry requirements; claiming the same reward twice returns the existing voucher instead of issuing a duplicate code.
+## Technology Stack
 
-Mission statuses: `PENDING`, `ACTIVE`, `REJECTED`, `CANCELLED`, `COMPLETED`. New missions are `PENDING`; only Admin changes mission status; only `ACTIVE` missions can be submitted.
+- Java 21, Spring Boot 3.3.5 and Spring Cloud Gateway.
+- Spring Data JPA, PostgreSQL 16, MongoDB 7 and Redis 7.
+- gRPC and Protocol Buffers for Action-to-Policy verification.
+- RabbitMQ with Spring AMQP for asynchronous integration events.
+- MinIO for evidence, profile images, station images and certificate PDFs.
+- JWT-based API authorization and role/ownership checks.
+- React, Vite, Axios and Lucide icons; Nginx for the web container.
+- Docker Compose and named volumes for persistent data.
+- Spring Boot Actuator health checks, Docker logs and correlation IDs.
 
-## Auth And Roles
+Identity uses Flyway and MapStruct. Action uses an outbox publisher and Resilience4j for Policy calls. Other relational services still use schema bootstrap and Hibernate schema updates. The project does not include a Prometheus/Grafana stack or a distributed tracing backend.
 
-Demo accounts use password `EcoQuest@123`:
+## Main Workflow
+
+1. A user registers, verifies their email and signs in.
+2. A student selects an active mission and uploads up to five images or one video as evidence.
+3. Action validates mission eligibility through Catalog and evaluates rules through Policy gRPC.
+4. Valid submissions enter `PENDING_REVIEW`; policy failures can produce `REJECTED` submissions.
+5. A Moderator or Admin approves or rejects the submission. Moderators cannot review their own actions.
+6. Approval changes the action to `ACCEPTED` and queues an integration event in the Action outbox.
+7. Reward records a transaction identified by `sourceActionId`, grants points and evaluates badges.
+8. Downstream consumers update rankings, recognition progress, analytics and notifications asynchronously.
+9. Closing a season creates leaderboard snapshots and triggers certificate generation.
+10. Eligible students claim active reward offers. Recognition checks eligibility and stock and returns the existing voucher for a repeated claim.
+
+Points are not awarded at submission time. Cross-service read models may take a short time to reflect an approved action.
+
+## Quick Start
+
+Install Docker Desktop with the Linux container engine running. Docker builds the applications; host installations of Maven and Java are not required.
+
+From the repository root in PowerShell:
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+powershell -ExecutionPolicy Bypass -File scripts\start-project.ps1 -Build
+```
+
+The startup script waits for the Gateway and all nine services to report `UP`, checks the web endpoint, and prints the configured URLs. Subsequent starts do not require a rebuild:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start-project.ps1
+```
+
+| Component | Default URL | Development credentials |
+| --- | --- | --- |
+| Web application | http://localhost:3000 | Application accounts below |
+| Gateway health | http://localhost:18080/actuator/health | None |
+| RabbitMQ Management | http://localhost:25673 | `guest` / `guest` |
+| MinIO Console | http://localhost:9001 | `minioadmin` / `minioadmin` |
+| Policy administration | http://localhost:8090/policies/rules | Admin bearer token |
+
+Host ports are configurable in `.env`. Container connections use Compose service names and internal ports. Development credentials and exposed infrastructure ports are intended for local use.
+
+## Accounts And Roles
+
+New demo installations use the password `EcoQuest@123`:
 
 | Role | Email | Student ID |
 | --- | --- | --- |
 | Student | `student@ecoquest.local` | `SV001` |
 | Moderator | `moderator@ecoquest.local` | `SVMOD001` |
-| Admin | `admin@ecoquest.local` | none |
+| Admin | `admin@ecoquest.local` | None |
 
-Role inheritance:
+Additional student accounts range from `student2@ecoquest.local` to `student10@ecoquest.local`.
 
-- `STUDENT`: Student panel only, self-owned data only.
-- `MODERATOR`: may switch to Student panel for self, but Moderator panel contains only Dashboard, Review, Reports, Leaderboard, own Mission Catalog, and Profile.
-- `ADMIN`: Admin + Moderator panels only. Admin panel contains Dashboard, Catalog, Users, Reports, a separate weekly/monthly/yearly Analytics page, Policy, Adjust Points, and Profile; Admin cannot submit student actions.
+- Students access their own activity, rewards and certificates.
+- Moderators access moderation features and may switch to their own Student panel.
+- Admins access Admin and Moderator panels, but cannot submit student actions.
+- Admins cannot change their own role, disable, ban or delete their own account.
 
-JWT is enforced by each owning service. The frontend role switcher only changes allowed panels and cannot elevate backend permissions.
-Identity also blocks admin self-mutation: an Admin cannot change their own role, inactive/ban themselves, or delete their own account. Demoting another Moderator to Student is allowed when that account has a `studentId`; the new role applies on the next login token.
+Changing a frontend panel does not grant backend permissions. Existing account changes are preserved on restart.
 
-Email is local-token mode by default. To test real Gmail SMTP, copy `.env.example` to `.env` and set:
+## Demo Data
 
-```env
+A new installation includes 15 missions, 7 stations, 6 badge definitions, 15 policy rules, 12 accounts and 36 sample actions, plus wallets, historical records, certificates, reward offers, reports and role-specific notifications.
+
+Add activity for the current date without deleting existing data:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\refresh-demo-data.ps1 -Gateway http://localhost:18080
+```
+
+The script creates three monthly campaign missions and up to 30 daily sample actions for ten students. It approves 20 actions through the moderation API, leaves 10 pending, and verifies point transactions. Running it again on the same UTC date does not create duplicate submissions. Generated evidence uses the project logo and is sample data.
+
+## Email Configuration
+
+Local mode returns verification/reset tokens for development. To enable SMTP, configure `.env`:
+
+```dotenv
 IDENTITY_MAIL_ENABLED=true
 IDENTITY_MAIL_HEALTH_ENABLED=true
 IDENTITY_MAIL_FROM=your-account@gmail.com
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=your-account@gmail.com
-SMTP_PASSWORD=your-google-app-password
+SMTP_PASSWORD=your-app-password
 SMTP_AUTH=true
 SMTP_STARTTLS=true
-IDENTITY_SUPPORT_EMAIL=cuong26.16.8@gmail.com
 FRONTEND_BASE_URL=http://localhost:3000
 ```
 
-Use a Google App Password, not the normal Gmail password.
-Keep `IDENTITY_MAIL_HEALTH_ENABLED=false` when you only want local-token mode; set it to `true` with valid Gmail SMTP credentials when you want Actuator to verify the mail connection too.
-For Gmail, `IDENTITY_MAIL_FROM` should normally match `SMTP_USERNAME`. If the recipient opens email on a phone, set `FRONTEND_BASE_URL=http://<YOUR-PC-IPV4>:3000` so verify/reset links are reachable from that phone.
-Verification, password reset, and status-change emails use the real EcoQuest logo packaged inside Identity and attached inline with CID, so they do not depend on a `localhost` image URL.
+Use a Gmail App Password for Gmail SMTP. Email templates embed the project logo as an inline CID attachment. Never commit `.env`.
 
-## Seed Data
+## Testing
 
-- 15 missions: recycle, cleanup, green check-in, trash report, energy saving, tree care, bike to campus, bottle refill, compost waste, e-waste drop-off, plastic-free lunch, campus carpool, solar awareness, green workshop, and paperless study.
-- 7 stations with `imageUrl`; Admin can upload station images.
-- 6 badges; `RECYCLING_HERO` and `CLEANUP_CHAMPION` use action-count rules.
-- 15 policy rules, one for each seeded action type.
-- 12 demo users: 10 students, 1 moderator, 1 admin. Demo password is `EcoQuest@123`.
-- 36 seeded submit actions across current week/month plus weekly/monthly/yearly windows, with accepted, pending-review, and rejected states.
-- Seeded Reward wallets/transactions/badges and Recognition certificates/coupon offers so dashboards and student pages are not empty after a fresh run.
-- Seeded Report analytics read-model data for weekly/monthly/yearly reports, including missions, submit actions, users, points, badges, certificates, and reports.
-- Seeded Notification inbox data for Student, Moderator, and Admin, including unread/read samples and links for missions, wallet, certificates, review queue, reports, policy, users, and analytics.
-
-To delete old local test data and reseed a clean demo dataset, run this from the repository root. This removes only this Compose project's containers/volumes, then recreates them:
+Build all backend modules and run Java unit tests:
 
 ```powershell
-$env:API_GATEWAY_PORT='18080'
-docker compose down -v
-docker compose up -d --build
+docker run --rm -v "${PWD}:/workspace" -v "${PWD}/.m2:/root/.m2" -w /workspace maven:3.9.9-eclipse-temurin-21 mvn -B package
 ```
 
-## Run On Desktop
-
-Requirements: Docker Desktop.
+Run the integration smoke suite with local email tokens:
 
 ```powershell
-Copy-Item .env.example .env
-$env:API_GATEWAY_PORT='18080'
-docker compose up -d --build
+powershell -ExecutionPolicy Bypass -File scripts\start-project.ps1 -LocalMail
+powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090 -Web http://localhost:3000
+powershell -ExecutionPolicy Bypass -File scripts\cleanup-smoke-test-data.ps1
+```
+
+The suite covers authentication, authorization, catalog and policy operations, evidence uploads, moderation, point grants, badges, ranking, certificates, coupons, reports, notifications and RabbitMQ consumption. It creates E2E records and exercises shared demo state; use a development environment. Cleanup removes identifiable E2E data but is not a complete rollback of all test activity.
+
+After testing, run `scripts/start-project.ps1` without `-LocalMail` to restore the email configuration from `.env`.
+
+Verify that application state survives service restarts:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\test-restart-persistence.ps1
+```
+
+Frontend tests and production build require Node.js 24:
+
+```powershell
+cd web-apps\ecoquest-web
+npm.cmd ci
+npm.cmd test
+npm.cmd run build
+```
+
+## Development And Operations
+
+To run Vite against the containerized backend, stop the web container to free port 3000:
+
+```powershell
+docker compose stop ecoquest-web
+cd web-apps\ecoquest-web
+npm.cmd ci
+npm.cmd run dev
+```
+
+Vite proxies API paths to `http://localhost:18080`. Set `VITE_API_BASE_URL` when using a different Gateway address.
+
+For mobile access, connect the phone to the same network and open `http://<computer-ipv4>:3000`. Set `FRONTEND_BASE_URL` to this address when email links must work on the phone.
+
+```powershell
 docker compose ps
+docker compose logs --tail=100 eco-action-service reward-ledger-service
+docker compose exec -T rabbitmq rabbitmqctl list_queues name messages consumers
+docker compose exec -T redis redis-cli INFO persistence
+docker compose stop
 ```
 
-For normal later starts, do not rebuild unchanged images:
+PostgreSQL, MongoDB, Redis, RabbitMQ and MinIO use named volumes. Redis has AOF enabled. Use `stop` or `down` without `-v` to preserve data; `docker compose down -v` deletes project volumes. Back up existing anonymous volumes before migrating an older installation to named volumes.
 
-```powershell
-docker compose up -d
-```
-
-When only one service changed, rebuild only that service:
+To rebuild only a changed service:
 
 ```powershell
 docker compose build report-service
 docker compose up -d --no-deps report-service
 ```
 
-Open:
+Docker builds share dependency caches. Review disk usage with `docker system df`; remove old build cache and dangling images when needed without pruning data volumes.
 
-- Web: http://localhost:3000
-- Gateway: http://localhost:18080
-- RabbitMQ UI: http://localhost:15672 (`guest/guest`)
-- MinIO Console: http://localhost:9001 (`minioadmin/minioadmin`)
-- Policy Admin API: http://localhost:8090/policies/rules
+## Documentation
 
-If host port `8080` is free, you can omit `API_GATEWAY_PORT` and use Gateway `http://localhost:8080`.
-
-## Run Frontend Dev
-
-Keep backend Docker running:
-
-```powershell
-cd web-apps\ecoquest-web
-npm install
-npm.cmd run dev
-```
-
-The Vite dev server binds `0.0.0.0:3000` and proxies `/auth`, `/catalog`, `/actions`, `/rewards`, `/leaderboards`, `/recognitions`, `/reports`, and `/notifications` to the Gateway.
-
-## Run On Mobile
-
-Phone and computer must be on the same Wi-Fi.
-
-1. Find computer IPv4:
-
-```powershell
-ipconfig
-```
-
-2. Allow Windows Firewall for port `3000` if prompted.
-3. Open this URL on the phone:
-
-```text
-http://<YOUR-PC-IPV4>:3000
-```
-
-Example: `http://192.168.1.11:3000`. The web container uses same-origin Nginx proxy, so the phone does not need to call `localhost:18080` directly.
-
-## Build And Test
-
-Backend Maven:
-
-```powershell
-docker run --rm -v ${PWD}:/workspace -v ${PWD}/.m2:/root/.m2 -w /workspace maven:3.9.9-eclipse-temurin-21 mvn package -DskipTests
-```
-
-Backend smoke:
-
-```powershell
-$env:API_GATEWAY_PORT='18080'
-docker compose up -d --build
-powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090 -Web http://localhost:3000
-```
-
-The shorter command below is also valid for backend-only smoke testing. It skips only the optional large upload check through the web Nginx proxy:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090
-```
-
-After smoke testing, clean only generated E2E data while keeping seed data and manual UI data:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\cleanup-smoke-test-data.ps1
-```
-
-Frontend:
-
-```powershell
-cd web-apps\ecoquest-web
-npm.cmd test
-npm.cmd run build
-```
-
-Verification snapshot from 2026-07-02 after real Recognition coupon offers, reward offer CRUD, Recognition profile race fix, clean seed reset, certificate signature/mobile UI fixes, Policy modal, email logo, dashboard resilience, Student outcome layout fixes, dark theme input/search fixes, leaderboard historical period lookup, expanded current seed data, seeded Notification inbox verification, Action evidence support for multiple images or one video, frontend Nginx/Gateway upload limit fixes, and the corrected submit-review flow where valid submissions wait for Moderator/Admin approval before points are granted. Frontend verification on 2026-07-03 additionally covers the Admin/Moderator leaderboard identity fix where admin accounts without `studentId` no longer show personal standing or `YOU` row markers:
-
-- Full Maven reactor 14/14 modules: PASS.
-- `docker compose config --quiet`: PASS.
-- Backend smoke test: PASS, including current/previous week/month leaderboard queries, Notification seeded inbox/recipient guards, upload of two image evidence files, large evidence upload through `http://localhost:3000` web proxy, valid submit -> `PENDING_REVIEW` -> Review Queue -> approve -> Reward/Leaderboard, submit action with video evidence, and mixed image/video rejection.
-- RabbitMQ queues after smoke: 20 queues, 0 pending messages, 1 consumer each.
-- Post-smoke logs: no Recognition duplicate profile errors after the race fix. A few Gateway `Connection refused` lines can appear during initial startup while Identity is still opening port `8086`; they disappear once services are healthy.
-- Frontend unit tests: 16/16 PASS.
-- Frontend production build: PASS.
-- Final audit reset: Gateway `UP`, 15 missions, 12 demo users, 36 demo actions, 0 E2E users/actions, Student/Moderator/Admin notification seeds present, and 20 RabbitMQ queues drained with consumers.
-
-Smoke currently covers auth/verify/reset/profile/user management, admin self-protection, Moderator -> Student demotion, report target lookup, RBAC, moderator mission ownership, Catalog CRUD/workflow including badge update, station image upload, seeded mission/policy counts, Policy Admin create/update/delete guard, seeded demo action visibility, current/previous week/month leaderboard data, mission eligibility, Redis draft/idempotency, MinIO uploads for multiple action images and one action video, large upload through web Nginx proxy, mixed image/video evidence rejection, gRPC Policy, Action submit approval gate, Action outbox/RabbitMQ, Reward/badges, Leaderboard, moderation, Report workflow, Report analytics including mission/user/badge/certificate events, Admin analytics range guards + student outcome report + selected weekly/monthly/yearly PDF export, Notification seeded role inbox, Notification mark-read/read-all/recipient guard, event-created notifications, daily limit, season close idempotency, authenticated certificate PDF attachment, Recognition reward offer CRUD, real coupon eligibility, locked coupon rejection, coupon stock decrement, duplicate reward claim idempotency, and queue drain. Frontend build verifies dashboard partial-loading code, dark theme form/search styling, leaderboard period selector, the Policy add-rule modal, and evidence validation for multiple images versus one video.
-
-## Docker Storage Maintenance
-
-The backend Dockerfiles use shared BuildKit caches named `ecoquest-maven` and `ecoquest-npm`. This avoids downloading the same dependency repository independently for every service build.
-
-After replacing images with a newer build, remove resources that are no longer referenced by any container:
-
-```powershell
-docker builder prune -af
-docker container prune -f
-docker image prune -af
-docker volume prune -af
-docker network prune -f
-docker system df
-```
-
-These commands keep images, networks, and volumes still referenced by running containers. Always check `docker ps` first so EcoQuest and FreshTrace are running before pruning.
-
-Recommended routine:
-
-1. Use `docker compose up -d` for ordinary starts.
-2. Build only changed services with `docker compose build <service>`.
-3. Recreate only that service with `docker compose up -d --no-deps <service>`.
-4. After a stable release, run `docker builder prune -af` and `docker image prune -af`.
-5. Compact Docker Desktop's VHDX occasionally after pruning; pruning frees space inside Linux, while compaction returns it to Windows.
-
-To compact the VHDX on Windows, open **PowerShell as Administrator** after pruning. This temporarily stops Docker Desktop, compacts the file, then you can start Docker again:
-
-```powershell
-& "$env:ProgramFiles\Docker\Docker\DockerCli.exe" -Shutdown
-wsl --shutdown
-
-$script = @"
-select vdisk file="$env:LOCALAPPDATA\Docker\wsl\disk\docker_data.vhdx"
-attach vdisk readonly
-compact vdisk
-detach vdisk
-exit
-"@
-$script | Set-Content "$env:TEMP\docker-compact.diskpart" -Encoding ASCII
-diskpart /s "$env:TEMP\docker-compact.diskpart"
-Remove-Item "$env:TEMP\docker-compact.diskpart"
-
-Start-Process -FilePath "$env:ProgramFiles\Docker\Docker\Docker Desktop.exe" -WindowStyle Hidden
-```
-
-After Docker is back, start EcoQuest again from this repository:
-
-```powershell
-$env:API_GATEWAY_PORT='18080'
-docker compose up -d
-```
-
-## Hardening Notes
-
-- Swagger/OpenAPI is available on direct REST service ports at `/swagger-ui/index.html`.
-- Resilience4j protects Action -> Policy gRPC.
-- Action uses outbox for accepted/rejected events.
-- Identity uses Flyway and MapStruct.
-- Older PostgreSQL services still use schema bootstrap/`ddl-auto:update`; full Flyway migration for every service is a production hardening backlog.
-- Avatar, station image, action evidence images/videos, report evidence, and certificate files are stored by owning services in MinIO buckets.
-- Web Nginx proxy and Gateway allow evidence JSON bodies up to 100MB, covering base64 overhead for images and one 50MB video; Nginx also keeps long SSE notification streams open.
-
-More docs:
-
-- [Docs index](docs/README.md)
-- [DOCX report source document](docs/tai-lieu-nguon-bao-cao-docx.md)
-- [Project state report](docs/bao-cao-hien-trang-project.md)
-- [Business flows and database](docs/luong-nghiep-vu-database.md)
-- [Microservice technologies](docs/cong-nghe-microservices.md)
-- [Microservices reporting handbook](docs/cam-nang-bao-cao-microservices.md)
-- [Microservices demo script](docs/kich-ban-demo-microservices.md)
-- [Slide script supplement and Q&A](docs/bo-sung-kich-ban-bao-cao-slide.md)
-- [Backend smoke test guide](docs/backend-smoke-test-guide.md)
-- [Frontend test scenarios](docs/frontend-test-scenarios.md)
+See the [documentation index](docs/README.md) for database schemas, business workflows, technology explanations, test procedures and operational guidance. Detailed project reports are available in Vietnamese.

@@ -100,7 +100,7 @@ Các event chính:
 
 Cách kiểm tra RabbitMQ:
 
-- UI: `http://localhost:15672`
+- UI: `http://localhost:25673` (cổng host; container vẫn dùng `15672`)
 - User/pass: `guest/guest`
 - Smoke test kiểm queue còn `0` pending message và có consumer.
 
@@ -265,7 +265,7 @@ Các cổng quan trọng:
 | --- | --- |
 | Web | `http://localhost:3000` |
 | Gateway | `http://localhost:18080` |
-| RabbitMQ UI | `http://localhost:15672` |
+| RabbitMQ UI | `http://localhost:25673` |
 | MinIO Console | `http://localhost:9001` |
 | Policy Admin | `http://localhost:8090/policies/rules` |
 

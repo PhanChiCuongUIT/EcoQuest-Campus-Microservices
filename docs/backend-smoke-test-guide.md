@@ -1,6 +1,6 @@
 # Hướng Dẫn Smoke Test Backend EcoQuest
 
-Cập nhật: 2026-07-10
+Cập nhật hướng dẫn chạy: 2026-09-19. Kết quả cũ bên dưới là mốc kiểm thử lịch sử; kết quả của lần dựng lại nằm trong [hướng dẫn chạy hiện tại](chay-lai-project.md).
 
 File này giải thích lệnh test backend, nội dung script đang kiểm thử, kết quả mong đợi và cách xóa dữ liệu E2E sau khi test.
 
@@ -35,12 +35,13 @@ Nếu chỉ muốn kiểm API mà bỏ qua kiểm Docker nội bộ như Redis/R
 Chạy stack trước:
 
 ```powershell
-$env:API_GATEWAY_PORT='18080'
-docker compose up -d
+powershell -ExecutionPolicy Bypass -File scripts\start-project.ps1 -LocalMail
 docker compose ps
 ```
 
 Các service cần đang `Up`:
+
+`-LocalMail` tắt SMTP cho container Identity trong lần chạy này để smoke test dùng token xác minh/reset cục bộ và không gửi thư E2E ra ngoài. File `.env` vẫn được giữ nguyên. Chạy lại `scripts/start-project.ps1` không có `-LocalMail` để khôi phục cấu hình SMTP từ `.env`.
 
 - `api-gateway`
 - `identity-access-service`

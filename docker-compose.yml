@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.gateway
     ports:
-      - "${API_GATEWAY_PORT:-8080}:8080"
+      - "${API_GATEWAY_PORT:-18080}:8080"
     environment:
       IDENTITY_URI: http://identity-access-service:8086
       CATALOG_URI: http://green-catalog-service:8081
@@ -46,6 +46,7 @@ services:
       IDENTITY_JWT_SECRET: ${IDENTITY_JWT_SECRET:-ecoquest-dev-secret-change-me}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:3000}
       IDENTITY_MAIL_ENABLED: ${IDENTITY_MAIL_ENABLED:-false}
+      IDENTITY_MAIL_HEALTH_ENABLED: ${IDENTITY_MAIL_HEALTH_ENABLED:-false}
       IDENTITY_MAIL_FROM: ${IDENTITY_MAIL_FROM:-no-reply@ecoquest.local}
       IDENTITY_SUPPORT_EMAIL: ${IDENTITY_SUPPORT_EMAIL:-cuong26.16.8@gmail.com}
       SMTP_HOST: ${SMTP_HOST:-localhost}
@@ -253,8 +254,10 @@ services:
 
   catalog-db:
     image: postgres:16-alpine
+    volumes:
+      - catalog-data:/var/lib/postgresql/data
     ports:
-      - "${CATALOG_DB_PORT:-5432}:5432"
+      - "${CATALOG_DB_PORT:-15432}:5432"
     environment:
       POSTGRES_DB: catalog_db
       POSTGRES_USER: ecoquest
@@ -267,8 +270,10 @@ services:
 
   policy-db:
     image: postgres:16-alpine
+    volumes:
+      - policy-data:/var/lib/postgresql/data
     ports:
-      - "${POLICY_DB_PORT:-5433}:5432"
+      - "${POLICY_DB_PORT:-15433}:5432"
     environment:
       POSTGRES_DB: policy_db
       POSTGRES_USER: ecoquest
@@ -281,6 +286,8 @@ services:
 
   reward-db:
     image: postgres:16-alpine
+    volumes:
+      - reward-data:/var/lib/postgresql/data
     ports:
       - "${REWARD_DB_PORT:-5434}:5432"
     environment:
@@ -295,6 +302,8 @@ services:
 
   leaderboard-db:
     image: postgres:16-alpine
+    volumes:
+      - leaderboard-data:/var/lib/postgresql/data
     ports:
       - "${LEADERBOARD_DB_PORT:-5435}:5432"
     environment:
@@ -309,6 +318,8 @@ services:
 
   recognition-db:
     image: postgres:16-alpine
+    volumes:
+      - recognition-data:/var/lib/postgresql/data
     ports:
       - "${RECOGNITION_DB_PORT:-5436}:5432"
     environment:
@@ -323,6 +334,8 @@ services:
 
   identity-db:
     image: postgres:16-alpine
+    volumes:
+      - identity-data:/var/lib/postgresql/data
     ports:
       - "${IDENTITY_DB_PORT:-5437}:5432"
     environment:
@@ -337,6 +350,8 @@ services:
 
   report-db:
     image: postgres:16-alpine
+    volumes:
+      - report-data:/var/lib/postgresql/data
     ports:
       - "${REPORT_DB_PORT:-5438}:5432"
     environment:
@@ -351,6 +366,8 @@ services:
 
   notification-db:
     image: postgres:16-alpine
+    volumes:
+      - notification-data:/var/lib/postgresql/data
     ports:
       - "${NOTIFICATION_DB_PORT:-5439}:5432"
     environment:
@@ -365,6 +382,9 @@ services:
 
   action-db:
     image: mongo:7
+    volumes:
+      - action-data:/data/db
+      - action-config:/data/configdb
     ports:
       - "${ACTION_DB_PORT:-27017}:27017"
     healthcheck:
@@ -375,8 +395,11 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${REDIS_PORT:-16379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -385,9 +408,12 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
+    hostname: ecoquest-rabbitmq
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
     ports:
-      - "${RABBITMQ_PORT:-5672}:5672"
-      - "${RABBITMQ_UI_PORT:-15672}:15672"
+      - "${RABBITMQ_PORT:-25672}:5672"
+      - "${RABBITMQ_UI_PORT:-25673}:15672"
     healthcheck:
       test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping && rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_port_connectivity"]
       interval: 10s
@@ -395,7 +421,9 @@ services:
       retries: 20
 
   minio:
-    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    image: quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z
+    volumes:
+      - minio-data:/data
     command: server /data --console-address ":9001"
     ports:
       - "${MINIO_API_PORT:-9000}:9000"
@@ -403,3 +431,18 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+
+volumes:
+  catalog-data:
+  policy-data:
+  reward-data:
+  leaderboard-data:
+  recognition-data:
+  identity-data:
+  report-data:
+  notification-data:
+  action-data:
+  action-config:
+  redis-data:
+  rabbitmq-data:
+  minio-data:

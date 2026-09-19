@@ -295,7 +295,7 @@ Chạy từ đầu:
 
 ```powershell
 cd C:\Users\ADMIN\Downloads\Microservices-SE361
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 $env:API_GATEWAY_PORT='18080'
 docker compose up -d --build
 docker compose ps
@@ -332,7 +332,7 @@ Mở các màn hình:
 
 - Web app: `http://localhost:3000`
 - Gateway health: `http://localhost:18080/actuator/health`
-- RabbitMQ UI: `http://localhost:15672` với `guest / guest`
+- RabbitMQ UI: `http://localhost:25673` với `guest / guest`
 - MinIO Console: `http://localhost:9001` với `minioadmin / minioadmin`
 - Policy Admin REST: `http://localhost:8090/policies/rules`
 

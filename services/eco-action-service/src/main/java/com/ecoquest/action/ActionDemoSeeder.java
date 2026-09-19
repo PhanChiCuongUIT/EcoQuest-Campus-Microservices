@@ -69,7 +69,7 @@ class ActionDemoSeeder implements CommandLineRunner {
             action.status = item.status();
             action.points = item.points();
             action.policyReason = item.status() == ActionStatus.REJECTED ? "Demo rejected evidence." : "Demo seed.";
-            action.submittedAt = Instant.now().minus(item.daysAgo(), ChronoUnit.DAYS);
+            action.submittedAt = Instant.now().minus(item.daysAgo(), ChronoUnit.DAYS).minus(6, ChronoUnit.HOURS);
             if (item.status() != ActionStatus.PENDING_REVIEW) {
                 action.reviewedAt = action.submittedAt.plus(6, ChronoUnit.HOURS);
                 action.reviewedByUserId = "demo-seeder";

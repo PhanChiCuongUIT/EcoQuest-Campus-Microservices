@@ -15,6 +15,7 @@ function Exec-Postgres {
         [string]$Sql
     )
     docker exec $Container psql -U ecoquest -d $Database -v ON_ERROR_STOP=1 -c $Sql
+    if ($LASTEXITCODE -ne 0) { throw "Cleanup failed for $Database; stopped before further deletes." }
 }
 
 Write-Step "Cleaning Identity E2E users/tokens"
@@ -110,7 +111,16 @@ WHERE student_id LIKE 'SV_E2E%'
 "@
 
 Write-Step "Cleaning Recognition E2E certificates/claims/profiles/offers"
+$testCertificateIds = @(docker exec microservices-se361-recognition-db-1 psql -U ecoquest -d recognition_db -At -c "SELECT id FROM certificate_record WHERE season_id LIKE 'E2E-SEASON%'")
+if ($LASTEXITCODE -ne 0) { throw 'Could not collect test certificate IDs.' }
+$testCertificateSql = (@($testCertificateIds | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { "'$($_.Replace("'", "''"))'" }) -join ',')
+if (-not $testCertificateSql) { $testCertificateSql = 'NULL' }
 Exec-Postgres "microservices-se361-recognition-db-1" "recognition_db" @"
+UPDATE student_recognition_profile AS profile
+SET certificate_count = GREATEST(0, profile.certificate_count - removed.total)
+FROM (SELECT student_id, COUNT(*)::integer AS total FROM certificate_record
+      WHERE season_id LIKE 'E2E-SEASON%' GROUP BY student_id) AS removed
+WHERE profile.student_id = removed.student_id;
 UPDATE reward_offer
 SET remaining_stock = remaining_stock + (
     SELECT COUNT(*)
@@ -162,6 +172,7 @@ WHERE student_id LIKE 'SV_E2E%'
 DELETE FROM certificate_analytics_record
 WHERE student_id LIKE 'SV_E2E%'
    OR student_id LIKE 'SV_AUTH%'
+   OR certificate_id IN ($testCertificateSql)
    OR certificate_id IN (
       SELECT certificate_id FROM certificate_analytics_record WHERE certificate_id LIKE '%E2E%'
    );

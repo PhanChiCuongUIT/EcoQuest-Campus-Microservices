@@ -3,7 +3,7 @@ FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
 COPY . .
 RUN --mount=type=cache,id=ecoquest-maven,target=/root/.m2 \
-    mvn -pl services/recognition-service -am package -DskipTests
+    mvn -B -ntp -pl services/recognition-service -am package -DskipTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app

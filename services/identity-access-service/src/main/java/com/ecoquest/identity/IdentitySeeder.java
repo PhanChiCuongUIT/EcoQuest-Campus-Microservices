@@ -37,19 +37,6 @@ class IdentitySeeder implements CommandLineRunner {
 
     private void seed(String email, String displayName, UserRole role, String studentId) {
         if (users.existsByEmailIgnoreCase(email)) {
-            users.findByEmailIgnoreCase(email).ifPresent(existing -> {
-                existing.role = role;
-                if (studentId != null && (existing.studentId == null || existing.studentId.isBlank())) {
-                    existing.studentId = studentId;
-                }
-                if (existing.status == null) {
-                    existing.status = UserStatus.ACTIVE;
-                }
-                existing.active = existing.status == UserStatus.ACTIVE;
-                existing.emailVerified = true;
-                existing.updatedAt = Instant.now();
-                users.save(existing);
-            });
             return;
         }
         var now = Instant.now();

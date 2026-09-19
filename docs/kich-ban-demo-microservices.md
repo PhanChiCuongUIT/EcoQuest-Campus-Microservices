@@ -39,7 +39,7 @@ Kết quả mong muốn:
 | Frontend | `http://localhost:3000` | Demo theo role Student, Moderator, Admin |
 | Gateway health | `http://localhost:18080/actuator/health` | Chứng minh API Gateway đang sống |
 | Gateway routes | `http://localhost:18080/actuator/gateway/routes` | Chứng minh Gateway route request đến từng service |
-| RabbitMQ UI | `http://localhost:15672` - `guest/guest` | Show exchange, queue, consumer, pending message |
+| RabbitMQ UI | `http://localhost:25673` - `guest/guest` | Show exchange, queue, consumer, pending message |
 | MinIO Console | `http://localhost:9001` - `minioadmin/minioadmin` | Show bucket và file upload/PDF |
 | Policy Admin API | `http://localhost:8090/policies/rules` | Show Policy service có cổng admin riêng, không public qua Gateway |
 | Docker status | `docker compose ps` | Show các service/database đang chạy |
@@ -108,7 +108,7 @@ http://localhost:8088/actuator/health  Notification
 
 ### Bước 2 - Show RabbitMQ trước khi chạy luồng
 
-Mở `http://localhost:15672`, đăng nhập `guest/guest`.
+Mở `http://localhost:25673`, đăng nhập `guest/guest`.
 
 Vào:
 
@@ -632,7 +632,7 @@ notification.eco-action-accepted 0    1
 Mở RabbitMQ UI:
 
 ```text
-http://localhost:15672
+http://localhost:25673
 guest / guest
 ```
 
