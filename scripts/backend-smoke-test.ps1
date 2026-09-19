@@ -1166,12 +1166,16 @@ Assert-True ($rewardAnalytics.totalPoints -eq $currentWallet.totalPoints) "Stude
 
 if (-not $SkipDockerChecks) {
     Write-Step "Checking RabbitMQ queues are drained"
-    $queues = docker exec microservices-se361-rabbitmq-1 rabbitmqctl list_queues name messages consumers
-    $messageRows = $queues | Select-String -Pattern "^(leaderboard|recognition|reward|notification|report)\."
-    foreach ($row in $messageRows) {
-        $parts = ($row.ToString() -split "\s+")
-        Assert-True ([int]$parts[1] -eq 0) "RabbitMQ queue $($parts[0]) should have 0 pending messages"
-        Assert-True ([int]$parts[2] -ge 1) "RabbitMQ queue $($parts[0]) should have a consumer"
+    Wait-Until -Message 'all 20 RabbitMQ consumer queues to drain' -Attempts 30 -DelaySeconds 2 -Condition {
+        $queues = docker compose exec -T rabbitmq rabbitmqctl list_queues name messages consumers
+        if ($LASTEXITCODE -ne 0) { throw 'RabbitMQ queue inspection failed.' }
+        $messageRows = @($queues | Select-String -Pattern "^(leaderboard|recognition|reward|notification|report)\.")
+        if ($messageRows.Count -lt 20) { return $false }
+        foreach ($row in $messageRows) {
+            $parts = ($row.ToString() -split "\s+")
+            if ([int]$parts[1] -ne 0 -or [int]$parts[2] -lt 1) { return $false }
+        }
+        return $true
     }
 }
 

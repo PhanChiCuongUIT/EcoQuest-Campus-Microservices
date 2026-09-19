@@ -10,12 +10,12 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "axios": "latest",
-    "lucide-react": "latest"
+    "@vitejs/plugin-react": "6.0.2",
+    "vite": "8.0.16",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "axios": "1.18.0",
+    "lucide-react": "1.21.0"
   },
   "devDependencies": {}
 }

@@ -5,3 +5,7 @@
 .git
 .idea
 .vscode
+.env
+.env.*
+resources
+docs

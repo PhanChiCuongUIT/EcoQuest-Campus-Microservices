@@ -113,13 +113,13 @@ class ReportDemoSeeder implements CommandLineRunner {
     }
 
     private void seedRewards() {
-        reward("SV001", 32, 1);
-        reward("SV002", 34, 14);
-        reward("SV003", 21, 18);
+        reward("SV001", 44, 1);
+        reward("SV002", 52, 14);
+        reward("SV003", 41, 18);
         reward("SV004", 32, 21);
-        reward("SV005", 52, 27);
-        reward("SV006", 71, 35);
-        reward("SV007", 30, 44);
+        reward("SV005", 82, 27);
+        reward("SV006", 91, 35);
+        reward("SV007", 42, 44);
         reward("SV008", 46, 53);
         reward("SV009", 18, 0);
         reward("SV010", 34, 0);
@@ -128,12 +128,14 @@ class ReportDemoSeeder implements CommandLineRunner {
     private void seedBadges() {
         badge("DEMO-BADGE-001", "SV001", "GREEN_STARTER", "Green Starter", 1);
         badge("DEMO-BADGE-002", "SV002", "GREEN_STARTER", "Green Starter", 14);
-        badge("DEMO-BADGE-003", "SV005", "ZERO_WASTE_ADVOCATE", "Zero Waste Advocate", 27);
-        badge("DEMO-BADGE-004", "SV006", "CLEANUP_CHAMPION", "Cleanup Champion", 35);
+        badge("DEMO-BADGE-003", "SV005", "GREEN_STARTER", "Green Starter", 27);
+        badge("DEMO-BADGE-004", "SV006", "GREEN_STARTER", "Green Starter", 35);
         badge("DEMO-BADGE-005", "SV008", "GREEN_STARTER", "Green Starter", 53);
         badge("DEMO-BADGE-006", "SV004", "GREEN_STARTER", "Green Starter", 110);
         badge("DEMO-BADGE-007", "SV009", "GREEN_STARTER", "Green Starter", 0);
         badge("DEMO-BADGE-008", "SV010", "GREEN_STARTER", "Green Starter", 0);
+        badge("DEMO-BADGE-009", "SV003", "GREEN_STARTER", "Green Starter", 18);
+        badge("DEMO-BADGE-010", "SV007", "GREEN_STARTER", "Green Starter", 8);
     }
 
     private void seedCertificates() {
@@ -167,7 +169,8 @@ class ReportDemoSeeder implements CommandLineRunner {
     }
 
     private void mission(String id, String title, String status, String createdBy, long daysAgo) {
-        MissionAnalyticsRecord record = missions.findById(id).orElseGet(MissionAnalyticsRecord::new);
+        if (missions.existsById(id)) { return; }
+        MissionAnalyticsRecord record = new MissionAnalyticsRecord();
         record.missionId = id;
         record.title = title;
         record.status = status;
@@ -195,7 +198,8 @@ class ReportDemoSeeder implements CommandLineRunner {
     }
 
     private void reward(String studentId, int points, long daysAgo) {
-        StudentRewardSnapshot record = rewards.findById(studentId).orElseGet(StudentRewardSnapshot::new);
+        if (rewards.existsById(studentId)) { return; }
+        StudentRewardSnapshot record = new StudentRewardSnapshot();
         record.studentId = studentId;
         record.currentPoints = Math.max(record.currentPoints, points);
         record.updatedOn = ago(daysAgo);

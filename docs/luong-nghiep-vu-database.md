@@ -1,6 +1,8 @@
 # Luồng Nghiệp Vụ, Use Case Và Database EcoQuest Campus
 
-Cập nhật: 2026-07-10
+Cập nhật nghiệp vụ: 2026-07-10. Cập nhật vận hành và seed: 2026-09-19.
+
+Các kho dữ liệu hiện dùng named volume; Redis bật AOF và RabbitMQ có hostname ổn định. Seed chỉ bổ sung dữ liệu thiếu, không đặt lại role, điểm đã điều chỉnh, cấu hình mission/badge hoặc stock coupon khi restart. Script `scripts/refresh-demo-data.ps1` bổ sung hoạt động hiện tại qua API, không ghi trực tiếp database service khác. Xem [cổng database, cách chạy và kết quả kiểm thử mới](chay-lai-project.md).
 
 Tài liệu này mô tả bằng tiếng Việt có dấu cách EcoQuest Campus hoạt động ở mức nghiệp vụ, khi nào badge/certificate/coupon được tạo, các use case chính và database của từng microservice. Project dùng kiến trúc **database-per-service**, vì vậy các quan hệ giữa service dùng ID logic và event, không dùng foreign key vật lý xuyên database.
 

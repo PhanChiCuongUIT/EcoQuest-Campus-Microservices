@@ -22,10 +22,6 @@ class CatalogSeeder {
             jdbc.execute("ALTER TABLE mission ALTER COLUMN station_required SET DEFAULT false");
             jdbc.execute("ALTER TABLE mission ALTER COLUMN station_required SET NOT NULL");
             jdbc.execute("UPDATE mission SET status = 'ACTIVE' WHERE status IS NULL");
-            jdbc.execute("""
-                    UPDATE mission SET station_required = true
-                    WHERE action_type IN ('RECYCLE_BOTTLE', 'GREEN_CHECKIN', 'TREE_CARE', 'WATER_REFILL')
-                    """);
             jdbc.execute("ALTER TABLE green_station ADD COLUMN IF NOT EXISTS image_url text");
             jdbc.execute("UPDATE green_station SET image_url = '/logo.png' WHERE image_url IS NULL OR image_url = ''");
         };
@@ -122,7 +118,7 @@ class CatalogSeeder {
     }
 
     private void saveBadge(BadgeDefinitionRepository badges, BadgeDefinition badge) {
-        badges.save(badge);
+        saveBadgeIfMissing(badges, badge);
     }
 
     private Mission mission(String id, String title, String actionType, int basePoints, boolean evidenceRequired,
