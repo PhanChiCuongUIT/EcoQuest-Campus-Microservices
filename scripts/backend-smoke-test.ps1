@@ -8,6 +8,20 @@ param(
 $ErrorActionPreference = "Stop"
 $script:DefaultHeaders = @{}
 
+# Valid submission fixtures obtain the same short-lived scan receipt as the UI.
+# Negative QR tests call Invoke-RestMethod directly so missing scans are never filled in.
+function Add-StationReceipt($Uri, $Body, $Headers) {
+    if ($Uri -match '/actions/submit$' -and $Body.stationId -and -not $Body.stationScanReceipt) {
+        $missionList = Invoke-RestMethod "$Gateway/catalog/missions" -Headers $Headers
+        $mission = $missionList | Where-Object { $_.id -eq $Body.missionId } | Select-Object -First 1
+        if ($mission.stationRequired) {
+            $qr = Invoke-RestMethod "$Gateway/catalog/stations/$($Body.stationId)/qr" -Headers $adminHeaders
+            $scan = Invoke-RestMethod "$Gateway/catalog/stations/scan" -Method POST -Headers $Headers -ContentType 'application/json' -Body (@{qrToken=$qr.qrToken;missionId=$Body.missionId} | ConvertTo-Json)
+            $Body.stationScanReceipt = $scan.scanReceipt
+        }
+    }
+}
+
 function Write-Step([string]$Message) {
     Write-Host "[EcoQuest Smoke] $Message"
 }
@@ -27,6 +41,7 @@ function Invoke-Api {
     if ($null -eq $Body) {
         return Invoke-RestMethod -Method $Method -Uri $Uri -Headers $script:DefaultHeaders
     }
+    Add-StationReceipt $Uri $Body $script:DefaultHeaders
     $json = $Body | ConvertTo-Json -Compress
     return Invoke-RestMethod -Method $Method -Uri $Uri -Headers $script:DefaultHeaders -ContentType "application/json" -Body $json
 }
@@ -62,6 +77,7 @@ function Invoke-ApiWithHeaders {
     if ($null -eq $Body) {
         return Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers
     }
+    Add-StationReceipt $Uri $Body $Headers
     $json = $Body | ConvertTo-Json -Compress
     return Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers -ContentType "application/json" -Body $json
 }
@@ -152,6 +168,26 @@ function Get-StatusCode {
 
 function New-Key([string]$Prefix) {
     return "$Prefix-$([guid]::NewGuid())"
+}
+
+function Assert-ApiError([string]$Method, [string]$Uri, $Body, [int]$Status, [string]$DetailPattern) {
+    try {
+        $json = $Body | ConvertTo-Json -Depth 8 -Compress
+        Invoke-RestMethod -Method $Method -Uri $Uri -Headers $script:DefaultHeaders -ContentType 'application/json' -Body $json | Out-Null
+    } catch {
+        Assert-True ([int]$_.Exception.Response.StatusCode -eq $Status) "Expected HTTP $Status at $Uri"
+        $content = $_.ErrorDetails.Message
+        if ([string]::IsNullOrWhiteSpace($content)) {
+            $stream = $_.Exception.Response.GetResponseStream()
+            if ($stream.CanSeek) { $stream.Position = 0 }
+            $reader = New-Object System.IO.StreamReader($stream)
+            try { $content = $reader.ReadToEnd() } finally { $reader.Dispose() }
+        }
+        $payload = $content | ConvertFrom-Json
+        Assert-True ($payload.detail -match $DetailPattern) "Expected readable domain error matching '$DetailPattern' at $Uri"
+        return
+    }
+    throw "Expected HTTP $Status at $Uri but request succeeded"
 }
 
 function New-AuthHeaders($Login) {
@@ -381,6 +417,17 @@ $createdPolicy = Invoke-Api -Method "POST" -Uri "$Policy/policies/rules" -Body @
     active = $true
 }
 Assert-True ($createdPolicy.actionType -eq $policyCrudActionType) "Policy admin POST should create a new rule"
+Assert-ApiError POST "$Policy/policies/rules" @{actionType=$policyCrudActionType;basePoints=10;dailyLimit=1} 409 'already exists'
+Assert-ApiError PUT "$Policy/policies/rules/$policyCrudActionType" @{actionType=$policyCrudActionType;basePoints=-1;dailyLimit=1} 400 'cannot be negative'
+Assert-ApiError PUT "$Policy/policies/rules/$policyCrudActionType" @{actionType=$policyCrudActionType;basePoints=1.5;dailyLimit=1} 400 'Invalid request data'
+if ($Web) {
+    $proxyRules = @(Invoke-ApiList -Uri "$Web/policies/rules")
+    Assert-True (Has-ItemWithValue $proxyRules 'actionType' $policyCrudActionType) 'Admin reads Policy through same-origin web proxy'
+    $savedHeaders = $script:DefaultHeaders
+    $script:DefaultHeaders = @{}
+    Assert-True ((Get-StatusCode -Uri "$Web/policies/rules") -eq 401) 'Policy web proxy is not public'
+    $script:DefaultHeaders = $savedHeaders
+}
 $deleteActivePolicyStatus = Get-StatusCode -Method "DELETE" -Uri "$Policy/policies/rules/$policyCrudActionType"
 Assert-True ($deleteActivePolicyStatus -eq 409) "Policy admin DELETE should reject active rules"
 $updatedPolicy = Invoke-Api -Method "PUT" -Uri "$Policy/policies/rules/$policyCrudActionType" -Body @{
@@ -519,7 +566,7 @@ $deletedStations = @(Invoke-ApiList -Uri "$Gateway/catalog/stations")
 $deletedBadges = @(Invoke-ApiList -Uri "$Gateway/catalog/badges")
 Assert-True (-not (Has-ItemWithValue $deletedMissions "id" $tempMissionId)) "Catalog mission delete should remove temp mission"
 Assert-True (-not (Has-ItemWithValue $deletedStations "id" $tempStationId)) "Catalog station delete should remove temp station"
-Assert-True (-not (Has-ItemWithValue $deletedBadges "code" $tempBadgeCode)) "Catalog badge delete should remove temp badge"
+Assert-True (Has-Item $deletedBadges { param($b) $b.code -eq $tempBadgeCode -and $b.active -eq $false }) "Catalog badge delete should retire the definition and preserve achievement history"
 
 Write-Step "Checking role-based access control boundaries"
 $script:DefaultHeaders = $studentAcceptedHeaders
@@ -797,7 +844,7 @@ $script:DefaultHeaders = $moderatorHeaders
 $checkinAccepted = Invoke-Api -Method "PUT" -Uri "$Gateway/actions/$($checkinAccepted.id)/approve"
 Assert-True ($checkinAccepted.status -eq "ACCEPTED") "Moderator approve should accept green check-in"
 $script:DefaultHeaders = $studentMissingStationHeaders
-$missingStation = Invoke-Api -Method "POST" -Uri "$Gateway/actions/submit" -Body @{
+$missingStationStatus = Get-StatusCode -Method "POST" -Uri "$Gateway/actions/submit" -Body @{
     idempotencyKey = New-Key "checkin-missing-station"
     studentId = $studentMissingStation
     missionId = "MISSION-CHECKIN-01"
@@ -805,7 +852,7 @@ $missingStation = Invoke-Api -Method "POST" -Uri "$Gateway/actions/submit" -Body
     actionType = "GREEN_CHECKIN"
     evidenceUrl = ""
 }
-Assert-True ($missingStation.status -eq "PENDING_REVIEW") "Station-required policy should send missing station action to review"
+Assert-True ($missingStationStatus -eq 400) "Station-required missions must reject missing station scans before creating actions"
 $script:DefaultHeaders = $studentTrashHeaders
 $trashReport = Invoke-Api -Method "POST" -Uri "$Gateway/actions/submit" -Body @{
     idempotencyKey = New-Key "trash"
@@ -916,20 +963,23 @@ Assert-True (($selectedYearlyPdf.Headers["Content-Disposition"] -join ";") -like
 $seededActions = @(Invoke-ApiList -Uri "$Gateway/actions/user/SV001")
 Assert-True ($seededActions.Count -ge 3) "Demo seed should expose multiple SV001 submit actions"
 $calendar = [System.Globalization.CultureInfo]::InvariantCulture.Calendar
-$currentDate = Get-Date
-$currentWeek = $calendar.GetWeekOfYear($currentDate, [System.Globalization.CalendarWeekRule]::FirstFourDayWeek, [System.DayOfWeek]::Monday)
-$currentYear = $currentDate.Year
+$currentDate = [DateTime]::UtcNow
+# ISO week-year is the year of Thursday, not necessarily the calendar year.
+$isoDay = ([int]$currentDate.DayOfWeek + 6) % 7
+$thursday = $currentDate.Date.AddDays(3 - $isoDay)
+$currentWeek = $calendar.GetWeekOfYear($thursday, [System.Globalization.CalendarWeekRule]::FirstFourDayWeek, [System.DayOfWeek]::Monday)
+$currentYear = $thursday.Year
 $currentMonth = $currentDate.Month
 $currentWeekBoard = @(Invoke-ApiList -Uri "$Gateway/leaderboards/weekly?limit=20&year=$currentYear&week=$currentWeek")
 Assert-True ($currentWeekBoard.Count -ge 1) "Leaderboard should expose current-week seeded rankings"
-$currentMonthBoard = @(Invoke-ApiList -Uri "$Gateway/leaderboards/monthly?limit=20&year=$currentYear&month=$currentMonth")
+$currentMonthBoard = @(Invoke-ApiList -Uri "$Gateway/leaderboards/monthly?limit=20&year=$($currentDate.Year)&month=$currentMonth")
 Assert-True ($currentMonthBoard.Count -ge 1) "Leaderboard should expose current-month seeded rankings"
 if ($currentWeek -gt 1) {
     $previousWeekBoard = @(Invoke-ApiList -Uri "$Gateway/leaderboards/weekly?limit=20&year=$currentYear&week=$($currentWeek - 1)")
     Assert-True ($previousWeekBoard.Count -ge 1) "Leaderboard should expose previous-week rankings in the selected year"
 }
 if ($currentMonth -gt 1) {
-    $previousMonthBoard = @(Invoke-ApiList -Uri "$Gateway/leaderboards/monthly?limit=20&year=$currentYear&month=$($currentMonth - 1)")
+    $previousMonthBoard = @(Invoke-ApiList -Uri "$Gateway/leaderboards/monthly?limit=20&year=$($currentDate.Year)&month=$($currentMonth - 1)")
     Assert-True ($previousMonthBoard.Count -ge 1) "Leaderboard should expose previous-month rankings in the selected year"
 }
 $invalidWeekStatus = Get-StatusCode -Uri "$Gateway/leaderboards/weekly?year=$currentYear&week=54"
@@ -1132,9 +1182,18 @@ $claim = Invoke-Api -Method "POST" -Uri "$Gateway/recognitions/rewards/reward-ca
     studentId = $studentAccepted
     rewardName = "Campus Cafe Voucher"
 }
+Assert-True ($claim.status -in @('PENDING', 'ISSUED')) "Claim should be durably accepted before issuing its voucher"
+Wait-Until -Message 'coupon debit and voucher issuance' -Attempts 45 -DelaySeconds 2 -Condition {
+    $script:issuedClaim = @(Invoke-ApiList -Uri "$Gateway/recognitions/rewards/claims/user/$studentAccepted") | Where-Object { $_.id -eq $claim.id } | Select-Object -First 1
+    return $script:issuedClaim.status -eq 'ISSUED'
+}
+$claim = $script:issuedClaim
 Assert-True ($claim.status -eq "ISSUED") "Reward claim should be persisted as ISSUED"
 Assert-True ($claim.rewardName -eq "Campus Cafe Voucher") "Reward claim should use the Recognition-owned offer name"
-Assert-True ($claim.voucherCode -like "ECO-REWAR-*") "Reward claim should generate a real coupon code with reward prefix"
+Assert-True ($claim.voucherCode -like "ECO-*") "Reward claim should generate a persisted coupon code"
+$walletAfterClaim = Invoke-Api -Uri "$Gateway/rewards/wallets/$studentAccepted"
+Assert-True ($walletAfterClaim.spentPoints -eq $cafeOffer.requiredPoints) "Coupon must deduct spendable points"
+Assert-True ($walletAfterClaim.availablePoints -eq ($walletAfterClaim.totalPoints - $cafeOffer.requiredPoints)) "Cumulative points must remain unchanged by coupon debit"
 $rewardOffersAfterClaim = @(Invoke-ApiList -Uri "$Gateway/recognitions/rewards?studentId=$studentAccepted")
 $cafeAfterClaim = $rewardOffersAfterClaim | Where-Object { $_.id -eq "reward-cafe" } | Select-Object -First 1
 Assert-True ($cafeAfterClaim.remainingStock -eq ($cafeOffer.remainingStock - 1)) "Claiming a coupon should decrement Recognition-owned stock"
@@ -1164,13 +1223,15 @@ $rewardAnalytics = Invoke-Api -Uri "$Gateway/reports/analytics/students/$student
 $currentWallet = Invoke-Api -Uri "$Gateway/rewards/wallets/$studentAccepted"
 Assert-True ($rewardAnalytics.totalPoints -eq $currentWallet.totalPoints) "Student analytics should expose the current Reward wallet total"
 
+. (Join-Path $PSScriptRoot 'qr-reward-smoke-cases.ps1')
+
 if (-not $SkipDockerChecks) {
     Write-Step "Checking RabbitMQ queues are drained"
-    Wait-Until -Message 'all 20 RabbitMQ consumer queues to drain' -Attempts 30 -DelaySeconds 2 -Condition {
+    Wait-Until -Message 'all 23 RabbitMQ consumer queues to drain' -Attempts 30 -DelaySeconds 2 -Condition {
         $queues = docker compose exec -T rabbitmq rabbitmqctl list_queues name messages consumers
         if ($LASTEXITCODE -ne 0) { throw 'RabbitMQ queue inspection failed.' }
         $messageRows = @($queues | Select-String -Pattern "^(leaderboard|recognition|reward|notification|report)\.")
-        if ($messageRows.Count -lt 20) { return $false }
+        if ($messageRows.Count -lt 23) { return $false }
         foreach ($row in $messageRows) {
             $parts = ($row.ToString() -split "\s+")
             if ([int]$parts[1] -ne 0 -or [int]$parts[2] -lt 1) { return $false }

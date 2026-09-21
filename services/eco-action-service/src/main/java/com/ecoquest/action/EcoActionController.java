@@ -56,9 +56,10 @@ class EcoActionController {
         requireText(request.missionId(), "missionId is required.");
         requireText(request.actionType(), "actionType is required.");
         RoleAuthorizer.requireStudentSelf(httpRequest, request.studentId());
-        catalogMissionClient.requireActive(
+        String missionTitle = catalogMissionClient.requireActive(
                 request.missionId(),
                 request.actionType(),
+                request.stationId(), request.stationScanReceipt(), request.idempotencyKey(),
                 httpRequest.getHeader("Authorization"));
         List<String> evidenceUrls = EvidenceUrls.normalize(request.evidenceUrl(), request.evidenceUrls());
         requireValidEvidenceBatch(evidenceUrls);
@@ -80,6 +81,7 @@ class EcoActionController {
         action.id = "ACT-" + UUID.randomUUID();
         action.studentId = request.studentId();
         action.missionId = request.missionId();
+        action.missionTitle = missionTitle;
         action.stationId = request.stationId();
         action.actionType = request.actionType();
         action.evidenceUrls = evidenceUrls;
@@ -164,7 +166,7 @@ class EcoActionController {
     private void publishAccepted(EcoAction action) {
         outbox.enqueue(EcoQuestRabbit.ACTION_ACCEPTED,
                 new EcoActionAcceptedEvent(UUID.randomUUID().toString(), Instant.now(), action.id, action.studentId,
-                        action.missionId, action.stationId, action.actionType, action.points));
+                        action.missionId, action.stationId, action.actionType, action.points, action.missionTitle));
     }
 
     private void publishRejected(EcoAction action) {

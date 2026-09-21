@@ -23,11 +23,15 @@ class Mission {
     public String id;
     @NotBlank
     public String title;
+    @NotBlank
     public String actionType;
     @Positive
     public int basePoints;
     public boolean evidenceRequired;
     public Boolean stationRequired;
+    @jakarta.persistence.ElementCollection(fetch = jakarta.persistence.FetchType.EAGER)
+    public java.util.Set<String> allowedStationIds = new java.util.HashSet<>();
+    public Integer stationConfigVersion;
     public String description;
     public String createdByUserId;
     @Enumerated(EnumType.STRING)
@@ -55,6 +59,9 @@ class GreenStation {
     public String location;
     public boolean active;
     public String imageUrl;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @jakarta.persistence.Column(unique = true)
+    public String qrToken;
 }
 
 @Entity
@@ -67,6 +74,8 @@ class BadgeDefinition {
     public String criteriaType;
     public String actionType;
     public Integer requiredCount;
+    public String imageUrl;
+    public Boolean active = true;
 
     @PrePersist
     @PreUpdate

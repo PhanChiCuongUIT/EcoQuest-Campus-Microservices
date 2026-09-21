@@ -27,3 +27,9 @@ test('leaderboard period keys become backend query params', () => {
   assert.deepEqual(periodParamsFromKey('weekly', '2026-W27'), { year: 2026, week: 27 });
   assert.deepEqual(periodParamsFromKey('weekly', ''), {});
 });
+
+test('leaderboard periods match backend UTC across local week and month boundaries', () => {
+  assert.deepEqual(isoWeekInfo(new Date('2026-09-21T00:30:00+07:00')), { year: 2026, week: 38 });
+  assert.deepEqual(buildLeaderboardPeriodOptions('monthly', new Date('2026-10-01T00:30:00+07:00'))[0].params, { year: 2026, month: 9 });
+  assert.deepEqual(isoWeekInfo(new Date('2027-01-01T12:00:00Z')), { year: 2026, week: 53 });
+});

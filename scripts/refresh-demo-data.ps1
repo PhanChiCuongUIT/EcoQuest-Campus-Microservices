@@ -44,6 +44,7 @@ foreach ($template in $templates) {
             id = $template.id; title = "$($template.title) - $month"; actionType = $template.actionType
             basePoints = $template.points; evidenceRequired = $true
             stationRequired = ($null -ne $template.station)
+            allowedStationIds = @($template.station | Where-Object { $_ })
             description = "Sample campus campaign for $month. Evidence used by this data refresh is the project logo."
         }
         $mission = Api 'PUT' "/catalog/missions/$($template.id)/status?status=ACTIVE" $admin
@@ -77,7 +78,13 @@ for ($studentNumber = 1; $studentNumber -le 10; $studentNumber++) {
                     fileName = 'demo-project-logo.png'; contentType = 'image/png'; base64 = $logo
                 }
             }
+            $scan = $null
+            if ($template.station) {
+                $qr = Api 'GET' "/catalog/stations/$($template.station)/qr" $admin
+                $scan = Api 'POST' '/catalog/stations/scan' $student @{ qrToken = $qr.qrToken; missionId = $template.id }
+            }
             $action = Api 'POST' '/actions/submit' $student @{
+                stationScanReceipt = $scan.scanReceipt
                 idempotencyKey = "demo-refresh-$batch-$studentId-$index"
                 studentId = $studentId; missionId = $template.id; actionType = $template.actionType
                 stationId = $template.station; evidenceUrl = $evidence.evidenceUrl

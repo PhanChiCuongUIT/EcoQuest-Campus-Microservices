@@ -1,6 +1,6 @@
 # Chạy Lại EcoQuest Campus Và Cập Nhật Dữ Liệu
 
-Ngày cập nhật: 19/09/2026.
+Ngày cập nhật: 21/09/2026.
 
 ## 1. Thay đổi trong lần cập nhật
 
@@ -139,7 +139,33 @@ docker compose up -d --no-deps report-service
 
 Điện thoại và máy tính cùng mạng Wi-Fi. Dùng `ipconfig` lấy IPv4 máy tính rồi mở `http://<IPv4>:3000`. Cho phép cổng 3000 trong Windows Firewall khi cần. Nếu mở link xác minh/reset email trên điện thoại, đặt `FRONTEND_BASE_URL=http://<IPv4>:3000` trong `.env` rồi chạy lại script khởi động. API từ frontend dùng proxy cùng origin.
 
+Quét QR bằng camera trực tiếp cần HTTPS hoặc localhost. Trên HTTP qua IP LAN có thể chọn ảnh QR làm phương án dự phòng. In nhãn QR từ origin mà điện thoại truy cập được, không in URL localhost cho điện thoại khác. Xem [cách tạo station, gán mission và quét QR](station-qr-wallet-badges.md).
+
 ## 7. Kết quả xác minh
+
+### Mốc 21/09/2026: Policy, Thông Báo Lỗi Và CRUD
+
+- Maven Java 21: toàn bộ 14 module BUILD SUCCESS; **28 test PASS**, không failure/error. Có 4 test common về JSON lỗi/JWT filter và 4 test Policy CRUD/phân quyền.
+- Frontend: **26 test PASS**, production build PASS. Vite còn cảnh báo bundle chính lớn hơn 500 kB; đây là mục tối ưu tải trang, không phải lỗi build.
+- Full backend smoke **PASS**, gồm CRUD Catalog/Policy/RewardOffer, auth/RBAC, evidence, submit/approve/reject, điểm/badge/coupon, leaderboard, report/export, notification, certificate PDF và RabbitMQ drained.
+- Playwright **8/8 PASS** trong 37,5 giây, desktop 1440x1000 và mobile 390x844. Có test quét QR sai station rồi quét đúng để submit, thêm/sửa/xóa Policy qua UI và request dùng hostname LAN. Có ảnh chụp light/dark và kiểm tra overflow.
+- Policy dùng web proxy cùng origin, không thêm route Gateway và không bỏ JWT Admin. API lỗi nghiệp vụ trả `detail`/`message`; filter JWT không đổi lỗi service thành 401. Catalog chặn mission thiếu `actionType`.
+- Sửa lệch kỳ leaderboard: test và UI dùng UTC giống backend, có test giao tuần/tháng và ISO week-year. Lượt trước bị fail khi giờ Việt Nam đã sang thứ Hai nhưng UTC còn Chủ nhật; không bổ sung điểm giả để né assertion.
+- Một lượt test đầu phải sửa cách đọc error body trên Windows PowerShell 5; lượt cuối vẫn kiểm mã HTTP và nội dung lỗi cụ thể. Không có ERROR/Exception mới trong log stack trong khoảng lượt smoke cuối.
+- Kết quả trên không thay thế kiểm thử tải, lỗi broker/database kéo dài, mọi race condition hay xác minh SMTP/camera điện thoại vật lý. Không tuyên bố mọi thao tác CRUD đều không còn bất kỳ lỗi nào.
+- Sau kiểm thử: cleanup hoàn thành, 0 tài khoản E2E nhận diện được; đã xóa 22 thành viên E2E khỏi các leaderboard Redis. 23 queue đều 0 message và 1 consumer. Khôi phục email theo `.env` bằng startup không có `-LocalMail`; Gateway và chín service health UP, web `http://localhost:3000` trả 200. Dữ liệu seed và dữ liệu UI không mang tiền tố test được giữ lại.
+
+### Mốc 20/09/2026: QR, Badge Và Coupon
+
+Rà CRUD bổ sung: đã sửa Admin edit mission bị reset trạng thái khi bỏ `status`, đồng thời phát event khi đổi trạng thái qua API sửa. Build Catalog và 10 test của service PASS; full smoke chạy lại PASS. Tổng test Java tăng từ 17 lên 20 nhờ 3 test mới; các số liệu reactor toàn bộ bên dưới là lượt trước bản sửa Catalog này.
+
+Maven 14 module build thành công, 17 unit test PASS; frontend 20 unit test, 6 Playwright case desktop/mobile và production build PASS; backend smoke đầy đủ PASS, gồm QR receipt, badge rule/ảnh và coupon debit/hoàn stock/coupon miễn phí. Ba queue mới nâng tổng lên 23. Gateway được build riêng sau khi bổ sung giới hạn DNS cache 5 giây; Nginx proxy cũng phân giải lại Docker DNS, tránh giữ IP cũ sau restart/recreate service. Các thay đổi giữ nguyên chín service và ownership database. [Chi tiết kết quả và giới hạn](station-qr-wallet-badges.md#8-chạy-và-kiểm-thử).
+
+Kết quả restart mới ngày 20/09: 11 nhóm snapshot giữ nguyên, thêm danh sách station và QR vào phạm vi kiểm tra. Gateway tự phục hồi sau đổi IP service với DNS cache mới; không cần restart Gateway giữa bài test. Cleanup E2E giữ lại dữ liệu seed và dữ liệu UI không mang tiền tố test.
+
+Kiểm tra sau cùng: Playwright 6/6 PASS trên bản frontend cuối; 0 tài khoản/ví E2E và 0 dòng E2E trong leaderboard tuần/tháng. 23 queue có 0 message và 1 consumer mỗi queue. Đã chạy lại startup không có `-LocalMail`, khôi phục cấu hình email từ `.env`; Gateway và chín service UP, đăng nhập qua web thành công. Đây không phải kiểm chứng gửi email thật.
+
+### Mốc Lịch Sử 19/09/2026
 
 Kiểm tra ngày 19/09/2026 trên stack cục bộ:
 

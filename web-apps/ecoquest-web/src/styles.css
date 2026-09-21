@@ -2873,3 +2873,44 @@ img, svg {
   .evidence-media-preview { width: 60px; height: 48px; }
   .review-evidence-thumb { width: calc(50% - 4px); min-width: 120px; }
 }
+/* Station lookup, printable QR labels and catalog assignments. */
+.qr-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-block: 12px; }
+.qr-camera { display: block; width: 100%; max-width: 480px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: #111; }
+.qr-camera-idle { height: 0; min-height: 0; opacity: 0; }
+.station-scanner { min-width: 0; margin-block: 12px; }
+.station-scanner .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.station-scanner label:focus-within { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.qr-label { display: grid; justify-items: center; gap: 12px; text-align: center; overflow-wrap: anywhere; }
+.qr-label img { width: 100%; max-width: 320px; aspect-ratio: 1; object-fit: contain; background: white; }
+.station-assignments { grid-column: 1 / -1; display: grid; gap: 10px; min-width: 0; border: 1px solid var(--color-border); padding: 12px; }
+.station-assignments label { display: flex; align-items: center; gap: 10px; overflow-wrap: anywhere; }
+.station-result { margin-block: 24px; min-width: 0; overflow-wrap: anywhere; }
+.station-result > h3 { font-size: 18px; margin-block: 28px 12px; }
+.station-result ul { padding: 0; list-style: none; }
+.station-result li { padding-block: 16px; border-bottom: 1px solid var(--color-border); line-height: 1.5; }
+.station-result li p { color: var(--color-text-muted); margin-block: 6px; }
+.station-result li span { color: var(--color-primary); font-weight: 600; }
+.station-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; }
+.station-summary > div { flex: 1 1 220px; min-width: 0; }
+.station-summary h3 { font-size: 20px; line-height: 1.35; margin-bottom: 12px; }
+.station-summary p { margin-block: 8px; }
+.station-location { display: flex; align-items: center; gap: 6px; }
+.station-location svg { flex-shrink: 0; }
+.station-photo { width: 220px; max-width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 8px; }
+.badge-art { width: 48px; height: 48px; object-fit: contain; flex-shrink: 0; vertical-align: middle; }
+@media (max-width: 640px) {
+  .catalog-page .card-body { grid-template-columns: minmax(0, 1fr) !important; }
+  .catalog-page .flex { flex-wrap: wrap; min-width: 0; }
+  .station-assignments { width: 100%; box-sizing: border-box; }
+  .qr-controls .btn { min-height: 44px; white-space: normal; }
+}

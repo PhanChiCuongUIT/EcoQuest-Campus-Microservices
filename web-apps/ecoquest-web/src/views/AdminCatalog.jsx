@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Settings, Plus, Pencil, Trash2, Check, X } from 'lucide-react';
+import { Settings, Plus, Pencil, Trash2, Check, X, QrCode } from 'lucide-react';
+import StationQrLabel from '../components/StationQrLabel.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import AsyncBanner from '../components/AsyncBanner.jsx';
 import { useToast } from '../components/Toast.jsx';
@@ -7,7 +8,7 @@ import { useConfirm } from '../components/ConfirmDialog.jsx';
 import {
   getManagedMissions, createMission, updateMission, updateMissionStatus, deleteMission,
   getStations, createStation, updateStation, uploadStationImage, deleteStation,
-  getBadgeDefs, createBadgeDef, updateBadgeDef, deleteBadgeDef,
+  getBadgeDefs, createBadgeDef, updateBadgeDef, deleteBadgeDef, uploadBadgeImage,
 } from '../api/ecoquestApi.js';
 
 const ACTION_TYPES = [
@@ -29,8 +30,11 @@ function Toggle({ checked, onChange, id }) {
 
 // ── Mission Tab ─────────────────────────────────────────────────
 function MissionsTab({ toast, mode = 'admin' }) {
+  const [editingId, setEditingId] = useState(null);
   const confirm = useConfirm();
   const isModeratorMode = mode === 'moderator';
+  const [stations, setStations] = useState([]);
+  useEffect(() => { getStations().then(setStations).catch(() => toast({ type: 'error', message: 'Could not load stations' })); }, [toast]);
   const [items, setItems]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -48,11 +52,12 @@ function MissionsTab({ toast, mode = 'admin' }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const resetForm = () => setForm({ id: '', title: '', actionType: 'RECYCLE_BOTTLE', basePoints: 10, evidenceRequired: false, stationRequired: false, description: '' });
+  const resetForm = () => { setEditingId(null); setForm({ id: '', title: '', actionType: 'RECYCLE_BOTTLE', basePoints: 10, evidenceRequired: false, stationRequired: false, allowedStationIds: [], description: '' }); };
 
   const handleSave = async () => {
     if (!form.id || !form.title) { toast({ type: 'warning', message: 'ID and Title are required' }); return; }
-    const existing = items.some(item => item.id === form.id);
+    if (form.stationRequired && !form.allowedStationIds?.length) { toast({ type: 'warning', message: 'Select at least one allowed station' }); return; }
+    const existing = Boolean(editingId);
     const accepted = await confirm({
       title: existing ? 'Save mission changes?' : 'Create mission?',
       message: existing
@@ -67,7 +72,7 @@ function MissionsTab({ toast, mode = 'admin' }) {
       else await createMission(form);
       toast({ type: 'success', message: 'Mission saved' });
       resetForm(); setShowForm(false); load();
-    } catch { toast({ type: 'error', message: 'Failed to save mission' }); }
+    } catch (e) { toast({ type: 'error', message: 'Failed to save mission', sub: e.response?.data?.message || e.response?.data?.detail }); }
     finally { setSaving(false); }
   };
 
@@ -83,7 +88,7 @@ function MissionsTab({ toast, mode = 'admin' }) {
       await deleteMission(id);
       toast({ type: 'info', message: 'Mission deleted' });
       load();
-    } catch { toast({ type: 'error', message: 'Failed to delete' }); }
+    } catch (error) { toast({ type: 'error', message: 'Failed to delete mission', sub: error.message }); }
   };
 
   const filtered = items.filter(m => (
@@ -120,7 +125,7 @@ function MissionsTab({ toast, mode = 'admin' }) {
           <div className="card-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
             <div className="form-group mb-0">
               <label className="form-label">Mission ID *</label>
-              <input className="form-input" placeholder="MISSION-RECYCLE-01" value={form.id} onChange={e => setForm(f => ({ ...f, id: e.target.value }))} />
+              <input className="form-input" disabled={Boolean(editingId)} placeholder="MISSION-RECYCLE-01" value={form.id} onChange={e => setForm(f => ({ ...f, id: e.target.value }))} />
             </div>
             <div className="form-group mb-0">
               <label className="form-label">Title *</label>
@@ -148,6 +153,10 @@ function MissionsTab({ toast, mode = 'admin' }) {
               <label className="form-label">Description</label>
               <textarea className="form-textarea" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Mission description…" />
             </div>
+            {form.stationRequired && <fieldset className="station-assignments"><legend>Allowed stations *</legend>
+              {stations.map(s => <label key={s.id}><input type="checkbox" disabled={!s.active && !form.allowedStationIds?.includes(s.id)} checked={form.allowedStationIds?.includes(s.id) || false}
+                onChange={e => setForm(f => ({ ...f, allowedStationIds: e.target.checked ? [...(f.allowedStationIds || []), s.id] : (f.allowedStationIds || []).filter(id => id !== s.id) }))} />{s.name} - {s.location}{!s.active && ' (inactive)'}</label>)}
+            </fieldset>}
           </div>
           <div className="modal-footer">
             <button className="btn btn-ghost" onClick={() => setShowForm(false)}>Cancel</button>
@@ -207,8 +216,8 @@ function MissionsTab({ toast, mode = 'admin' }) {
                               await updateMissionStatus(m.id, nextStatus);
                               toast({ type: 'success', message: `Mission status changed to ${nextStatus}` });
                               load();
-                            } catch {
-                              toast({ type: 'error', message: 'Failed to change mission status' });
+                            } catch (error) {
+                              toast({ type: 'error', message: 'Failed to change mission status', sub: error.message });
                             }
                           }}
                         >
@@ -222,7 +231,7 @@ function MissionsTab({ toast, mode = 'admin' }) {
                       <div className="table-actions">
                         <button
                           className="btn btn-ghost btn-icon btn-sm"
-                          onClick={() => { setForm({ ...m, stationRequired: m.stationRequired ?? false }); setShowForm(true); }}
+                          onClick={() => { setEditingId(m.id); setForm({ ...m, stationRequired: m.stationRequired ?? false }); setShowForm(true); }}
                           aria-label="Edit"
                           disabled={isModeratorMode && ['ACTIVE', 'CANCELLED', 'COMPLETED'].includes(m.status)}
                           title={isModeratorMode && ['ACTIVE', 'CANCELLED', 'COMPLETED'].includes(m.status) ? 'Ask an admin to change approved/closed missions.' : 'Edit'}
@@ -247,6 +256,8 @@ function MissionsTab({ toast, mode = 'admin' }) {
 
 // ── Stations Tab ────────────────────────────────────────────────
 function StationsTab({ toast }) {
+  const [editingId, setEditingId] = useState(null);
+  const [qrStation, setQrStation] = useState(null);
   const confirm = useConfirm();
   const [items, setItems]     = useState([]);
   const [loading, setLoading] = useState(true);
@@ -265,7 +276,7 @@ function StationsTab({ toast }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const resetForm = () => setForm({ id: '', name: '', code: '', stationType: 'RECYCLING', location: '', active: true, imageUrl: '' });
+  const resetForm = () => { setEditingId(null); setForm({ id: '', name: '', code: '', stationType: 'RECYCLING', location: '', active: true, imageUrl: '' }); };
 
   const handleImageFile = (event) => {
     const file = event.target.files?.[0];
@@ -282,7 +293,7 @@ function StationsTab({ toast }) {
 
   const handleSave = async () => {
     if (!form.id || !form.name) { toast({ type: 'warning', message: 'ID and Name are required' }); return; }
-    const existing = items.some(item => item.id === form.id);
+    const existing = Boolean(editingId);
     const accepted = await confirm({
       title: existing ? 'Save station changes?' : 'Create station?',
       message: `${form.name} will be stored in Catalog service${form.imageUrl?.startsWith('data:') ? ' with its image in MinIO' : ''}.`,
@@ -291,14 +302,15 @@ function StationsTab({ toast }) {
     if (!accepted) return;
     setSaving(true);
     try {
-      if (existing) await updateStation(form.id, form);
-      else await createStation(form);
+      const payload = { ...form, imageUrl: form.imageUrl?.startsWith('data:') ? '' : form.imageUrl };
+      if (existing) await updateStation(form.id, payload);
+      else await createStation(payload);
       if (typeof form.imageUrl === 'string' && form.imageUrl.startsWith('data:image/')) {
         await uploadStationImage(form.id, { fileName: `${form.id}.image`, dataUrl: form.imageUrl });
       }
       toast({ type: 'success', message: 'Station saved' });
       resetForm(); setShowForm(false); load();
-    } catch { toast({ type: 'error', message: 'Failed to save station' }); }
+    } catch (e) { toast({ type: 'error', message: 'Failed to save station', sub: e.response?.data?.message || e.response?.data?.detail }); }
     finally { setSaving(false); }
   };
 
@@ -311,7 +323,7 @@ function StationsTab({ toast }) {
     });
     if (!accepted) return;
     try { await deleteStation(id); toast({ type: 'info', message: 'Station deleted' }); load(); }
-    catch { toast({ type: 'error', message: 'Failed to delete' }); }
+    catch (e) { toast({ type: 'error', message: 'Could not delete station', sub: e.response?.data?.message || e.response?.data?.detail }); }
   };
 
   const filtered = items.filter(station => {
@@ -321,6 +333,7 @@ function StationsTab({ toast }) {
 
   return (
     <div>
+      {qrStation && <StationQrLabel station={qrStation} onClose={() => setQrStation(null)} />}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <input className="form-input" style={{ maxWidth: 280 }} placeholder="Search stations..." value={search} onChange={event => setSearch(event.target.value)} />
@@ -338,7 +351,7 @@ function StationsTab({ toast }) {
         <div className="card mb-4">
           <div className="card-header"><h3 className="card-title">New Station</h3></div>
           <div className="card-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
-            <div className="form-group mb-0"><label className="form-label">Station ID *</label><input className="form-input" value={form.id} onChange={e => setForm(f => ({ ...f, id: e.target.value }))} placeholder="STATION-A1" /></div>
+            <div className="form-group mb-0"><label className="form-label">Station ID *</label><input className="form-input" disabled={Boolean(editingId)} value={form.id} onChange={e => setForm(f => ({ ...f, id: e.target.value }))} placeholder="STATION-A1" /></div>
             <div className="form-group mb-0"><label className="form-label">Name *</label><input className="form-input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Station A1" /></div>
             <div className="form-group mb-0"><label className="form-label">Code</label><input className="form-input" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="A1" /></div>
             <div className="form-group mb-0"><label className="form-label">Type</label>
@@ -362,18 +375,18 @@ function StationsTab({ toast }) {
         <div className="card">
           <div className="data-table-wrapper" style={{ overflowX: 'auto' }}>
             <table className="data-table">
-              <thead><tr><th>ID</th><th>Name</th><th>Code</th><th>Type</th><th>Location</th><th>Active</th><th></th></tr></thead>
+              <thead><tr><th>QR</th><th>Name</th><th>Code</th><th>Type</th><th>Location</th><th>Active</th><th></th></tr></thead>
               <tbody>
                 {filtered.length === 0 ? <tr><td colSpan={7}><EmptyState title="No stations" /></td></tr>
                   : filtered.map(s => (
                     <tr key={s.id}>
-                      <td className="mono">{s.id}</td>
+                      <td><button className="btn btn-ghost btn-icon" title="View and print station QR" aria-label={`QR ${s.name}`} onClick={() => setQrStation(s)}><QrCode size={20} /></button></td>
                       <td style={{ fontWeight: 500 }}>{s.name}</td>
                       <td>{s.code}</td>
                       <td><span className="badge badge-neutral">{s.stationType}</span></td>
                       <td>{s.location}</td>
                       <td>{s.active ? <Check size={16} color="var(--color-success)" /> : <X size={16} color="var(--color-text-faint)" />}</td>
-                      <td><div className="table-actions"><button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setForm(s); setShowForm(true); }} aria-label="Edit"><Pencil size={14} /></button><button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleDelete(s.id)} aria-label="Delete"><Trash2 size={14} color="var(--color-danger)" /></button></div></td>
+                      <td><div className="table-actions"><button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditingId(s.id); setForm(s); setShowForm(true); }} aria-label="Edit"><Pencil size={14} /></button><button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleDelete(s.id)} aria-label="Delete"><Trash2 size={14} color="var(--color-danger)" /></button></div></td>
                     </tr>
                   ))}
               </tbody>
@@ -387,11 +400,12 @@ function StationsTab({ toast }) {
 
 // ── Badges Tab ──────────────────────────────────────────────────
 function BadgesTab({ toast }) {
+  const [editingCode, setEditingCode] = useState(null);
   const confirm = useConfirm();
   const [items, setItems]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm]       = useState({ code: '', name: '', description: '', requiredPoints: 1 });
+  const [form, setForm]       = useState({ code: '', name: '', description: '', requiredPoints: 1, criteriaType: 'POINTS', requiredCount: 1, actionType: 'RECYCLE_BOTTLE', active: true, imageUrl: '' });
   const [saving, setSaving]   = useState(false);
   const [search, setSearch] = useState('');
   const [criteriaFilter, setCriteriaFilter] = useState('');
@@ -405,11 +419,11 @@ function BadgesTab({ toast }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const resetForm = () => setForm({ code: '', name: '', description: '', requiredPoints: 1 });
+  const resetForm = () => { setEditingCode(null); setForm({ code: '', name: '', description: '', requiredPoints: 1, criteriaType: 'POINTS', requiredCount: 1, actionType: 'RECYCLE_BOTTLE', active: true, imageUrl: '' }); };
 
   const handleSave = async () => {
     if (!form.code || !form.name) { toast({ type: 'warning', message: 'Code and Name are required' }); return; }
-    const existing = items.some(item => item.code === form.code);
+    const existing = Boolean(editingCode);
     const accepted = await confirm({
       title: 'Save badge definition?',
       message: `${form.name} will become available to the reward rules.`,
@@ -418,24 +432,26 @@ function BadgesTab({ toast }) {
     if (!accepted) return;
     setSaving(true);
     try {
-      if (existing) await updateBadgeDef(form.code, form);
-      else await createBadgeDef(form);
+      const payload = { ...form, imageUrl: form.imageUrl?.startsWith('data:') ? '' : form.imageUrl };
+      if (existing) await updateBadgeDef(form.code, payload);
+      else await createBadgeDef(payload);
+      if (form.imageUrl?.startsWith('data:')) await uploadBadgeImage(form.code, { dataUrl: form.imageUrl });
       toast({ type: 'success', message: 'Badge saved' });
       resetForm(); setShowForm(false); load();
-    } catch { toast({ type: 'error', message: 'Failed to save badge' }); }
+    } catch (e) { toast({ type: 'error', message: 'Failed to save badge', sub: e.response?.data?.message || e.response?.data?.detail }); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (code) => {
     const accepted = await confirm({
-      title: 'Delete badge definition?',
-      message: `${code} will be removed from Catalog service.`,
-      confirmLabel: 'Delete badge',
+      title: 'Retire badge definition?',
+      message: `${code} will stop awarding new achievements. Existing student achievements are preserved.`,
+      confirmLabel: 'Retire badge',
       tone: 'danger',
     });
     if (!accepted) return;
     try { await deleteBadgeDef(code); toast({ type: 'info', message: 'Badge deleted' }); load(); }
-    catch { toast({ type: 'error', message: 'Failed to delete' }); }
+    catch (error) { toast({ type: 'error', message: 'Failed to retire badge', sub: error.message }); }
   };
 
   const filtered = items.filter(badge => {
@@ -463,9 +479,19 @@ function BadgesTab({ toast }) {
         <div className="card mb-4">
           <div className="card-header"><h3 className="card-title">New Badge Definition</h3></div>
           <div className="card-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
-            <div className="form-group mb-0"><label className="form-label">Code *</label><input className="form-input" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="GREEN_STARTER" /></div>
+            <div className="form-group mb-0"><label className="form-label">Code *</label><input className="form-input" disabled={Boolean(editingCode)} value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="GREEN_STARTER" /></div>
             <div className="form-group mb-0"><label className="form-label">Name *</label><input className="form-input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Green Starter" /></div>
-            <div className="form-group mb-0"><label className="form-label">Required Points</label><input className="form-input" type="number" min={0} value={form.requiredPoints} onChange={e => setForm(f => ({ ...f, requiredPoints: +e.target.value }))} /></div>
+            <div className="form-group mb-0"><label className="form-label">Criteria</label><select className="form-select" value={form.criteriaType || 'POINTS'} onChange={e => setForm(f => ({ ...f, criteriaType: e.target.value }))}><option value="POINTS">Cumulative points</option><option value="ACTION_COUNT">Approved action count</option></select></div>
+            {form.criteriaType === 'ACTION_COUNT' ? <>
+              <div className="form-group"><label className="form-label">Action type</label><select className="form-select" value={form.actionType || ''} onChange={e => setForm(f => ({ ...f, actionType: e.target.value }))}><option value="">Choose action type</option>{ACTION_TYPES.map(t => <option key={t}>{t}</option>)}</select></div>
+              <div className="form-group"><label className="form-label">Approved actions required</label><input className="form-input" type="number" min={1} value={form.requiredCount || ''} onChange={e => setForm(f => ({ ...f, requiredCount: +e.target.value }))} /></div>
+            </> : <div className="form-group mb-0"><label className="form-label">Required Points</label><input className="form-input" type="number" min={1} value={form.requiredPoints} onChange={e => setForm(f => ({ ...f, requiredPoints: +e.target.value }))} /></div>}
+            <div className="form-group"><label className="form-label">Active</label><Toggle id="badge-active" checked={form.active !== false} onChange={v => setForm(f => ({ ...f, active: v }))} /></div>
+            <div className="form-group"><label className="form-label">Badge image (optional)</label><input className="form-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e => {
+              const file = e.target.files?.[0]; if (!file) return;
+              if (file.size > 5 * 1024 * 1024) { toast({ type: 'error', message: 'Badge image must be under 5 MB' }); return; }
+              const reader = new FileReader(); reader.onload = () => setForm(f => ({ ...f, imageUrl: reader.result })); reader.readAsDataURL(file);
+            }} />{form.imageUrl && <img className="badge-art" src={form.imageUrl} alt="Badge preview" />}</div>
             <div className="form-group mb-0" style={{ gridColumn: '1/-1' }}><label className="form-label">Description</label><input className="form-input" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
           </div>
           <div className="modal-footer">
@@ -479,16 +505,16 @@ function BadgesTab({ toast }) {
         <div className="card">
           <div className="data-table-wrapper" style={{ overflowX: 'auto' }}>
             <table className="data-table">
-              <thead><tr><th>Code</th><th>Name</th><th>Description</th><th>Required Points</th><th></th></tr></thead>
+              <thead><tr><th>Code</th><th>Name</th><th>Description</th><th>Requirement</th><th></th></tr></thead>
               <tbody>
                 {filtered.length === 0 ? <tr><td colSpan={5}><EmptyState title="No badges" /></td></tr>
                   : filtered.map(b => (
                     <tr key={b.code}>
                       <td className="mono">{b.code}</td>
-                      <td style={{ fontWeight: 500 }}>{b.name}</td>
+                      <td style={{ fontWeight: 500 }}>{b.imageUrl && <img className="badge-art" src={b.imageUrl} alt="" />}{b.name}{b.active === false && ' (retired)'}</td>
                       <td style={{ color: 'var(--color-text-muted)', maxWidth: 240 }}>{b.description}</td>
-                      <td><strong>{b.requiredPoints}</strong></td>
-                      <td><div className="table-actions"><button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setForm(b); setShowForm(true); }} aria-label="Edit"><Pencil size={14} /></button><button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleDelete(b.code)} aria-label="Delete"><Trash2 size={14} color="var(--color-danger)" /></button></div></td>
+                      <td><strong>{b.criteriaType === 'ACTION_COUNT' ? `${b.requiredCount} ${b.actionType?.replaceAll('_', ' ')} actions` : `${b.requiredPoints} points`}</strong></td>
+                      <td><div className="table-actions"><button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditingCode(b.code); setForm(b); setShowForm(true); }} aria-label="Edit"><Pencil size={14} /></button><button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleDelete(b.code)} aria-label="Retire badge"><Trash2 size={14} color="var(--color-danger)" /></button></div></td>
                     </tr>
                   ))}
               </tbody>
@@ -507,7 +533,7 @@ export default function AdminCatalog({ mode = 'admin' }) {
   const tabs = mode === 'moderator' ? ['missions'] : ['missions', 'stations', 'badges'];
 
   return (
-    <div>
+    <div className="catalog-page">
       <div className="page-intro">
         <div>
           <h2>{mode === 'moderator' ? 'My Mission Catalog' : 'Catalog Management'}</h2>

@@ -1,6 +1,8 @@
 # Báo Cáo Hiện Trạng Project EcoQuest Campus
 
-Cập nhật vận hành: 2026-09-19. [Chi tiết chạy lại và dữ liệu mới](chay-lai-project.md).
+Cập nhật: 2026-09-21. [Chi tiết chạy và kiểm thử](chay-lai-project.md).
+
+Bản mới sửa Policy Rules sang proxy cùng origin, bỏ ghi chú kỹ thuật khỏi UI và bổ sung validation CRUD. Lỗi nghiệp vụ được trả bằng JSON có `detail`/`message`; quét sai station hiển thị lý do cụ thể. Bộ lọc JWT không còn đổi lỗi xử lý backend thành lỗi đăng nhập 401. Catalog yêu cầu `actionType` khi tạo/sửa mission. Các thay đổi giữ nguyên 9 microservice và quyền sở hữu database; xem [phạm vi test mới](backend-smoke-test-guide.md#phạm-vi-bổ-sung-ngày-21092026).
 
 Hệ thống vẫn có 9 microservice. Bản cập nhật bổ sung named volume cho các kho dữ liệu, Redis AOF, sửa seed ghi đè dữ liệu khi restart và thêm `refresh-demo-data.ps1` để tạo hoạt động trong ngày qua API. Các số liệu kiểm thử tháng 7 bên dưới là lịch sử, không đại diện cho lần chạy mới.
 
@@ -57,9 +59,9 @@ Gateway chỉ route API, CORS và correlation ID. Gateway không chứa nghiệp
 - Coupon là luồng thật trong Recognition:
   - Admin quản trị `RewardOffer`.
   - Student xem offer qua `GET /recognitions/rewards?studentId=...`.
-  - Backend xét điểm, badge, certificate, stock, expiry.
-  - Claim thành công tạo `RewardClaim` với voucher code `ECO-...`.
-  - Claim lại cùng reward trả voucher cũ, không trừ stock lần hai.
+  - Recognition xét badge, certificate, stock, expiry, giữ stock và lưu claim pending.
+  - Reward kiểm và debit điểm tiêu dùng qua yêu cầu RabbitMQ; tổng thành tích và leaderboard không giảm.
+  - Debit thành công mới tạo voucher `ECO-...`; thất bại chuyển claim failed và hoàn stock. Claim pending/issued lặp không trừ stock hoặc điểm lần hai.
 
 ### Report Và Analytics
 
@@ -99,7 +101,7 @@ Audit ngày 19/09/2026 sau cleanup và refresh: **12 tài khoản, 18 mission, 6
 - PostgreSQL database-per-service.
 - MongoDB cho action document/outbox.
 - Redis cho draft, idempotency và leaderboard sorted set theo kỳ `weekly:YYYY-Www`, `monthly:YYYY-MM`.
-- RabbitMQ event-driven architecture với 20 queue.
+- RabbitMQ event-driven architecture với 23 queue: bổ sung đồng bộ badge, yêu cầu debit coupon và kết quả debit.
 - MinIO object storage cho avatar, station image, action evidence nhiều ảnh/một video, report evidence, certificate PDF.
 - gRPC cho Action -> Policy.
 - Resilience4j cho Policy gRPC client.
@@ -109,7 +111,11 @@ Audit ngày 19/09/2026 sau cleanup và refresh: **12 tài khoản, 18 mission, 6
 
 ## 6. Kiểm Thử Đã Chạy
 
-Ngày 19/09/2026: Maven 14/14 module và 4 unit test seed PASS; frontend 16/16 test và build PASS; full backend smoke qua Gateway/web proxy PASS; refresh cùng ngày không tạo trùng; restart 6 service giữ nguyên 9 nhóm snapshot API; 20 queue drained. Xem [phạm vi và giới hạn kiểm chứng](chay-lai-project.md#7-kết-quả-xác-minh).
+Ngày 20/09/2026: bổ sung QR station và receipt bắt buộc cho mission cần station; Catalog badge CRUD/ảnh/quy tắc động; coupon debit bất đồng bộ từ điểm tiêu dùng; ledger hiển thị lý do/tên mission. Maven 14 module, 17 unit test PASS; frontend 20 unit test và 6 Playwright case desktop/mobile PASS; production build và full backend smoke PASS. Gateway được build lại riêng để sửa DNS cache sau kiểm thử restart. Xem [contract, dữ liệu, luồng nghiệp vụ và giới hạn kiểm chứng](station-qr-wallet-badges.md).
+
+Lượt rà CRUD sau đó: sửa trạng thái mission khi Admin chỉnh nội dung và bổ sung integration event khi đổi trạng thái qua form. Có thêm 3 test Java, tổng 20; Catalog được build/test lại 10/10 PASS và full smoke PASS. Không thay đổi frontend hay database ownership trong bản sửa này.
+
+Mốc lịch sử 19/09/2026: Maven 14/14 module và 4 unit test seed PASS; frontend 16/16 test và build PASS; full backend smoke qua Gateway/web proxy PASS; refresh cùng ngày không tạo trùng; restart 6 service giữ nguyên 9 nhóm snapshot API; 20 queue drained. Các kết quả dưới đây thuộc mốc kiểm thử cũ, không phải số lượng test/queue hiện tại. Xem [phạm vi và giới hạn kiểm chứng](chay-lai-project.md#7-kết-quả-xác-minh).
 
 Ngày 02/07/2026:
 

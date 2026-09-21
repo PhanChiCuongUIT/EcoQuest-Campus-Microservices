@@ -5,10 +5,12 @@
  */
 import axios from 'axios';
 import { createClientId } from '../utils/clientIds.js';
+import { normalizeApiError } from '../utils/apiErrors.js';
 
 const BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
 const client = axios.create({ baseURL: BASE });
+client.interceptors.response.use(response => response, normalizeApiError);
 
 // ── Auth header injection ──────────────────────────────────────
 
@@ -48,6 +50,9 @@ export const updateMissionStatus = (id, status) =>
 export const deleteMission = (id) => client.delete(`/catalog/missions/${id}`).then(r => r.data);
 
 export const getStations = () => client.get('/catalog/stations').then(r => r.data);
+export const getStationQr = (id) => client.get(`/catalog/stations/${encodeURIComponent(id)}/qr`).then(r => r.data);
+export const scanStation = (qrToken, missionId) => client.post('/catalog/stations/scan', { qrToken, missionId }).then(r => r.data);
+export const uploadBadgeImage = (code, data) => client.post(`/catalog/badges/${encodeURIComponent(code)}/image`, data).then(r => r.data);
 export const createStation = (data) => client.post('/catalog/stations', data).then(r => r.data);
 export const updateStation = (id, data) => client.put(`/catalog/stations/${id}`, data).then(r => r.data);
 export const uploadStationImage = (id, data) => client.post(`/catalog/stations/${id}/image`, data).then(r => r.data);
@@ -158,24 +163,25 @@ export const getRecognitionRewards = (studentId) =>
 
 // ── Policy (local-only, direct to service) ────────────────────
 
-export const POLICY_BASE = import.meta.env.VITE_POLICY_BASE_URL
-  || `${window.location.protocol}//${window.location.hostname}:8090`;
+export const POLICY_BASE = (import.meta.env.VITE_POLICY_BASE_URL || '').replace(/\/$/, '');
+const policyClient = axios.create();
+policyClient.interceptors.response.use(response => response, normalizeApiError);
 
 export const getPolicyRules = () =>
-  axios.get(`${POLICY_BASE}/policies/rules`, {
+  policyClient.get(`${POLICY_BASE}/policies/rules`, {
     headers: { Authorization: `Bearer ${localStorage.getItem('eq-access-token') || ''}` },
   }).then(r => r.data);
 
 export const updatePolicyRule = (actionType, data) =>
-  axios.put(`${POLICY_BASE}/policies/rules/${actionType}`, data, {
+  policyClient.put(`${POLICY_BASE}/policies/rules/${encodeURIComponent(actionType)}`, data, {
     headers: { Authorization: `Bearer ${localStorage.getItem('eq-access-token') || ''}` },
   }).then(r => r.data);
 export const createPolicyRule = (data) =>
-  axios.post(`${POLICY_BASE}/policies/rules`, data, {
+  policyClient.post(`${POLICY_BASE}/policies/rules`, data, {
     headers: { Authorization: `Bearer ${localStorage.getItem('eq-access-token') || ''}` },
   }).then(r => r.data);
 export const deletePolicyRule = (actionType) =>
-  axios.delete(`${POLICY_BASE}/policies/rules/${actionType}`, {
+  policyClient.delete(`${POLICY_BASE}/policies/rules/${encodeURIComponent(actionType)}`, {
     headers: { Authorization: `Bearer ${localStorage.getItem('eq-access-token') || ''}` },
   }).then(r => r.data);
 

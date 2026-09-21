@@ -1,4 +1,8 @@
 spring:
+  jackson:
+    deserialization:
+      accept-float-as-int: false
+      fail-on-null-for-primitives: true
   application:
     name: verification-policy-grpc-service
   datasource:
@@ -12,6 +16,7 @@ spring:
 
 server:
   port: 8090
+  forward-headers-strategy: framework
 
 grpc:
   server:

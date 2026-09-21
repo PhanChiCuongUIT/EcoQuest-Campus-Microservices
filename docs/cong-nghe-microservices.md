@@ -54,7 +54,7 @@ Nguyên tắc:
 
 - Gateway chỉ route, CORS/correlation ID, không chứa nghiệp vụ.
 - Không đặt logic cộng điểm, xét policy, tạo certificate trong Gateway.
-- Policy Admin REST không route qua Gateway, cố ý chạy direct `http://localhost:8090`.
+- Policy Admin REST không route qua Gateway. Giao diện gọi `/policies/` cùng origin; Nginx/Vite proxy trực tiếp tới Policy. Service vẫn kiểm JWT và quyền Admin. Cổng `8090` phục vụ quản trị/kiểm thử trực tiếp, không phải endpoint công khai miễn xác thực.
 
 ## 4. Database Per Service
 
@@ -337,7 +337,7 @@ Khi thuyết trình, nên demo theo thứ tự sau để người nghe thấy r�
 | MinIO | `http://localhost:9001` | File avatar/station/evidence ảnh-video/certificate không nhét base64 vào DB; service nào sở hữu nghiệp vụ thì sở hữu bucket/file. |
 | Notification | Mở chuông ở Student/Moderator/Admin | Notification là microservice riêng có inbox seed, read/read-all và SSE realtime; các service khác không tự nhúng logic thông báo. |
 | Report Analytics | Admin -> Analytics -> export PDF | Report service dựng read model từ event, không đọc DB chéo nhưng vẫn tổng hợp được mission/action/user/points/badge/certificate. |
-| Coupon thật | Student -> Certificates -> Redeem | Recognition tự xét điều kiện coupon bằng profile read model, trừ stock và phát voucher idempotent. |
+| Coupon debit | Student -> Certificates -> Redeem | Recognition giữ stock và claim pending; Reward kiểm số dư, debit idempotent theo claim ID; kết quả qua RabbitMQ để Recognition phát voucher hoặc hoàn stock. Không đọc DB chéo, không giảm điểm leaderboard. |
 | Smoke test | `powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090 -Web http://localhost:3000` | Đây là bằng chứng tích hợp: auth, CRUD, upload nhiều ảnh/video, upload lớn qua Nginx web proxy, reject batch media sai, event, notification, certificate, coupon và queue drain đều pass. |
 
 Câu chốt nên nói: “EcoQuest dùng microservices không chỉ để tách thư mục code, mà tách ownership thật: mỗi service có API, database/storage, test và nghiệp vụ riêng. Dữ liệu tổng hợp đi qua event/read model, còn Gateway chỉ định tuyến.”

@@ -25,5 +25,5 @@ export const PANEL_VIEWS_BY_ROLE = {
 };
 
 export function panelViewsForRole(role) {
-  return PANEL_VIEWS_BY_ROLE[role] || PANEL_VIEWS_BY_ROLE.Student;
+  return [...(PANEL_VIEWS_BY_ROLE[role] || PANEL_VIEWS_BY_ROLE.Student), 'stations'];
 }

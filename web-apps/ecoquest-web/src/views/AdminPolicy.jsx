@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Lock, RefreshCw, Save, AlertTriangle, Plus, Trash2 } from 'lucide-react';
+import { Lock, RefreshCw, Save, Plus, Trash2 } from 'lucide-react';
 import EmptyState from '../components/EmptyState.jsx';
 import AsyncBanner from '../components/AsyncBanner.jsx';
 import Modal from '../components/Modal.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
-import { POLICY_BASE, createPolicyRule, deletePolicyRule, getPolicyRules, updatePolicyRule } from '../api/ecoquestApi.js';
+import { createPolicyRule, deletePolicyRule, getPolicyRules, updatePolicyRule } from '../api/ecoquestApi.js';
+import { validatePolicyRule } from '../utils/policyRules.js';
 
 function Toggle({ checked, onChange, id }) {
   return (
@@ -37,8 +38,8 @@ export default function AdminPolicy() {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try { setRules(await getPolicyRules()); }
-    catch {
-      setError(`Cannot reach Policy service at ${POLICY_BASE} - make sure backend is running locally.`);
+    catch (error) {
+      setError(error.message);
     } finally { setLoading(false); }
   }, []);
 
@@ -50,20 +51,23 @@ export default function AdminPolicy() {
 
   const handleSave = async () => {
     if (!editing) return;
+    const validation = validatePolicyRule(editing.form);
+    if (validation) { toast({ type: 'error', message: validation }); return; }
     setSaving(true);
     try {
       await updatePolicyRule(editing.actionType, editing.form);
       toast({ type: 'success', message: `Policy updated: ${editing.actionType}` });
       setEditing(null);
       load();
-    } catch {
-      toast({ type: 'error', message: 'Failed to update policy rule' });
+    } catch (error) {
+      toast({ type: 'error', message: error.message });
     } finally { setSaving(false); }
   };
 
   const handleCreate = async () => {
-    if (!newRule.actionType.trim()) {
-      toast({ type: 'error', message: 'Action type is required' });
+    const validation = validatePolicyRule(newRule);
+    if (validation) {
+      toast({ type: 'error', message: validation });
       return;
     }
     setSaving(true);
@@ -74,7 +78,7 @@ export default function AdminPolicy() {
       setCreateOpen(false);
       load();
     } catch (error) {
-      toast({ type: 'error', message: error.response?.data?.detail || 'Failed to create policy rule' });
+      toast({ type: 'error', message: error.message });
     } finally { setSaving(false); }
   };
 
@@ -96,19 +100,13 @@ export default function AdminPolicy() {
       toast({ type: 'success', message: `Policy deleted: ${rule.actionType}` });
       load();
     } catch (error) {
-      toast({ type: 'error', message: error.response?.data?.detail || 'Failed to delete policy rule' });
+      toast({ type: 'error', message: error.message });
     } finally { setSaving(false); }
   };
 
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <span className="local-only-badge">
-          <AlertTriangle size={12} /> LOCAL ONLY
-        </span>
-        <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
-          Direct access to <code style={{ fontFamily: 'monospace', background: 'var(--color-background-alt)', padding: '1px 4px', borderRadius: 3 }}>{POLICY_BASE}/policies/rules</code> - not routed through Gateway.
-        </span>
         <button className="btn btn-ghost btn-sm" onClick={load} style={{ marginLeft: 'auto' }}>
           <RefreshCw size={14} /> Refresh
         </button>
@@ -124,11 +122,7 @@ export default function AdminPolicy() {
           <div className="policy-rules-intro">
             <div>
               <strong>Verification policy rules</strong>
-              <span>Each rule is owned by the Policy service and used by Action through internal gRPC validation.</span>
             </div>
-            <button className="btn btn-primary btn-sm" onClick={() => setCreateOpen(true)}>
-              <Plus size={14} /> New policy rule
-            </button>
           </div>
           <div className="data-table-wrapper" style={{ overflowX: 'auto' }}>
             <table className="data-table">
@@ -153,7 +147,7 @@ export default function AdminPolicy() {
                       <td><span className="mono">{rule.actionType}</span></td>
                       <td>
                         {isEditing
-                          ? <input type="number" className="form-input" style={{ width: 80 }} value={editing.form.basePoints}
+                          ? <input type="number" min="0" step="1" className="form-input" style={{ width: 80 }} value={editing.form.basePoints}
                               onChange={e => setEditing(ed => ({ ...ed, form: { ...ed.form, basePoints: +e.target.value } }))} />
                           : <strong>{rule.basePoints}</strong>}
                       </td>
@@ -175,7 +169,7 @@ export default function AdminPolicy() {
                       </td>
                       <td>
                         {isEditing
-                          ? <input type="number" className="form-input" style={{ width: 100 }} value={editing.form.dailyLimit}
+                          ? <input type="number" min="0" step="1" className="form-input" style={{ width: 100 }} value={editing.form.dailyLimit}
                               onChange={e => setEditing(ed => ({ ...ed, form: { ...ed.form, dailyLimit: +e.target.value } }))} />
                           : rule.dailyLimit}
                       </td>

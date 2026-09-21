@@ -55,11 +55,21 @@ public class JwtResourceServerFilter extends OncePerRequestFilter {
             }
             var principal = verifier.verifyBearer(authorization);
             request.setAttribute(PRINCIPAL_ATTRIBUTE, principal);
-            filterChain.doFilter(request, response);
         } catch (ResponseStatusException ex) {
-            response.sendError(ex.getStatusCode().value(), ex.getReason());
+            writeError(response, ex.getStatusCode().value(), ex.getReason());
+            return;
         } catch (Exception ex) {
-            response.sendError(HttpStatus.UNAUTHORIZED.value(), "Invalid access token.");
+            writeError(response, HttpStatus.UNAUTHORIZED.value(), "Invalid access token.");
+            return;
         }
+        // Downstream failures are not authentication failures.
+        filterChain.doFilter(request, response);
+    }
+
+    private void writeError(HttpServletResponse response, int status, String reason) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json");
+        new com.fasterxml.jackson.databind.ObjectMapper().writeValue(response.getOutputStream(),
+                java.util.Map.of("status", status, "detail", reason == null ? "Authentication required." : reason));
     }
 }

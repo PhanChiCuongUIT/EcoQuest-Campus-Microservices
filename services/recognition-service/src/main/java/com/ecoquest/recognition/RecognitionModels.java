@@ -32,6 +32,8 @@ class RewardClaim {
     public String voucherCode;
     public Instant claimedOn;
     public Instant expiresAt;
+    public Integer pointsCost;
+    public String failureReason;
 }
 
 record RewardClaimRequest(String studentId, String rewardName) {

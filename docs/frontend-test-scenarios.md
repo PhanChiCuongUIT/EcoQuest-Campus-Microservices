@@ -1,6 +1,18 @@
 # Kịch Bản Kiểm Thử Frontend EcoQuest
 
-Cập nhật: 2026-07-10
+Cập nhật: 2026-09-20
+
+## QR, Badge Và Coupon
+
+Suite `web-apps/ecoquest-web/e2e/station-rewards.spec.js` chạy trên Chromium desktop 1440x1000 và mobile 390x844, tổng 6 case. Chạy sau khi khởi động stack bằng `scripts/start-project.ps1 -LocalMail`; trong thư mục frontend dùng `npm.cmd ci`, `npx.cmd playwright install chromium`, `npm.cmd run test:browser`.
+
+- Admin: mở QR station, kiểm ảnh có pixel, tải PNG; chọn tiêu chí badge và station mission; kiểm light/dark và không tràn chiều ngang.
+- Student mới: quét ảnh QR trong modal, station tự điền và readonly, upload minh chứng, submit pending, kiểm chưa có điểm, approve qua API, chờ event rồi kiểm điểm và tên mission trong ledger.
+- Moderator: quét ảnh QR, xem thông tin station và mission được gán; kiểm giao diện dark ở hai kích thước.
+
+Kiểm thủ công bổ sung: camera thật và quyền truy cập trên HTTPS; QR hỏng/sai station/hết hạn; label in trên giấy; badge có/không ảnh; coupon pending/failed/issued, giảm số dư nhưng không giảm tổng thành tích; lịch sử badge sau retire. Không coi test decode PNG là đã kiểm camera vật lý.
+
+Kết quả 20/09/2026: 20 unit test, 6 Playwright case và production build PASS. Ảnh chụp/trace nằm trong `test-results` (không commit); các kịch bản còn lại bên dưới là checklist hồi quy, không mặc định mọi mục đã được Playwright tự động hóa.
 
 ## Chuẩn bị
 
@@ -225,15 +237,22 @@ Admin:
 4. Tắt Gateway để kiểm tra lỗi kết nối; bật lại để kiểm tra lỗi server không bị nhầm với sai mật khẩu.
 5. Mở `Policy & privacy` và `Application guide`; tiêu đề và nội dung phải khác nhau, đóng/mở độc lập.
 
+### Kết Quả Mới Nhất: 21/09/2026
+
+26 unit test PASS, production build PASS và 8/8 Playwright case PASS trên desktop/mobile. Bổ sung `apiErrors.test.js` cho thông báo nghiệp vụ/Blob/HTTP/network, validation Policy và `leaderboardPeriods.test.js` cho UTC qua giao tuần/tháng. Browser kiểm Policy CRUD, hostname LAN, quét QR sai rồi quét đúng và submit → duyệt → ví hiển thị giao dịch. Camera điện thoại vật lý và mọi trình duyệt chưa nằm trong phạm vi chạy này. Xem `chay-lai-project.md`, mục 7, để biết kết quả backend và cleanup.
+
 ### 17. Policy Rules CRUD
 
-1. Admin mở Policy Rules qua direct port `8090`.
-2. Bấm `Add rule`/`New policy rule`, modal overlay mở ra và focus vào form.
+1. Admin mở Policy Rules; request `/policies/rules` dùng cùng origin của web, không phụ thuộc địa chỉ localhost trên điện thoại.
+2. Bấm `Add rule`, modal overlay mở ra và focus vào form.
 3. Thêm rule mới trong modal; rule xuất hiện trong bảng.
 4. Edit points/evidence/station/daily limit/active bằng `PUT`.
 5. Delete rule đang active phải bị chặn hoặc trả `409`.
 6. Set `active=false`, sau đó delete rule thành công.
-7. Gateway `/policies/rules` vẫn không public; UI chỉ gọi direct Policy service.
+7. Gateway `/policies/rules` vẫn trả 404. Web proxy `/policies/rules` trả 401 khi thiếu token, 403 với Student/Moderator và dữ liệu rule với Admin.
+8. Nhập điểm âm hoặc số lẻ: form báo validation và không ghi dữ liệu. Tạo trùng rule: hiển thị `Policy rule already exists.`. Xóa rule đang active: backend trả 409 và yêu cầu vô hiệu hóa trước.
+9. Quét QR station không thuộc mission: hiển thị `This station is not assigned to the mission.`, ô station vẫn rỗng. Sau đó quét đúng station và gửi để vào hàng đợi duyệt.
+10. Lỗi API tải PDF dạng Blob, lỗi mạng, 413 và 5xx phải có thông báo đọc được, không hiển thị HTML hoặc `Request failed with status code ...`.
 
 ### 18. Dashboard resilient loading
 

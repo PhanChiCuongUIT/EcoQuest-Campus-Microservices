@@ -15,6 +15,12 @@ import org.springframework.context.annotation.Bean;
 public class JwtResourceServerAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
+    com.ecoquest.common.web.ApiExceptionHandler apiExceptionHandler() {
+        return new com.ecoquest.common.web.ApiExceptionHandler();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     JwtAccessTokenVerifier jwtAccessTokenVerifier(
             ObjectMapper objectMapper,
             @Value("${identity.jwt-secret:ecoquest-dev-secret-change-me}") String secret

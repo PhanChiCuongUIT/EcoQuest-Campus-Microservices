@@ -22,15 +22,17 @@ class RecognitionController {
     private final RewardClaimRepository rewardClaims;
     private final RewardOfferRepository rewardOffers;
     private final StudentRecognitionProfileRepository profiles;
+    private final CouponClaimService couponClaims;
 
     RecognitionController(CertificateRepository certificates, CertificateService certificateService,
                           RewardClaimRepository rewardClaims, RewardOfferRepository rewardOffers,
-                          StudentRecognitionProfileRepository profiles) {
+                          StudentRecognitionProfileRepository profiles, CouponClaimService couponClaims) {
         this.certificates = certificates;
         this.certificateService = certificateService;
         this.rewardClaims = rewardClaims;
         this.rewardOffers = rewardOffers;
         this.profiles = profiles;
+        this.couponClaims = couponClaims;
     }
 
     @GetMapping("/certificates/user/{studentId}")
@@ -63,25 +65,7 @@ class RecognitionController {
     @PostMapping("/rewards/{id}/claim")
     RewardClaim claim(@PathVariable String id, @RequestBody RewardClaimRequest request, HttpServletRequest httpRequest) {
         RoleAuthorizer.requireStudentSelf(httpRequest, request.studentId());
-        RewardOffer offer = rewardOffers.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reward offer not found."));
-        var existing = rewardClaims.findFirstByStudentIdAndRewardIdOrderByClaimedOnDesc(request.studentId(), id);
-        if (existing.isPresent()) {
-            return existing.get();
-        }
-        assertClaimable(request.studentId(), offer);
-        var claim = new RewardClaim();
-        claim.id = "CLAIM-" + UUID.randomUUID();
-        claim.rewardId = id;
-        claim.studentId = request.studentId();
-        claim.rewardName = offer.name;
-        claim.status = "ISSUED";
-        claim.voucherCode = "ECO-" + voucherPrefix(offer.id) + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        claim.claimedOn = Instant.now();
-        claim.expiresAt = offer.validUntil;
-        offer.remainingStock = Math.max(0, offer.remainingStock - 1);
-        rewardOffers.save(offer);
-        return rewardClaims.save(claim);
+        return couponClaims.claim(id, request.studentId());
     }
 
     @GetMapping("/rewards/claims/user/{studentId}")
@@ -104,14 +88,18 @@ class RecognitionController {
     RewardOffer createReward(@RequestBody RewardOffer offer, HttpServletRequest httpRequest) {
         RoleAuthorizer.requireRole(httpRequest, "ADMIN");
         validateOffer(offer);
+        if (rewardOffers.existsById(offer.id)) throw new ResponseStatusException(HttpStatus.CONFLICT, "Reward ID already exists.");
         return rewardOffers.save(offer);
     }
 
     @PutMapping("/rewards/{id}")
+    @org.springframework.transaction.annotation.Transactional
     RewardOffer updateReward(@PathVariable String id, @RequestBody RewardOffer offer, HttpServletRequest httpRequest) {
         RoleAuthorizer.requireRole(httpRequest, "ADMIN");
-        RewardOffer existing = rewardOffers.findById(id)
+        RewardOffer existing = rewardOffers.lockById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reward offer not found."));
+        if (rewardClaims.existsByRewardIdAndStatus(id, "PENDING"))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Wait for pending coupon claims before editing this offer.");
         existing.name = offer.name;
         existing.description = offer.description;
         existing.icon = offer.icon;

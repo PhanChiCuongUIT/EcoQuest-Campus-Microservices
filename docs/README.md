@@ -10,6 +10,7 @@ This directory describes the architecture, data model, business workflows, testi
 | [Project report source](tai-lieu-nguon-bao-cao-docx.md) | Project scope, architecture, databases, use cases, frontend, testing and limitations. |
 | [Project overview](bao-cao-hien-trang-project.md) | Business capabilities, technology stack and project status. |
 | [Business workflows and databases](luong-nghiep-vu-database.md) | Point, badge, certificate and coupon workflows; tables, collections and constraints by service. |
+| [Station QR, badges and coupon debit](station-qr-wallet-badges.md) | Station assignments, scan receipts, badge rules/images, spendable balance, asynchronous coupon claims and regression coverage. |
 | [Microservice technologies](cong-nghe-microservices.md) | Gateway, gRPC, RabbitMQ, Redis, MinIO, database ownership, JWT authorization and Actuator. |
 | [Architecture presentation guide](cam-nang-bao-cao-microservices.md) | Architecture explanations, demonstrations and technical questions. |
 | [System demonstration](kich-ban-demo-microservices.md) | End-to-end demonstrations with application screens, infrastructure tools and test commands. |
@@ -48,7 +49,8 @@ Test reports are dated snapshots. Consult the verification section in [Startup a
 | Gateway health | http://localhost:18080/actuator/health |
 | RabbitMQ Management | http://localhost:25673 |
 | MinIO Console | http://localhost:9001 |
-| Policy administration | http://localhost:8090/policies/rules |
+| Policy administration via web proxy | http://localhost:3000/policies/rules (Admin token required) |
+| Policy direct administration/testing | http://localhost:8090/policies/rules (Admin token required) |
 
 Configured ports may differ when overridden in `.env`. The startup script prints the effective URLs. Application credentials and role behavior are documented in the [project README](../README.md).
 

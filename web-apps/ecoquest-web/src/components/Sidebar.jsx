@@ -2,7 +2,7 @@ import React from 'react';
 import {
   LayoutDashboard, Leaf, Wallet, BarChart3, Award,
   ShieldCheck, Settings, Lock, FileText, LogOut,
-  Flag, User, Users, ChartNoAxesCombined,
+  Flag, User, Users, ChartNoAxesCombined, ScanLine,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
@@ -46,7 +46,7 @@ const NAV_BY_ROLE = {
 export default function Sidebar({ role, setRole, activeView, setActiveView, onClose, className }) {
   const { user, logout } = useAuth();
   const confirm = useConfirm();
-  const navItems = NAV_BY_ROLE[role] || NAV_BY_ROLE.Student;
+  const navItems = [...(NAV_BY_ROLE[role] || NAV_BY_ROLE.Student), { id: 'stations', label: 'Stations / Scan QR', Icon: ScanLine }];
   const allowedRoles = user?.role === 'ADMIN'
     ? ['Moderator', 'Admin']
     : user?.role === 'MODERATOR'
