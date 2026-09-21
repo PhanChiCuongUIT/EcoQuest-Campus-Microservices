@@ -4,7 +4,7 @@ import EmptyState from '../components/EmptyState.jsx';
 import AsyncBanner from '../components/AsyncBanner.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { getCertificates, downloadCertificate, claimReward, getRewardClaims, getRecognitionRewards } from '../api/ecoquestApi.js';
+import { getCertificates, downloadCertificate, claimReward, getRewardClaims, getRecognitionRewards, getWallet } from '../api/ecoquestApi.js';
 import { printCertificate } from '../utils/printCertificate.js';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 
@@ -301,7 +301,7 @@ function CertCard({ cert, user, onPreview, onDownload }) {
 
 /* ── Rewards Section ─────────────────────────────────────────── */
 function RewardItem({ reward, onClaim, claiming, claim }) {
-  const alreadyClaimed = Boolean(claim);
+  const alreadyClaimed = Boolean(claim && claim.status !== 'FAILED');
   const disabled = claiming[reward.id] || alreadyClaimed || !reward.eligible;
   const expiry = reward.validUntil ? new Date(reward.validUntil).toLocaleDateString() : 'No expiry';
   return (
@@ -333,7 +333,7 @@ function RewardItem({ reward, onClaim, claiming, claim }) {
         <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 2 }}>{reward.name}</div>
         <div style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.4 }}>{reward.description}</div>
         <div style={{ display: 'grid', gap: 3, marginTop: 10, fontSize: 10.5, color: 'var(--color-text-muted)' }}>
-          <span>{reward.requiredPoints} pts · {reward.requiredBadges} badge · {reward.requiredCertificates} certificate</span>
+          <span>Cost: {reward.requiredPoints} available points · {reward.requiredBadges} badge · {reward.requiredCertificates} certificate</span>
           <span>{reward.remainingStock} left · valid until {expiry}</span>
           {!reward.eligible && <span style={{ color: 'var(--color-warning-text)', fontWeight: 700 }}>{reward.eligibilityReason}</span>}
         </div>
@@ -350,7 +350,7 @@ function RewardItem({ reward, onClaim, claiming, claim }) {
           onClick={() => onClaim(reward.id, reward.name)}
           disabled={disabled}
         >
-          {claiming[reward.id] ? 'Claiming...' : alreadyClaimed ? `Issued: ${claim.voucherCode}` : reward.eligible ? 'Redeem Coupon' : 'Locked'}
+          {claiming[reward.id] ? 'Claiming...' : alreadyClaimed ? (claim.status === 'PENDING' ? 'Processing point debit...' : `Issued: ${claim.voucherCode}`) : reward.eligible ? 'Redeem Coupon' : 'Locked'}
         </button>
       </div>
     </div>
@@ -368,20 +368,23 @@ export default function Certificates({ studentId }) {
   const [claiming, setClaiming] = useState({});
   const [claims, setClaims] = useState([]);
   const [rewards, setRewards] = useState([]);
+  const [availablePoints, setAvailablePoints] = useState(0);
   const [preview, setPreview]   = useState(null); // cert to preview
 
   const load = useCallback(async () => {
     if (!studentId) return;
     setLoading(true); setError(null);
     try {
-      const [data, claimData, rewardData] = await Promise.all([
+      const [data, claimData, rewardData, wallet] = await Promise.all([
         getCertificates(studentId),
         getRewardClaims(studentId).catch(() => []),
         getRecognitionRewards(studentId).catch(() => []),
+        getWallet(studentId),
       ]);
       setCerts([...data].sort((a, b) => new Date(b.issuedOn) - new Date(a.issuedOn)));
       setClaims(claimData);
-      setRewards(rewardData);
+      setAvailablePoints(wallet.availablePoints ?? wallet.totalPoints);
+      setRewards(rewardData.map(r => r.requiredPoints > (wallet.availablePoints ?? wallet.totalPoints) ? { ...r, eligible: false, eligibilityReason: 'Insufficient available points.' } : r));
     } catch {
       setError('Could not load certificates. Make sure Recognition service is running.');
     } finally { setLoading(false); }
@@ -392,7 +395,7 @@ export default function Certificates({ studentId }) {
   const handleClaim = async (rewardId, rewardName) => {
     const accepted = await confirm({
       title: 'Redeem this sustainability reward?',
-      message: `${rewardName} will generate a persistent voucher for ${studentId}.`,
+      message: `Redeem ${rewardName} for ${rewards.find(r => r.id === rewardId)?.requiredPoints ?? 0} available points? Cumulative points and leaderboard scores will not change.`,
       confirmLabel: 'Redeem reward',
     });
     if (!accepted) return;
@@ -403,11 +406,22 @@ export default function Certificates({ studentId }) {
       setRewards(items => items.map(item => item.id === rewardId
         ? { ...item, remainingStock: Math.max(0, (item.remainingStock ?? 1) - 1) }
         : item));
-      toast({ type: 'success', message: 'Reward voucher ready', sub: `Voucher code: ${claim.voucherCode}` });
+      toast({ type: 'info', message: claim.status === 'ISSUED' ? 'Voucher ready' : 'Redemption pending', sub: 'Your wallet debit is being confirmed.' });
     } catch {
       toast({ type: 'error', message: 'Redemption failed', sub: 'Please try again later.' });
     } finally { setClaiming(prev => { const n = { ...prev }; delete n[rewardId]; return n; }); }
   };
+
+  useEffect(() => {
+    if (!claims.some(c => c.status === 'PENDING')) return;
+    const timer = setInterval(() => {
+      getRewardClaims(studentId).then(next => {
+        setClaims(next);
+        if (!next.some(c => c.status === 'PENDING')) load();
+      }).catch(() => {});
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [studentId, claims]);
 
   const handleDownload = async (cert) => {
     try {
@@ -504,7 +518,7 @@ export default function Certificates({ studentId }) {
         </div>
         <div className="card-body">
           <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 'var(--space-4)' }}>
-            These coupon offers are managed by Recognition service. Each offer has eligibility rules, stock, expiry, and a persistent voucher code stored in Recognition database.
+            Available points: {availablePoints}. Redeeming a coupon spends available points without reducing cumulative achievements or leaderboard scores.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
@@ -532,7 +546,7 @@ export default function Certificates({ studentId }) {
                     <strong>{claim.rewardName}</strong>
                     <small>{new Date(claim.claimedOn).toLocaleString()}</small>
                   </span>
-                  <code>{claim.voucherCode}</code>
+                  <code>{claim.status === 'PENDING' ? 'Processing...' : claim.status === 'FAILED' ? claim.failureReason : claim.voucherCode}</code>
                 </div>
               ))}
             </div>

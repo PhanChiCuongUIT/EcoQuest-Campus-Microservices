@@ -29,13 +29,15 @@ public class RewardLedgerService {
     private final RewardTransactionRepository transactions;
     private final BadgeAchievementRepository badges;
     private final RabbitTemplate rabbit;
+    private final BadgeRuleProjectionRepository rules;
 
     public RewardLedgerService(RewardWalletRepository wallets, RewardTransactionRepository transactions,
-                               BadgeAchievementRepository badges, RabbitTemplate rabbit) {
+                               BadgeAchievementRepository badges, RabbitTemplate rabbit, BadgeRuleProjectionRepository rules) {
         this.wallets = wallets;
         this.transactions = transactions;
         this.badges = badges;
         this.rabbit = rabbit;
+        this.rules = rules;
     }
 
     @RabbitListener(queues = RewardMessagingConfig.ACTION_ACCEPTED_QUEUE)
@@ -58,6 +60,7 @@ public class RewardLedgerService {
         tx.sourceActionId = event.actionId();
         tx.missionId = event.missionId();
         tx.actionType = event.actionType();
+        tx.reason = "Approved mission: " + (event.missionTitle() == null ? event.actionType().replace('_', ' ') : event.missionTitle());
         tx.points = event.points();
         tx.occurredOn = Instant.now();
         transactions.save(tx);
@@ -110,15 +113,8 @@ public class RewardLedgerService {
     }
 
     private void unlockBadges(RewardWallet wallet) {
-        List<BadgeRule> rules = List.of(
-                BadgeRule.points("GREEN_STARTER", "Green Starter", 10),
-                BadgeRule.actionCount("RECYCLING_HERO", "Recycling Hero", "RECYCLE_BOTTLE", 10),
-                BadgeRule.actionCount("CLEANUP_CHAMPION", "Cleanup Champion", "CLEANUP_EVENT", 3),
-                BadgeRule.points("ZERO_WASTE_ADVOCATE", "Zero Waste Advocate", 250),
-                BadgeRule.points("GREEN_AMBASSADOR", "Green Ambassador", 300),
-                BadgeRule.points("CAMPUS_GUARDIAN", "Campus Guardian", 500)
-        );
-        for (BadgeRule rule : rules) {
+        for (BadgeRuleProjection rule : rules.findAll()) {
+            if (!rule.active) continue;
             if (isRuleMet(wallet, rule) && !badges.existsByStudentIdAndBadgeCode(wallet.studentId, rule.code)) {
                 BadgeAchievement badge = new BadgeAchievement();
                 badge.id = UUID.randomUUID().toString();
@@ -133,12 +129,15 @@ public class RewardLedgerService {
         }
     }
 
-    private boolean isRuleMet(RewardWallet wallet, BadgeRule rule) {
-        if (rule.requiredPoints != null && wallet.totalPoints < rule.requiredPoints) {
+    @Transactional
+    public void reevaluateBadges() { wallets.findAll().forEach(this::unlockBadges); }
+
+    private boolean isRuleMet(RewardWallet wallet, BadgeRuleProjection rule) {
+        if ("POINTS".equals(rule.criteriaType) && wallet.totalPoints < rule.requiredPoints) {
             return false;
         }
-        if (rule.actionType != null) {
-            return transactions.countByStudentIdAndActionType(wallet.studentId, rule.actionType) >= rule.requiredActionCount;
+        if ("ACTION_COUNT".equals(rule.criteriaType)) {
+            return transactions.countByStudentIdAndActionType(wallet.studentId, rule.actionType) >= rule.requiredCount;
         }
         return true;
     }

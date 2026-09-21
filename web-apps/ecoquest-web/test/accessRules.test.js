@@ -34,13 +34,13 @@ test('role switching follows backend role inheritance', () => {
 
 test('panel navigation does not leak student pages into moderator or admin panels', () => {
   assert.deepEqual(panelViewsForRole('Student'), [
-    'dashboard', 'missions', 'wallet', 'leaderboard', 'certificates', 'reports', 'profile',
+    'dashboard', 'missions', 'wallet', 'leaderboard', 'certificates', 'reports', 'profile', 'stations',
   ]);
   assert.deepEqual(panelViewsForRole('Moderator'), [
-    'dashboard', 'review', 'catalog', 'reports', 'leaderboard', 'profile',
+    'dashboard', 'review', 'catalog', 'reports', 'leaderboard', 'profile', 'stations',
   ]);
   assert.deepEqual(panelViewsForRole('Admin'), [
-    'dashboard', 'analytics', 'reports', 'catalog', 'users', 'policy', 'adjust', 'profile',
+    'dashboard', 'analytics', 'reports', 'catalog', 'users', 'policy', 'adjust', 'profile', 'stations',
   ]);
   assert.equal(panelViewsForRole('Moderator').includes('wallet'), false);
   assert.equal(panelViewsForRole('Admin').includes('certificates'), false);

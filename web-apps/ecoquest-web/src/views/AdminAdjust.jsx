@@ -54,10 +54,10 @@ export default function AdminAdjust() {
 
   const handleAdjust = async () => {
     if (!studentId.trim() || points === 0 || !reason.trim()) return;
-    const projected = projectedWalletBalance(wallet?.totalPoints, points);
+    const projected = projectedWalletBalance(wallet?.availablePoints ?? wallet?.totalPoints, points);
     const accepted = await confirm({
       title: 'Apply manual point adjustment?',
-      message: `${studentId} will change from ${wallet?.totalPoints ?? 0} to ${projected} points.`,
+      message: `${studentId} available balance will change from ${wallet?.availablePoints ?? wallet?.totalPoints ?? 0} to ${projected} points. The cumulative total is adjusted by the same amount.`,
       detail: `Reason: ${reason.trim()}`,
       confirmLabel: points > 0 ? 'Grant points' : 'Deduct points',
       tone: points > 0 ? 'primary' : 'warning',
@@ -77,8 +77,8 @@ export default function AdminAdjust() {
     }
   };
 
-  const projected = projectedWalletBalance(wallet?.totalPoints, points);
-  const canApply = canApplyPointAdjustment(wallet?.totalPoints, points, reason);
+  const projected = projectedWalletBalance(wallet?.availablePoints ?? wallet?.totalPoints, points);
+  const canApply = canApplyPointAdjustment(wallet?.availablePoints ?? wallet?.totalPoints, points, reason);
   const selectedStudent = students.find(account => account.studentId === studentId);
   const filteredStudents = useMemo(() => {
     const text = studentQuery.toLowerCase().trim();
@@ -113,7 +113,7 @@ export default function AdminAdjust() {
             ))}
           </div>
           <div className="adjust-balance">
-            <div><Wallet size={18} /><span>{selectedStudent?.displayName || studentId}</span><strong>{wallet?.totalPoints ?? 0}</strong></div>
+            <div><Wallet size={18} /><span>{selectedStudent?.displayName || studentId} - available</span><strong>{wallet?.availablePoints ?? wallet?.totalPoints ?? 0}</strong></div>
             <div className={points < 0 ? 'negative' : ''}><Zap size={18} /><span>Projected balance</span><strong>{projected}</strong></div>
           </div>
           <div className="form-group">

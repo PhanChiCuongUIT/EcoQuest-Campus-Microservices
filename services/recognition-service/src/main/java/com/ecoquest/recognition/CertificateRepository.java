@@ -11,12 +11,17 @@ interface CertificateRepository extends JpaRepository<CertificateRecord, String>
 }
 
 interface RewardClaimRepository extends JpaRepository<RewardClaim, String> {
+    List<RewardClaim> findByStatus(String status);
+    boolean existsByRewardIdAndStatus(String rewardId, String status);
     List<RewardClaim> findByStudentIdOrderByClaimedOnDesc(String studentId);
     Optional<RewardClaim> findFirstByStudentIdAndRewardIdOrderByClaimedOnDesc(String studentId, String rewardId);
     long countByRewardId(String rewardId);
 }
 
 interface RewardOfferRepository extends JpaRepository<RewardOffer, String> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select o from RewardOffer o where o.id = :id")
+    Optional<RewardOffer> lockById(@org.springframework.data.repository.query.Param("id") String id);
     List<RewardOffer> findByActiveTrueOrderByRequiredPointsAscNameAsc();
 }
 

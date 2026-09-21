@@ -14,6 +14,7 @@ class EcoAction {
     public String id;
     public String studentId;
     public String missionId;
+    public String missionTitle;
     public String stationId;
     public String actionType;
     public String evidenceUrl;
@@ -38,7 +39,7 @@ record DraftActionRequest(String studentId, String missionId, String stationId, 
 }
 
 record SubmitActionRequest(String idempotencyKey, String studentId, String missionId, String stationId, String actionType,
-                           String evidenceUrl, List<String> evidenceUrls) {
+                           String evidenceUrl, List<String> evidenceUrls, String stationScanReceipt) {
     String primaryEvidenceUrl() {
         var normalized = EvidenceUrls.normalize(evidenceUrl, evidenceUrls);
         return normalized.isEmpty() ? "" : normalized.getFirst();

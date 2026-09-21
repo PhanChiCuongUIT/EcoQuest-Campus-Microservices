@@ -22,11 +22,13 @@ import AdminUsers        from './views/AdminUsers.jsx';
 import Missions          from './views/Missions.jsx';
 import { AdminDashboard, ModeratorDashboard } from './views/RoleDashboard.jsx';
 import AdminAnalytics from './views/AdminAnalytics.jsx';
+import Stations from './views/Stations.jsx';
 import { allowedUiRoles, panelViewsForRole } from './utils/accessRules.js';
 
 /* ── View Titles ─────────────────────────────────────────────── */
 const VIEW_TITLES = {
   dashboard:    'Dashboard',
+  stations:     'Stations',
   missions:     'Missions',
   wallet:       'Wallet & Badges',
   leaderboard:  'Leaderboard',
@@ -62,7 +64,13 @@ function AppInner() {
 
   // Role & Navigation — initially derived from auth user, but can be overridden for demo
   const [role, setRole]           = useState('Student');
-  const [activeView, setActiveView] = useState('dashboard');
+  const [stationQrToken, setStationQrToken] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('station'));
+  const [activeView, setActiveView] = useState(() => new URLSearchParams(window.location.hash.slice(1)).has('station') ? 'stations' : 'dashboard');
+  useEffect(() => {
+    const handleHash = () => { const token = new URLSearchParams(window.location.hash.slice(1)).get('station'); if (token) { setStationQrToken(token); setActiveView('stations'); } };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
 
   // When auth user loads, sync role from backend role
   useEffect(() => {
@@ -126,6 +134,7 @@ function AppInner() {
         if (role === 'Moderator') return <ModeratorDashboard />;
         return <StudentDashboard studentId={studentId} onSubmitMission={handleSubmitMission} />;
       case 'missions':     return <Missions onSubmitMission={handleSubmitMission} />;
+      case 'stations':     return <Stations initialToken={stationQrToken} />;
       case 'wallet':       return <WalletBadges studentId={studentId} />;
       case 'leaderboard':  return <Leaderboard studentId={studentId} role={role} />;
       case 'certificates': return <Certificates studentId={studentId} />;

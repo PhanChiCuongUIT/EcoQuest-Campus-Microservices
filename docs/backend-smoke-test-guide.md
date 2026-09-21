@@ -1,6 +1,29 @@
 # Hướng Dẫn Smoke Test Backend EcoQuest
 
-Cập nhật hướng dẫn chạy: 2026-09-19. Kết quả cũ bên dưới là mốc kiểm thử lịch sử; kết quả của lần dựng lại nằm trong [hướng dẫn chạy hiện tại](chay-lai-project.md).
+Cập nhật hướng dẫn chạy: 2026-09-21. Lượt mới: Maven 14 module / 28 test PASS, frontend 26 test PASS, Playwright 8/8 PASS và full smoke PASS. Các kết quả cũ bên dưới là lịch sử; [hướng dẫn chạy hiện tại](chay-lai-project.md) ghi phạm vi, lỗi đã sửa và giới hạn kiểm chứng.
+
+## Phạm Vi Bổ Sung Ngày 21/09/2026
+
+- Policy được giao diện gọi qua `/policies/` cùng origin của web; Nginx/Vite chuyển tới Policy, không thêm route ở Gateway. Smoke kiểm Admin truy cập được và request thiếu token bị từ chối.
+- Kiểm lỗi tạo rule trùng, điểm âm, điểm dạng số lẻ; số âm/số lẻ không được lưu. Kiểm tạo mission thiếu `actionType` trả validation 400.
+- Quét QR sai station phải trả JSON có `detail` nói rõ station không thuộc mission. Gửi action thiếu scan receipt phải giữ nguyên thông báo từ Catalog khi truyền qua Action và Gateway.
+- Backend dùng `ApiExceptionHandler` cho lỗi nghiệp vụ, validation và JSON sai kiểu. JWT filter chỉ xử lý lỗi xác thực, không đổi lỗi controller/database thành 401.
+- Frontend chuẩn hóa thông báo của cả API Gateway và Policy, bao gồm lỗi tải file dạng Blob; không hiển thị nguyên trang HTML hay chuỗi lỗi Axios mặc định.
+- Test bổ sung nằm ở `building-blocks/common/src/test`, `services/verification-policy-grpc-service/src/test`, `web-apps/ecoquest-web/test/apiErrors.test.js` và `web-apps/ecoquest-web/e2e/station-rewards.spec.js`.
+- Kỳ leaderboard dùng UTC và ISO week-year ở cả backend, UI và smoke; tránh false failure lúc giờ Việt Nam vừa sang tuần/tháng mới. `Assert-ApiError` đọc JSON từ error stream trên Windows PowerShell 5 nếu `ErrorDetails.Message` trống.
+
+## Phạm Vi Bổ Sung Ngày 20/09/2026
+
+Rà soát CRUD tiếp theo bổ sung `CatalogMissionUpdateTest` với 3 case: Admin bỏ `status` không làm mission quay về pending; đổi trạng thái qua form phát integration event; Moderator không tự kích hoạt. Build Catalog cùng dependency và 10/10 test Catalog PASS, full smoke chạy lại PASS. Tổng hiện có 20 Java test; kết quả reactor 17 test bên dưới thuộc lượt trước bản sửa hẹp này.
+
+- Runner chính tự gọi `scripts/qr-reward-smoke-cases.ps1` trước khi kiểm queue drained; không chạy extension riêng vì nó dùng session/fixture của runner.
+- Station-required mission phải gán station. Script lấy QR/receipt cho fixture hợp lệ; các case âm gửi request nguyên trạng để bảo đảm backend từ chối ID trần, sai station, receipt của người khác và receipt đã dùng cho submission khác.
+- Tạo/sửa badge theo action count, upload/tải ảnh, kiểm Reward tự cấp badge từ rule Catalog và retire không xóa thành tích.
+- Hai coupon cùng cần 8 điểm với ví 14 điểm: một claim issued, một failed, số dư còn 6, đã tiêu 8, thành tích vẫn 14. Kiểm hoàn stock khi debit thất bại và claim lặp không trừ hai lần.
+- Tổng 23 queue nghiệp vụ có consumer; kiểm Ready/Unacked về 0 sau xử lý.
+- Maven 17 unit test; frontend 20 unit test; Playwright 6 case desktop/mobile. Full smoke còn kiểm coupon giá 0 với tài khoản chưa có ví và đã PASS trong lượt kiểm chứng ngày 20/09/2026; không đồng nghĩa đã kiểm hết mọi tình huống tải lớn/sự cố production.
+
+Playwright cần `start-project.ps1 -LocalMail`, chạy `npm.cmd run test:browser` trong `web-apps/ecoquest-web`. Chỉ cleanup khi cả smoke và browser đã kết thúc. Cleanup bổ sung receipt theo E2E user, quan hệ mission-station, quyết định coupon debit và rule projection thử nghiệm; không reset toàn database.
 
 File này giải thích lệnh test backend, nội dung script đang kiểm thử, kết quả mong đợi và cách xóa dữ liệu E2E sau khi test.
 

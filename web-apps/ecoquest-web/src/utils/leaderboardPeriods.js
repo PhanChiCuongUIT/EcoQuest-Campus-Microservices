@@ -1,5 +1,5 @@
 export function isoWeekInfo(date = new Date()) {
-  const utc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const utc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
   const day = utc.getUTCDay() || 7;
   utc.setUTCDate(utc.getUTCDate() + 4 - day);
   const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
@@ -9,8 +9,8 @@ export function isoWeekInfo(date = new Date()) {
 
 export function buildLeaderboardPeriodOptions(type, date = new Date()) {
   if (type === 'monthly') {
-    const year = date.getFullYear();
-    const currentMonth = date.getMonth() + 1;
+    const year = date.getUTCFullYear();
+    const currentMonth = date.getUTCMonth() + 1;
     return Array.from({ length: currentMonth }, (_, index) => currentMonth - index)
       .map(month => ({
         key: `${year}-${String(month).padStart(2, '0')}`,

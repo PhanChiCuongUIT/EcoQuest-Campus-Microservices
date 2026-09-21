@@ -276,7 +276,7 @@ function ForgotForm({ onBack, initialToken = '' }) {
       } else {
         setError('Email not found in our system.');
       }
-    } catch { setError('Could not reach server. Make sure backend is running.'); }
+    } catch (error) { setError(error.message); }
     finally { setLoading(false); }
   };
 

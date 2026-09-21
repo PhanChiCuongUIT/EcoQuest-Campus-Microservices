@@ -128,7 +128,7 @@ docker exec microservices-se361-rabbitmq-1 rabbitmqctl list_queues name messages
 
 Kỳ vọng sau smoke test:
 
-- Có 20 queue nghiệp vụ.
+- Có 23 queue nghiệp vụ, gồm ba queue mới cho đồng bộ badge và debit coupon. Xem [luồng QR, badge và coupon](station-qr-wallet-badges.md).
 - `messages = 0`.
 - `consumers >= 1`.
 
@@ -268,8 +268,8 @@ Luồng:
 2. Leaderboard publish season closed.
 3. Recognition tạo certificate PDF.
 4. Student xem/download certificate.
-5. Student claim coupon nếu đủ points/badge/certificate/stock/expiry.
-6. Claim lại cùng reward trả voucher cũ, không trừ stock lần hai.
+5. Student claim coupon: Recognition kiểm badge/certificate/stock/expiry, giữ stock và lưu pending. Reward nhận yêu cầu qua RabbitMQ, kiểm số dư tiêu dùng rồi debit, không giảm điểm tích lũy hoặc leaderboard.
+6. Kết quả debit quyết định issued/voucher hoặc failed/hoàn stock. Claim pending/issued lặp không debit hoặc trừ stock lần hai; bản ghi pending được gửi lại đến khi xử lý kết quả.
 
 ### Flyway, MapStruct, Resilience4j, OpenAPI
 
@@ -428,7 +428,7 @@ http://localhost:8090/policies/rules
 
 Nói:
 
-"Admin quản lý policy qua REST direct local. Runtime submit thì Action gọi Policy bằng gRPC."
+"Admin quản lý policy qua REST: giao diện dùng proxy cùng origin tới Policy, kiểm thử có thể dùng cổng 8090. Runtime submit thì Action gọi Policy bằng gRPC."
 
 ### Demo 8 - Báo cáo analytics
 
@@ -502,7 +502,7 @@ Giảm rủi ro mất event. Action lưu state và outbox message trong DB, work
 
 ### Vì sao Policy Admin không đi qua Gateway?
 
-Policy là service nội bộ/direct admin mode. Runtime student không gọi Policy trực tiếp; Action gọi bằng gRPC. Việc không route Policy qua Gateway giúp nhấn mạnh policy không phải public API đại trà.
+Policy có gRPC nội bộ và REST quản trị. Giao diện Admin dùng Nginx/Vite proxy `/policies/`; cổng 8090 cũng truy cập được khi có bearer token Admin. Runtime Student không gọi Policy trực tiếp; Action gọi bằng gRPC. Không có route trên Gateway không thay thế bảo mật: chính Policy phải kiểm quyền cho mọi request quản trị.
 
 ### Redis dùng cho gì?
 

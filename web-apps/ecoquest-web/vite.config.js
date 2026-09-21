@@ -10,6 +10,7 @@ export default defineConfig({
     port: 3000,
     host: '0.0.0.0',
     proxy: {
+      '/policies':     { target: process.env.VITE_POLICY_BASE_URL || 'http://localhost:8090', changeOrigin: false },
       '/auth':         { target: gatewayTarget, changeOrigin: true },
       '/catalog':      { target: gatewayTarget, changeOrigin: true },
       '/actions':      { target: gatewayTarget, changeOrigin: true },

@@ -18,6 +18,13 @@ function Exec-Postgres {
     if ($LASTEXITCODE -ne 0) { throw "Cleanup failed for $Database; stopped before further deletes." }
 }
 
+$testUserIds = @(docker exec microservices-se361-identity-db-1 psql -U ecoquest -d identity_db -At -c "SELECT id FROM user_accounts WHERE email LIKE 'e2e-%@ecoquest.local' OR student_id LIKE 'SV_E2E%' OR student_id LIKE 'SV_AUTH%'")
+if ($LASTEXITCODE -ne 0) { throw 'Could not collect E2E user IDs; no data has been removed.' }
+$testUserSql = (@($testUserIds | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { "'$($_.Replace("'", "''"))'" }) -join ',')
+if (-not $testUserSql) { $testUserSql = 'NULL' }
+Write-Step "Cleaning station scan receipts owned by E2E users"
+Exec-Postgres "microservices-se361-catalog-db-1" "catalog_db" "DELETE FROM station_scan_receipt WHERE user_id IN ($testUserSql);"
+
 Write-Step "Cleaning Identity E2E users/tokens"
 Exec-Postgres "microservices-se361-identity-db-1" "identity_db" @"
 WITH e2e_users AS (
@@ -44,6 +51,8 @@ WHERE email LIKE 'e2e-%@ecoquest.local'
 
 Write-Step "Cleaning Catalog temporary missions/stations/badges"
 Exec-Postgres "microservices-se361-catalog-db-1" "catalog_db" @"
+DELETE FROM station_scan_receipt WHERE mission_id LIKE 'MISSION-E2E%' OR submission_key ILIKE '%e2e%';
+DELETE FROM mission_allowed_station_ids WHERE mission_id IN (SELECT id FROM mission WHERE id LIKE 'MISSION-E2E%' OR action_type LIKE 'E2E_%');
 DELETE FROM mission
 WHERE id LIKE 'MISSION-E2E%'
    OR action_type LIKE 'E2E_%';
@@ -86,6 +95,8 @@ docker exec microservices-se361-action-db-1 mongosh action_db --quiet --eval $mo
 
 Write-Step "Cleaning Reward Ledger E2E wallets/transactions/badges"
 Exec-Postgres "microservices-se361-reward-db-1" "reward_db" @"
+DELETE FROM coupon_debit_record WHERE student_id LIKE 'SV_E2E%' OR student_id LIKE 'SV_AUTH%';
+DELETE FROM badge_rule_projection WHERE code LIKE 'BADGE-E2E%';
 DELETE FROM reward_transaction
 WHERE student_id LIKE 'SV_E2E%'
    OR student_id LIKE 'SV_AUTH%'
@@ -126,6 +137,7 @@ SET remaining_stock = remaining_stock + (
     SELECT COUNT(*)
     FROM reward_claim
     WHERE reward_claim.reward_id = reward_offer.id
+      AND status <> 'FAILED'
       AND (student_id LIKE 'SV_E2E%' OR student_id LIKE 'SV_AUTH%')
 )
 WHERE id IN (

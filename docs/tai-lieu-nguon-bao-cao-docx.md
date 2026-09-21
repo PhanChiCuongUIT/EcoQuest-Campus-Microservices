@@ -1,6 +1,10 @@
 # Tài Liệu Nguồn Viết Báo Cáo DOCX - EcoQuest Campus
 
-Cập nhật đặc tả: 2026-07-10. Cập nhật vận hành, seed và kiểm thử: 2026-09-19.
+Cập nhật đặc tả và kiểm thử: 2026-09-21. Cập nhật vận hành và seed: 2026-09-19.
+
+Kết quả mới nhất: reactor toàn bộ 14 module và 28 Java test PASS; frontend 26 test, Playwright 8 case desktop/mobile, production build và full smoke PASS. Policy UI dùng proxy cùng origin; lỗi nghiệp vụ trả JSON rõ ràng; JWT filter không đổi lỗi controller thành 401; mission bắt buộc `actionType`. Leaderboard UI/test dùng UTC giống backend. Các guard mission đã có vẫn được giữ: Admin sửa không gửi `status` giữ trạng thái hiện tại, đổi trạng thái phát event, Moderator không tự kích hoạt. Xem mục 7 trong `chay-lai-project.md` để biết phạm vi và giới hạn kiểm chứng.
+
+Phần mở rộng mới: [Station QR, badge và điểm tiêu dùng](station-qr-wallet-badges.md). Catalog sở hữu QR và receipt gắn user/mission/station, mission bắt buộc station có danh sách được phép. Action kiểm receipt qua API Catalog trước khi lưu pending review. Reward đồng bộ quy tắc badge qua RabbitMQ, hỗ trợ ảnh và retire badge; wallet phân biệt tổng điểm, điểm đã tiêu và số dư. Recognition giữ stock/claim pending, Reward debit điểm tiêu dùng rồi Recognition mới phát voucher. Vẫn có 9 business service và không truy cập database chéo. Chi tiết bảng mới và ràng buộc nằm trong mục 7 của tài liệu mở rộng; các bảng bên dưới là mô hình cơ sở, đọc cùng phần bổ sung này.
 
 Stack hiện dùng named volume cho các kho dữ liệu, Redis AOF, seed không ghi đè dữ liệu đã thao tác khi restart và script refresh theo ngày qua API. Kiến trúc vẫn gồm 9 microservice. Xem [hướng dẫn khởi động và kết quả kiểm chứng mới](chay-lai-project.md) để phân biệt dữ liệu khởi tạo với dữ liệu sau khi bổ sung hoạt động.
 
@@ -185,7 +189,7 @@ Policy là service chuyên xử lý rule xác minh.
 Luồng sử dụng:
 
 - Action gọi gRPC `EvaluateAction` tới Policy.
-- Admin quản lý rule qua REST direct `http://localhost:8090/policies/rules`.
+- Admin quản lý rule qua `/policies/rules` cùng origin của giao diện, được Nginx/Vite proxy trực tiếp tới Policy; cổng `8090` vẫn dùng được khi kiểm thử trực tiếp với bearer token Admin.
 - Gateway không public Policy Admin API để giữ đúng mô hình internal/admin service.
 
 ### 5.5. Reward Ledger Service - PostgreSQL `reward_db`
@@ -231,7 +235,7 @@ Recognition sở hữu certificate và coupon.
 | --- | --- | --- | --- | --- |
 | `CertificateRecord` | `id` | `studentId`, `seasonId`, `certificateType`, `rankNumber`, `points`, `objectKey`, `issuedOn` | unique `studentId + seasonId` | Metadata chứng nhận PDF |
 | `RewardOffer` | `id` | `name`, `description`, `icon`, `color`, `requiredPoints`, `requiredBadges`, `requiredCertificates`, `remainingStock`, `active`, `validUntil`, `terms` | delete bị chặn nếu offer active hoặc đã có voucher issued | Catalog coupon thật |
-| `RewardClaim` | `id` | `rewardId`, `studentId`, `rewardName`, `status`, `voucherCode`, `claimedOn`, `expiresAt` | logic idempotent theo `studentId + rewardId` | Voucher/coupon đã phát |
+| `RewardClaim` | `id` | `rewardId`, `studentId`, `rewardName`, `pointsCost`, `failureReason`, `status`, `voucherCode`, `claimedOn`, `expiresAt` | khóa offer; lặp pending/issued trả claim cũ | Claim `PENDING/ISSUED/FAILED`; voucher chỉ cấp sau debit |
 | `StudentRecognitionProfile` | `studentId` | `totalPoints`, `badgeCount`, `certificateCount`, `updatedOn` | cập nhật bằng event | Read model kiểm eligibility coupon |
 
 Ràng buộc nghiệp vụ:
@@ -490,8 +494,8 @@ Luồng Student:
 3. Recognition trả danh sách offer kèm `eligible` và `eligibilityReason`.
 4. Student bấm Redeem.
 5. Recognition kiểm điều kiện và stock.
-6. Recognition tạo `RewardClaim`, phát `voucherCode`, trừ stock.
-7. Nếu claim lại cùng offer, backend trả voucher cũ, không trừ stock lần hai.
+6. Recognition giữ stock và tạo claim `PENDING`, gửi yêu cầu debit qua RabbitMQ. Reward kiểm và trừ số dư tiêu dùng trong transaction riêng, lưu quyết định theo claim ID rồi gửi kết quả.
+7. Recognition phát voucher khi debit thành công (`ISSUED`), hoặc chuyển `FAILED` và hoàn stock. Claim pending/issued lặp không trừ điểm/stock lần hai; failed cho phép thử lại. UI theo dõi trạng thái claim, không giả định HTTP thành công nghĩa là có voucher ngay.
 
 Kết quả: coupon là workflow thật trong Recognition service, không còn chỉ là UI demo.
 
@@ -588,7 +592,7 @@ Actor: Admin.
 Luồng:
 
 1. Admin mở Policy Rules.
-2. Frontend gọi trực tiếp Policy Admin API tại `8090`.
+2. Frontend gọi `/policies/rules` cùng origin. Web proxy chuyển tới Policy tại `8090`, không qua Gateway; Policy kiểm quyền Admin.
 3. Admin thêm rule bằng modal overlay.
 4. Admin sửa base points, evidence/station requirement, daily limit, active.
 5. Delete rule active bị chặn; muốn delete phải deactivate trước.
@@ -644,7 +648,7 @@ Frontend nằm trong `web-apps/ecoquest-web`, dùng React + Vite + CSS thuần, 
 
 - **Dashboard**: KPI điểm, mission, badge, certificate, biểu đồ submit/action status.
 - **Missions**: danh sách mission active, lọc/tìm kiếm, submit theo từng mission.
-- **Submit Action Modal**: upload nhiều ảnh hoặc một video evidence, chọn station, submit thành `PENDING_REVIEW` và xem kết quả pending/approved/rejected sau khi Moderator/Admin xử lý.
+- **Submit Action Modal**: upload nhiều ảnh hoặc một video evidence, quét QR station được mission cho phép để điền ô station readonly, submit thành `PENDING_REVIEW` và xem kết quả sau khi Moderator/Admin xử lý.
 - **Wallet & Badges**: wallet total, transaction history, badge unlocked.
 - **Leaderboard**: weekly/monthly, kỳ hiện tại và kỳ cũ.
 - **Certificates**: certificate cards, preview, print, download PDF, redeem coupon.
@@ -667,7 +671,7 @@ Frontend nằm trong `web-apps/ecoquest-web`, dùng React + Vite + CSS thuần, 
 - **Reports**: quản lý Campus Reports.
 - **Catalog**: CRUD mission/station/badge, approve mission, upload station image.
 - **Users**: role/status/delete user, self-protection.
-- **Policy Rules**: CRUD policy qua direct API `8090`, add rule bằng modal.
+- **Policy Rules**: CRUD qua proxy cùng origin tới Policy; thêm rule bằng modal, kiểm tra số nguyên không âm, báo cụ thể lỗi trùng rule hoặc chưa vô hiệu hóa trước khi xóa.
 - **Adjust Points**: cộng/trừ điểm student có audit và không cho ví âm.
 - **Profile**.
 
@@ -880,7 +884,8 @@ npm.cmd run build
 
 Trạng thái gần nhất:
 
-- Frontend unit test: 16/16 PASS.
+- Frontend unit test: 20/20 PASS (20/09/2026).
+- Playwright: 6/6 PASS cho QR, Catalog và wallet ở desktop/mobile; có ảnh chụp light/dark. Chưa kiểm camera vật lý trên điện thoại.
 - Frontend production build: PASS.
 
 ### 12.3. Audit Dữ Liệu Và Restart
@@ -998,7 +1003,7 @@ Hạn chế hiện tại:
 - Chưa có Kubernetes deployment.
 - Chưa có CI/CD chính thức.
 - Consistency giữa các service là eventual consistency nên UI cần refetch/poll sau event.
-- Coupon hiện chưa trừ điểm; nếu muốn coupon như đổi điểm thật, cần bổ sung debit transaction ở Reward Ledger.
+- Coupon đã trừ điểm tiêu dùng qua Reward Ledger, không trừ tổng thành tích hoặc leaderboard. QR tĩnh chưa chứng minh được vị trí vật lý; coupon chưa tích hợp POS hoặc quy trình sử dụng voucher tại đối tác. Các receipt hết hạn chưa có tác vụ dọn định kỳ.
 
 Hướng phát triển:
 

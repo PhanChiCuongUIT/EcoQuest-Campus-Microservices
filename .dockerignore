@@ -1,6 +1,9 @@
 **/target
 **/node_modules
 **/dist
+**/test-results
+**/playwright-report
+.qr-*.log
 .m2
 .git
 .idea

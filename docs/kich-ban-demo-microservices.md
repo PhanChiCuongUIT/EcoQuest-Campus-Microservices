@@ -1,6 +1,14 @@
 # Kịch bản demo Microservices EcoQuest Campus
 
-Cập nhật: 2026-07-10
+Cập nhật: 2026-09-20
+
+## Phần Demo QR, Badge Và Coupon
+
+Trước khi submit mission bắt buộc station, Admin mở Catalog > Stations > QR, tải hoặc in nhãn. Student vào Missions > Submit, quét camera (HTTPS) hoặc chọn ảnh QR; ô station tự điền, không chọn tùy ý. Gửi action vẫn chờ moderator approve mới được điểm.
+
+Để chứng minh ownership: mở Catalog DB xem station/scan receipt; Reward DB xem ví và ledger; không có thao tác nghiệp vụ đọc DB chéo. Catalog định nghĩa badge và ảnh, Reward nhận snapshot rule qua queue `reward.badge-catalog` để cấp thành tích.
+
+Khi đổi coupon, so sánh ba chỉ số trong Wallet: tổng điểm giữ nguyên, đã tiêu tăng, số dư giảm. Recognition giữ claim pending/stock; RabbitMQ chuyển yêu cầu debit qua `reward.coupon-debit`; kết quả về `recognition.coupon-debit-result` rồi mới có voucher hoặc hoàn stock. Tổng hiện có 23 queue, không còn 20 như slide/kết quả cũ. [Hướng dẫn đầy đủ và giới hạn](station-qr-wallet-badges.md).
 
 Tài liệu này dùng khi demo đồ án trước giảng viên. Trọng tâm là chứng minh hệ thống không chỉ là web app, mà có kiến trúc microservices thật: tách service theo nghiệp vụ, database ownership, API Gateway, gRPC, RabbitMQ, MinIO, Redis, healthcheck, idempotency và eventual consistency.
 

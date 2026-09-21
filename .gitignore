@@ -6,3 +6,5 @@ dist/
 .vscode/
 *.log
 .env
+web-apps/ecoquest-web/test-results/
+web-apps/ecoquest-web/playwright-report/

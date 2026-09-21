@@ -10,7 +10,7 @@ The backend consists of nine business services behind Spring Cloud Gateway. Each
 React / Vite Web -> Nginx API proxy -> Spring Cloud Gateway
                                         |
     +-- Identity Access ------ PostgreSQL + MinIO avatars
-    +-- Green Catalog -------- PostgreSQL + MinIO station images
+    +-- Green Catalog -------- PostgreSQL + MinIO station/badge images
     +-- Eco Action ----------- MongoDB + Redis + MinIO evidence
     |       +-- gRPC --------- Verification Policy + PostgreSQL
     +-- Reward Ledger -------- PostgreSQL
@@ -22,21 +22,25 @@ React / Vite Web -> Nginx API proxy -> Spring Cloud Gateway
 Approved action -> Action outbox -> RabbitMQ -> Reward Ledger
 Points granted -> RabbitMQ -> Leaderboard, Recognition, Report, Notification
 Season closed -> RabbitMQ -> Recognition -> Certificate issued
+Catalog badge definitions -> RabbitMQ -> Reward rule projection
+Coupon claim -> RabbitMQ -> Reward debit -> RabbitMQ -> Voucher or stock release
 ```
 
 | Service | Responsibilities | Host port |
 | --- | --- | --- |
 | Identity Access | Registration, email verification, login, password reset, profiles, roles and account status | 8086 |
-| Green Catalog | Mission approval workflow, stations, badge definitions and station images | 8081 |
+| Green Catalog | Mission approval, assigned stations, QR scan receipts, badge definitions and images | 8081 |
 | Eco Action | Drafts, image/video evidence, submissions, idempotency and moderation | 8082 |
 | Verification Policy | Action rules, evidence requirements and daily limits | 8090 HTTP, 9090 gRPC |
-| Reward Ledger | Wallets, point transactions, badge achievements and audited adjustments | 8083 |
+| Reward Ledger | Cumulative/spendable points, coupon debits, transactions, badges and adjustments | 8083 |
 | Leaderboard | Current and historical weekly/monthly rankings and season snapshots | 8084 |
 | Recognition | Certificate PDFs, reward offers, eligibility, stock and coupon claims | 8085 |
 | Report | Campus report workflow, period analytics, student outcomes and PDF exports | 8087 |
 | Notification | Event-driven inbox, read state and server-sent events | 8088 |
 
-The Gateway handles routing and cross-cutting request concerns. Authorization and business validation remain in the owning services. The Policy administration API is accessed directly rather than routed through the Gateway.
+The Gateway handles routing and cross-cutting request concerns. Authorization and business validation remain in the owning services. The web server proxies `/policies/` directly to Policy, outside the Gateway; Policy validates an Admin bearer token for every operation. The same-origin route supports desktop and mobile without a browser-side `localhost:8090` dependency. Direct port 8090 remains available for administration and testing.
+
+Gateway and Nginx use short DNS cache lifetimes so routes recover when Docker changes a service's IP address. The restart regression script checks persisted station QR codes and application state as well as API recovery.
 
 ## Technology Stack
 
@@ -55,7 +59,7 @@ Identity uses Flyway and MapStruct. Action uses an outbox publisher and Resilien
 ## Main Workflow
 
 1. A user registers, verifies their email and signs in.
-2. A student selects an active mission and uploads up to five images or one video as evidence.
+2. A student selects an active mission and uploads up to five images or one video as evidence. Station-required missions also require scanning an assigned station's QR code.
 3. Action validates mission eligibility through Catalog and evaluates rules through Policy gRPC.
 4. Valid submissions enter `PENDING_REVIEW`; policy failures can produce `REJECTED` submissions.
 5. A Moderator or Admin approves or rejects the submission. Moderators cannot review their own actions.
@@ -63,9 +67,21 @@ Identity uses Flyway and MapStruct. Action uses an outbox publisher and Resilien
 7. Reward records a transaction identified by `sourceActionId`, grants points and evaluates badges.
 8. Downstream consumers update rankings, recognition progress, analytics and notifications asynchronously.
 9. Closing a season creates leaderboard snapshots and triggers certificate generation.
-10. Eligible students claim active reward offers. Recognition checks eligibility and stock and returns the existing voucher for a repeated claim.
+10. Recognition reserves coupon stock and persists a `PENDING` claim. Reward checks and debits available points asynchronously; Recognition issues the voucher or marks the claim `FAILED` and releases stock. Repeated delivery cannot debit the same claim twice.
 
 Points are not awarded at submission time. Cross-service read models may take a short time to reflect an approved action.
+
+### Stations, Badges And Spendable Points
+
+- Admins create stations and download or print their QR labels from Catalog. Every signed-in role can use **Stations / Scan QR** to inspect a station and its assigned active missions.
+- Station-required missions must have at least one active assigned station. A scan receipt is tied to the user, mission and station, expires after ten minutes, and cannot authorize a different submission key. Entering a station ID alone is insufficient.
+- Editing a mission as Admin preserves its status when `status` is omitted. Status changes through the edit API publish the same integration event as the dedicated approval API; Moderators cannot activate missions through edits.
+- QR labels use the current web origin. Print labels from a URL reachable by the intended phones. Live camera access requires HTTPS or localhost; QR photo decoding is available as a fallback. Static QR codes do not prove physical presence and can be photographed/copied.
+- Catalog manages badge criteria (`POINTS` or `ACTION_COUNT`) and optional images. Reward consumes a versioned definition snapshot and awards badges using its own data. Retiring a definition preserves earned achievements.
+- `availablePoints = totalPoints - spentPoints`. Coupons debit only the available balance; cumulative achievement points, earned badges and leaderboard scores are not reduced. Legacy coupons are not charged retroactively.
+- Wallet transactions show mission names or adjustment/coupon reasons. Source IDs remain available in the API for auditing.
+
+See [Station QR, badges and coupon workflow](docs/station-qr-wallet-badges.md) for API contracts, data ownership, validation and test coverage.
 
 ## Quick Start
 
@@ -91,6 +107,7 @@ powershell -ExecutionPolicy Bypass -File scripts\start-project.ps1
 | RabbitMQ Management | http://localhost:25673 | `guest` / `guest` |
 | MinIO Console | http://localhost:9001 | `minioadmin` / `minioadmin` |
 | Policy administration | http://localhost:8090/policies/rules | Admin bearer token |
+| Policy web proxy | http://localhost:3000/policies/rules | Admin bearer token; same origin as the UI |
 
 Host ports are configurable in `.env`. Container connections use Compose service names and internal ports. Development credentials and exposed infrastructure ports are intended for local use.
 
@@ -160,7 +177,7 @@ powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway
 powershell -ExecutionPolicy Bypass -File scripts\cleanup-smoke-test-data.ps1
 ```
 
-The suite covers authentication, authorization, catalog and policy operations, evidence uploads, moderation, point grants, badges, ranking, certificates, coupons, reports, notifications and RabbitMQ consumption. It creates E2E records and exercises shared demo state; use a development environment. Cleanup removes identifiable E2E data but is not a complete rollback of all test activity.
+The suite covers authentication, authorization, catalog and policy operations, evidence uploads, moderation, point grants, badges, ranking, certificates, coupons, reports, notifications and RabbitMQ consumption. It also checks readable station-scan errors and protected same-origin Policy access. It creates E2E records and exercises shared demo state; use a development environment. Cleanup removes identifiable E2E data but is not a complete rollback of all test activity.
 
 After testing, run `scripts/start-project.ps1` without `-LocalMail` to restore the email configuration from `.env`.
 
@@ -178,6 +195,15 @@ npm.cmd ci
 npm.cmd test
 npm.cmd run build
 ```
+
+Browser regression tests run against the local stack in `-LocalMail` mode:
+
+```powershell
+npx.cmd playwright install chromium
+npm.cmd run test:browser
+```
+
+The browser suite covers station labels, QR photo decoding, mission submission and approval, wallet reasons, and Catalog forms at desktop and mobile sizes. Run the E2E cleanup script from the repository root after both smoke and browser tests finish.
 
 ## Development And Operations
 

@@ -21,7 +21,7 @@ Các điểm nên chỉnh hoặc nhấn mạnh khi nói:
 
 - Ở kịch bản slide 6 và slide 10, nên tránh nói Recognition nhận trực tiếp mọi `ActionAcceptedEvent` để tạo certificate. Nói chính xác hơn: `ActionAcceptedEvent` chủ yếu kích hoạt Reward/Report/Notification; Reward phát `PointsGrantedEvent` để Leaderboard/Report/Notification cập nhật; khi close season thì Leaderboard phát `SeasonClosedEvent`, Recognition mới tạo certificate.
 - Ở slide 12, dòng “Leaderboard/Recognition cập nhật” nên nói rõ bằng lời: Leaderboard cập nhật sau `PointsGrantedEvent`, còn Recognition tạo certificate sau `SeasonClosedEvent` và quản lý coupon eligibility.
-- Ở slide 20, câu “20 RabbitMQ queues drained về 0 message” nên nói thành “20 queue của RabbitMQ đều còn 0 pending messages sau smoke test”, nghe tự nhiên và đúng kỹ thuật hơn.
+- Số 20 queue trên slide thuộc phiên bản cũ. Từ 20/09/2026 có 23 queue nghiệp vụ, gồm đồng bộ rule badge và hai chiều debit coupon. Khi trình bày, nêu số queue và Ready/Unacked quan sát được của lần chạy hiện tại, không suy ra hệ thống không lỗi chỉ từ queue rỗng.
 - Một số sơ đồ như slide 6, 9, 14 hơi nhỏ nếu chiếu xa. Khi thuyết trình nên dùng laser/mouse chỉ theo luồng chính, không cần đọc hết chữ trong sơ đồ.
 
 ## Câu nên thay trong kịch bản

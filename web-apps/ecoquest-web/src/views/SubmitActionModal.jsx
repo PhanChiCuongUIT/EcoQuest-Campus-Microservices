@@ -4,6 +4,8 @@ import {
   Upload, X, Image, FileVideo, FileText,
 } from 'lucide-react';
 import Modal from '../components/Modal.jsx';
+import StationScanner from '../components/StationScanner.jsx';
+import { createClientId } from '../utils/clientIds.js';
 import { useToast } from '../components/Toast.jsx';
 import { getMissions, getStations, saveDraft, submitAction, uploadEvidence } from '../api/ecoquestApi.js';
 import { activeMissions } from '../utils/accessRules.js';
@@ -200,6 +202,13 @@ export default function SubmitActionModal({ isOpen, onClose, studentId, prefillM
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [fieldError, setFieldError] = useState('');
+  const [stationScan, setStationScan] = useState(null);
+  const submissionKey = useRef(createClientId('action-submit'));
+  useEffect(() => {
+    setStationScan(null);
+    setForm(f => ({ ...f, stationId: '' }));
+    submissionKey.current = createClientId('action-submit');
+  }, [isOpen, form.missionId, studentId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -233,8 +242,8 @@ export default function SubmitActionModal({ isOpen, onClose, studentId, prefillM
     if (selectedMission?.evidenceRequired && form.evidenceItems.length === 0) {
       return 'Evidence is required for this mission. Upload multiple photos or one short video.';
     }
-    if (selectedMission?.stationRequired && !form.stationId) {
-      return 'Station is required for this mission.';
+    if (selectedMission?.stationRequired && (!stationScan || new Date(stationScan.expiresAt) <= new Date())) {
+      return 'Scan an allowed station QR before submitting. Scans are valid for 10 minutes.';
     }
     return '';
   };
@@ -278,8 +287,8 @@ export default function SubmitActionModal({ isOpen, onClose, studentId, prefillM
         evidenceUrls,
       });
       toast({ type: 'success', message: 'Draft saved successfully', sub: 'You can submit it later.' });
-    } catch {
-      toast({ type: 'error', message: 'Failed to save draft' });
+    } catch (error) {
+      toast({ type: 'error', message: 'Failed to save draft', sub: error.message });
     } finally {
       setSavingDraft(false);
     }
@@ -293,6 +302,8 @@ export default function SubmitActionModal({ isOpen, onClose, studentId, prefillM
     try {
       const evidenceUrls = await uploadEvidenceItems();
       const data = await submitAction({
+        idempotencyKey: submissionKey.current,
+        stationScanReceipt: stationScan?.scanReceipt,
         studentId: form.studentId,
         missionId: form.missionId,
         stationId: form.stationId || undefined,
@@ -313,7 +324,7 @@ export default function SubmitActionModal({ isOpen, onClose, studentId, prefillM
       }
     } catch (e) {
       if (e.response?.status === 409) {
-        setFieldError('This action was already submitted (duplicate idempotency key).');
+        setFieldError(e.response?.data?.message || e.response?.data?.detail || 'Submission conflict. Check the station scan and mission status.');
       } else if (e.response?.status === 400) {
         setFieldError(e.response?.data?.message || 'Validation error. Please check your inputs.');
       } else if (e.response?.status === 401) {
@@ -430,17 +441,12 @@ export default function SubmitActionModal({ isOpen, onClose, studentId, prefillM
           Green Station
           {selectedMission?.stationRequired && <span style={{ color: 'var(--color-danger)', marginLeft: 4 }}>*</span>}
         </label>
-        <select
-          id="modal-station"
-          className={`form-select${selectedMission?.stationRequired && !form.stationId ? ' error' : ''}`}
-          value={form.stationId}
-          onChange={e => set('stationId')(e.target.value)}
-        >
-          <option value="">No station</option>
-          {stations.filter(s => s.active !== false).map(s => (
-            <option key={s.id} value={s.id}>{s.name} ({s.location}) - {s.stationType}</option>
-          ))}
-        </select>
+        <input id="modal-station" className="form-input" readOnly value={stationScan?.station.name || ''} placeholder={selectedMission?.stationRequired ? 'Scan a station QR' : 'No station required'} />
+        {selectedMission?.stationRequired && <>
+          <p className="form-hint">{stations.filter(s => selectedMission.allowedStationIds?.includes(s.id)).map(s => s.name).join(' / ') || 'No stations assigned'}</p>
+          <StationScanner key={form.missionId} missionId={form.missionId} onScanned={scan => { setStationScan(scan); setForm(f => ({ ...f, stationId: scan.station.id })); setFieldError(''); }} />
+          {stationScan && <p role="status">Station confirmed until {new Date(stationScan.expiresAt).toLocaleTimeString()}</p>}
+        </>}
       </div>
 
       <EvidenceUpload

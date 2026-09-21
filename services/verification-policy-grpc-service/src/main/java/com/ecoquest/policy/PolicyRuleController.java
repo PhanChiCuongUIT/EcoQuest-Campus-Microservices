@@ -68,6 +68,11 @@ class PolicyRuleController {
         if (actionType == null || actionType.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Action type is required.");
         }
-        return actionType.trim().toUpperCase();
+        String normalized = actionType.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!normalized.matches("[A-Z0-9][A-Z0-9_-]{0,79}")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Action type must be 1-80 letters, numbers, underscores or hyphens.");
+        }
+        return normalized;
     }
 }

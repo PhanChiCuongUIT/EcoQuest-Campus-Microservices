@@ -3,7 +3,8 @@ import { Wallet, Lock, Shield, Zap, TrendingUp, Calendar, Trophy, ChevronRight, 
 import EmptyState from '../components/EmptyState.jsx';
 import AsyncBanner from '../components/AsyncBanner.jsx';
 import Modal from '../components/Modal.jsx';
-import { getWallet, getTransactions, getUnlockedBadges, getBadgeDefs } from '../api/ecoquestApi.js';
+import { getWallet, getTransactions, getUnlockedBadges, getBadgeDefs, getMissions } from '../api/ecoquestApi.js';
+import { badgeProgress, transactionLabel } from '../utils/rewardRules.js';
 
 function timeAgo(iso) {
   try {
@@ -37,6 +38,7 @@ export default function WalletBadges({ studentId }) {
   const [txs, setTxs]                 = useState([]);
   const [unlockedBadges, setUnlocked] = useState([]);
   const [badgeDefs, setBadgeDefs]     = useState([]);
+  const [missions, setMissions] = useState([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(null);
   
@@ -47,16 +49,18 @@ export default function WalletBadges({ studentId }) {
     if (!studentId) return;
     setLoading(true); setError(null);
     try {
-      const [w, t, u, b] = await Promise.all([
+      const [w, t, u, b, m] = await Promise.all([
         getWallet(studentId),
         getTransactions(studentId),
         getUnlockedBadges(studentId),
         getBadgeDefs(),
+        getMissions(),
       ]);
       setWallet(w);
       setTxs([...t].sort((a, b) => new Date(b.occurredOn) - new Date(a.occurredOn)));
       setUnlocked(u);
       setBadgeDefs(b);
+      setMissions(m);
     } catch {
       setError('Could not load wallet and badge data. Check service connections.');
     } finally { setLoading(false); }
@@ -78,13 +82,11 @@ export default function WalletBadges({ studentId }) {
   const unlockedCodes = new Set(unlockedBadges.map(b => b.badgeCode));
 
   // Determine next badge to unlock
-  const sortedDefs = [...badgeDefs].sort((a, b) => a.requiredPoints - b.requiredPoints);
+  const sortedDefs = badgeDefs.filter(d => d.active !== false || unlockedCodes.has(d.code)).sort((a, b) => a.requiredPoints - b.requiredPoints);
   const nextBadge = sortedDefs.find(d => !unlockedCodes.has(d.code));
   const prevBadge = [...sortedDefs].reverse().find(d => unlockedCodes.has(d.code));
-  const progressPct = nextBadge
-    ? Math.min(100, Math.round(((totalPoints - (prevBadge?.requiredPoints ?? 0)) /
-        (nextBadge.requiredPoints - (prevBadge?.requiredPoints ?? 0))) * 100))
-    : 100;
+  const progress = nextBadge ? badgeProgress(nextBadge, txs, totalPoints) : null;
+  const progressPct = progress?.percent ?? 100;
 
   const handleOpenBadgeDetails = (def, isUnlocked, unlockedRecord) => {
     const meta = BADGE_META[def.code] || { emoji: '🏅', color: '#1C7C54', ring: '#E5E7EB', bg: '#F9FAFB', rarity: 'Special', lore: 'Exclusive campus sustainability milestone achievement badge.' };
@@ -128,7 +130,7 @@ export default function WalletBadges({ studentId }) {
               position: 'relative',
               filter: selectedBadge.isUnlocked ? 'none' : 'grayscale(100%)',
             }}>
-              {selectedBadge.isUnlocked ? selectedBadge.meta.emoji : '🔒'}
+              {selectedBadge.imageUrl ? <img className="badge-art" src={selectedBadge.imageUrl} alt={selectedBadge.name} /> : selectedBadge.isUnlocked ? selectedBadge.meta.emoji : '🔒'}
             </div>
 
             {/* Title & Rarity */}
@@ -179,7 +181,7 @@ export default function WalletBadges({ studentId }) {
               alignItems: 'center',
             }}>
               <div>
-                Requirements: <strong>{selectedBadge.requiredPoints} cumulative points</strong>
+                Requirements: <strong>{badgeProgress(selectedBadge, txs, totalPoints).target} {badgeProgress(selectedBadge, txs, totalPoints).unit}</strong>
               </div>
               {selectedBadge.isUnlocked ? (
                 <div style={{ color: 'var(--color-success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -187,7 +189,7 @@ export default function WalletBadges({ studentId }) {
                 </div>
               ) : (
                 <div style={{ color: 'var(--color-text-muted)' }}>
-                  Points progress: <strong>{totalPoints} / {selectedBadge.requiredPoints} pts</strong>
+                  Progress: <strong>{badgeProgress(selectedBadge, txs, totalPoints).current} / {badgeProgress(selectedBadge, txs, totalPoints).target}</strong>
                 </div>
               )}
             </div>
@@ -220,12 +222,14 @@ export default function WalletBadges({ studentId }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
                 <Zap size={24} color="var(--color-primary)" fill="var(--color-primary)" />
                 <div style={{ fontSize: 48, fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1 }}>
-                  {totalPoints.toLocaleString()}
+                  {(wallet?.availablePoints ?? totalPoints).toLocaleString()}
                 </div>
               </div>
               <div style={{ color: 'var(--color-text-muted)', marginTop: 4, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>
                 Available Points
               </div>
+              <div className="form-hint">Cumulative points: {totalPoints.toLocaleString()}</div>
+              <div className="form-hint">Redeemed: {wallet?.spentPoints ?? 0}</div>
             </div>
 
             {/* Next badge progress */}
@@ -245,15 +249,15 @@ export default function WalletBadges({ studentId }) {
                   </div>
                   <div>
                     <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-text)' }}>{nextBadge.name}</span>
-                    <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 8 }}>({nextBadge.requiredPoints} pts required)</span>
+                    <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 8 }}>({progress.target} {progress.unit} required)</span>
                   </div>
                 </div>
                 <div className="progress-bar-track">
                   <div className="progress-bar-fill" style={{ width: `${progressPct}%` }} />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
-                  <span>Current: {totalPoints} pts</span>
-                  <span>{nextBadge.requiredPoints - totalPoints} points remaining ({progressPct}%)</span>
+                  <span>Current: {progress.current} {progress.unit}</span>
+                  <span>{Math.max(0, progress.target - progress.current)} remaining ({progressPct}%)</span>
                 </div>
               </div>
             )}
@@ -289,7 +293,7 @@ export default function WalletBadges({ studentId }) {
               <thead>
                 <tr>
                   <th style={{ width: 80 }}>Amount</th>
-                  <th>Source Action Ledger ID</th>
+                  <th>Reason / Mission</th>
                   <th style={{ textAlign: 'right', width: 140 }}>Timestamp</th>
                 </tr>
               </thead>
@@ -308,13 +312,13 @@ export default function WalletBadges({ studentId }) {
                         alignItems: 'center',
                         gap: 2,
                       }}>
-                        +{t.points}
+                        {t.points > 0 ? '+' : ''}{t.points}
                       </span>
                     </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span className="mono" style={{ fontSize: 11, color: 'var(--color-text-muted)' }} title={t.sourceActionId}>
-                          {t.sourceActionId}
+                        <span style={{ fontSize: 13, color: 'var(--color-text)' }}>
+                          {transactionLabel(t, missions)}
                         </span>
                       </div>
                     </td>
@@ -336,14 +340,14 @@ export default function WalletBadges({ studentId }) {
             <Shield size={18} color="var(--color-info)" />
             <h2 className="card-title">Milestone Achievements Showcase</h2>
           </div>
-          <span className="badge badge-info" style={{ background: 'var(--color-info-bg)', color: 'var(--color-info)' }}>{unlockedBadges.length} / {badgeDefs.length} Unlocked</span>
+          <span className="badge badge-info" style={{ background: 'var(--color-info-bg)', color: 'var(--color-info)' }}>{unlockedBadges.length} / {sortedDefs.length} Unlocked</span>
         </div>
         <div className="card-body">
           <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 'var(--space-5)' }}>
             Milestones earned through carbon offset points. Click any badge medal to reveal achievement lore and status tracking.
           </p>
 
-          {badgeDefs.length === 0 ? (
+          {sortedDefs.length === 0 ? (
             <EmptyState title="No catalog badge definitions" description="milestone categories are currently empty." />
           ) : (
             <div className="badges-grid" style={{
@@ -395,7 +399,7 @@ export default function WalletBadges({ studentId }) {
                       filter: isUnlocked ? 'none' : 'grayscale(100%)',
                       position: 'relative',
                     }}>
-                      {isUnlocked ? meta.emoji : <Lock size={16} color="#9CA3AF" />}
+                      {def.imageUrl ? <img className="badge-art" src={def.imageUrl} alt={def.name} /> : isUnlocked ? meta.emoji : <Lock size={16} color="#9CA3AF" />}
                     </div>
 
                     <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-text)', textAlign: 'center', lineHeight: 1.2, marginBottom: 4 }}>
@@ -412,7 +416,7 @@ export default function WalletBadges({ studentId }) {
                       {isUnlocked ? (
                         <span style={{ color: meta.color }}>✓ Unlocked</span>
                       ) : (
-                        <span>{def.requiredPoints} pts</span>
+                        <span>{badgeProgress(def, txs, totalPoints).target} {badgeProgress(def, txs, totalPoints).unit}</span>
                       )}
                     </div>
                   </div>

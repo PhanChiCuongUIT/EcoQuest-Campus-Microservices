@@ -1,6 +1,6 @@
 # Luồng Nghiệp Vụ, Use Case Và Database EcoQuest Campus
 
-Cập nhật nghiệp vụ: 2026-07-10. Cập nhật vận hành và seed: 2026-09-19.
+Cập nhật nghiệp vụ: 2026-09-20. Cập nhật vận hành và seed: 2026-09-19. Chi tiết API, bảng mới và kiểm thử: [Station QR, badge và điểm tiêu dùng](station-qr-wallet-badges.md).
 
 Các kho dữ liệu hiện dùng named volume; Redis bật AOF và RabbitMQ có hostname ổn định. Seed chỉ bổ sung dữ liệu thiếu, không đặt lại role, điểm đã điều chỉnh, cấu hình mission/badge hoặc stock coupon khi restart. Script `scripts/refresh-demo-data.ps1` bổ sung hoạt động hiện tại qua API, không ghi trực tiếp database service khác. Xem [cổng database, cách chạy và kết quả kiểm thử mới](chay-lai-project.md).
 
@@ -11,7 +11,7 @@ Tài liệu này mô tả bằng tiếng Việt có dấu cách EcoQuest Campus 
 EcoQuest Campus là hệ thống gamification cho hoạt động xanh trong trường học:
 
 1. Student đăng ký tài khoản, xác minh email và đăng nhập.
-2. Student xem mission đang `ACTIVE`, chọn mission, upload minh chứng nhiều ảnh hoặc một video nếu cần và submit action.
+2. Student xem mission `ACTIVE`, quét QR station đã được gán nếu mission bắt buộc station, upload minh chứng nhiều ảnh hoặc một video nếu cần và submit action. Receipt quét có hạn 10 phút, gắn đúng user/mission/station/submission key.
 3. Action service validate mission qua Catalog và kiểm policy bằng gRPC sang Policy service.
 4. Nếu policy hợp lệ, Action lưu action với trạng thái `PENDING_REVIEW` và đưa vào Review Queue, chưa publish accepted event và chưa cộng điểm.
 5. Moderator hoặc Admin xem evidence trong Review Queue và approve/reject.
@@ -25,7 +25,7 @@ EcoQuest Campus là hệ thống gamification cho hoạt động xanh trong trư
 
 ## 2. Khi Nào Badge Được Đạt
 
-Badge không được tạo trực tiếp từ frontend. Badge thuộc Reward Ledger service.
+Catalog sở hữu định nghĩa và ảnh badge; Reward Ledger sở hữu thành tích đã đạt. Catalog phát snapshot quy tắc mỗi 15 giây qua RabbitMQ; Reward xét từ projection trong database riêng, không dùng danh sách điều kiện hardcode. Khi thay đổi quy tắc, Reward xét lại các ví. Retire badge ngừng cấp mới sau đồng bộ nhưng giữ thành tích cũ.
 
 - Khi action được Moderator/Admin approve và có trạng thái `ACCEPTED`, Reward Ledger mới cộng điểm và kiểm điều kiện badge.
 - Badge theo điểm: đạt khi tổng điểm ví của student vượt ngưỡng trong badge definition.
@@ -66,20 +66,20 @@ Ràng buộc chống trùng:
 
 ## 4. Coupon / Redeem Sustainability Rewards Hoạt Động Như Nào
 
-Coupon là luồng đổi thành tích thành voucher thật trong phạm vi demo local, thuộc Recognition service. Coupon hiện **không trừ điểm**, nhưng backend có catalog reward offer, điều kiện nhận, stock, hạn dùng và idempotency.
+Coupon đổi điểm tiêu dùng lấy voucher do Recognition quản lý. Reward Ledger trừ số dư; Recognition không đọc hoặc ghi Reward DB. `availablePoints = totalPoints - spentPoints`; đổi coupon không giảm điểm thành tích, badge hay leaderboard. Voucher chưa tích hợp hệ thống POS bên ngoài.
 
 1. Student mở trang Certificates.
 2. UI gọi `GET /recognitions/rewards?studentId=...` để lấy danh sách reward offer.
 3. Student bấm redeem, frontend gọi `POST /recognitions/rewards/{rewardId}/claim`.
 4. Recognition kiểm:
-   - đủ `requiredPoints`;
+   - `requiredPoints` là giá đổi, số dư cuối cùng do Reward kiểm tra bất đồng bộ;
    - đủ `requiredBadges`;
    - đủ `requiredCertificates`;
    - offer còn `remainingStock`;
    - offer còn active và chưa hết `validUntil`.
-5. Nếu hợp lệ và chưa claim reward đó, backend tạo `RewardClaim` với `status = ISSUED`, `voucherCode`, `claimedOn`, `expiresAt`.
-6. Backend trừ `remainingStock` của `RewardOffer`.
-7. Nếu claim lại cùng `studentId + rewardId`, backend trả lại claim cũ, không phát voucher mới và không trừ stock lần hai.
+5. Recognition khóa offer, giữ stock và lưu claim `PENDING`; publisher gửi `coupon.debit.requested.v1` qua RabbitMQ và retry đến khi có kết quả.
+6. Reward khóa wallet, kiểm số dư, lưu quyết định theo claim ID và giao dịch debit nếu đủ điểm. Sau commit, gửi `coupon.debit.decided.v1`.
+7. Recognition chuyển claim thành `ISSUED` và phát voucher nếu debit thành công; nếu không, chuyển `FAILED` và hoàn stock. Claim pending/issued lặp trả bản cũ, không trừ stock hoặc điểm hai lần. Claim failed được thử lại bằng claim mới.
 
 Ràng buộc quan trọng:
 
@@ -122,9 +122,10 @@ Ràng buộc quan trọng:
 - Có Admin dashboard riêng.
 - Quản lý Catalog: mission, station, badge.
 - Duyệt trạng thái mission do moderator tạo.
+- Sửa mission không gửi `status` giữ trạng thái hiện tại; đổi trạng thái qua form cũng phát event cập nhật Report/Notification. Moderator không được tự kích hoạt qua form sửa.
 - Quản lý user: role, status, delete theo ràng buộc.
 - Không được đổi role/status/ban/delete chính mình.
-- Quản lý Policy Rules qua direct port `8090`.
+- Quản lý Policy Rules qua web proxy `/policies/rules` cùng origin, hoặc cổng `8090` khi kiểm thử trực tiếp; đều yêu cầu bearer token Admin.
 - Adjust điểm student có audit và không cho ví âm.
 - Xem Reports và Analytics.
 - Xuất báo cáo PDF theo tuần/tháng/năm trong quá khứ hoặc hiện tại.
@@ -151,6 +152,8 @@ Không có bảng sinh viên riêng. Sinh viên là user trong `user_accounts` c
 | `GreenStation` | `id` | `name`, `code`, `stationType`, `location`, `active`, `imageUrl` | `active` boolean | Trạm xanh và ảnh station |
 | `BadgeDefinition` | `code` | `name`, `description`, `requiredPoints`, `criteriaType`, `actionType`, `requiredCount` | default `POINTS`, `requiredCount = 0` | Định nghĩa badge |
 
+Bổ sung: `GreenStation.qrToken` unique; `Mission.allowedStationIds` lưu trong `mission_allowed_station_ids` có FK về mission; `stationConfigVersion` đánh dấu đã chuyển cấu hình cũ. `StationScanReceipt` có PK `id`, `userId`, `missionId`, `stationId`, `expiresAt`, `submissionKey`, khóa pessimistic khi dùng. `BadgeDefinition` có `active` và `imageUrl`; xóa qua API là retire, không xóa thành tích.
+
 ### 6.3. Eco Action Service - MongoDB `action_db`
 
 | Collection | Khóa chính | Trường quan trọng | Ràng buộc/logic | Ý nghĩa |
@@ -166,15 +169,17 @@ Redis của Action lưu draft và idempotency key. MinIO của Action lưu evide
 | --- | --- | --- | --- | --- |
 | `PolicyRule` | `actionType` | `basePoints`, `evidenceRequired`, `stationRequired`, `dailyLimit`, `active` | active rule không delete trực tiếp | Rule xác minh action |
 
-Action dùng gRPC để gọi Policy; Admin dùng REST direct `8090`.
+Action dùng gRPC để gọi Policy. Admin dùng REST qua Nginx/Vite proxy cùng origin tới Policy `8090`, không qua Gateway; cổng trực tiếp vẫn phục vụ kiểm thử.
 
 ### 6.5. Reward Ledger Service - PostgreSQL `reward_db`
 
 | Bảng/entity | Khóa chính | Trường quan trọng | Ràng buộc chính | Ý nghĩa |
 | --- | --- | --- | --- | --- |
-| `RewardWallet` | `studentId` | `totalPoints` | không cho ví âm | Tổng điểm hiện tại |
+| `RewardWallet` | `studentId` | `totalPoints`, `spentPoints`, `version`; `availablePoints` tính toán | không tiêu vượt số dư, optimistic version và khóa khi debit | Điểm thành tích và điểm tiêu dùng |
 | `RewardTransaction` | `id` | `studentId`, `sourceActionId`, `missionId`, `actionType`, `reason`, `adjustedByUserId`, `points`, `occurredOn` | unique `sourceActionId` | Ledger điểm |
 | `BadgeAchievement` | `id` | `studentId`, `badgeCode`, `badgeName`, `unlockedOn` | unique `studentId + badgeCode` | Badge đã đạt |
+| `CouponDebitRecord` | `claimId` | `studentId`, `cost`, `accepted`, `reason`, `occurredOn` | một quyết định bền vững cho mỗi claim | Chống trừ điểm coupon lặp |
+| `BadgeRuleProjection` | `code` | `criteriaType`, `requiredPoints`, `actionType`, `requiredCount`, `active`, `imageUrl`, `updatedAt` | bỏ qua snapshot cũ | Bản sao quy tắc Catalog, không share entity |
 
 ### 6.6. Leaderboard Service - PostgreSQL `leaderboard_db` + Redis
 
@@ -190,7 +195,7 @@ Action dùng gRPC để gọi Policy; Admin dùng REST direct `8090`.
 | --- | --- | --- | --- | --- |
 | `CertificateRecord` | `id` | `studentId`, `seasonId`, `certificateType`, `rankNumber`, `points`, `objectKey`, `issuedOn` | unique `studentId + seasonId` | Metadata certificate PDF |
 | `RewardOffer` | `id` | `name`, `description`, `icon`, `color`, `requiredPoints`, `requiredBadges`, `requiredCertificates`, `remainingStock`, `active`, `validUntil`, `terms` | delete bị chặn nếu active/đã có claim | Catalog coupon |
-| `RewardClaim` | `id` | `rewardId`, `studentId`, `rewardName`, `status`, `voucherCode`, `claimedOn`, `expiresAt` | idempotent theo `studentId + rewardId` | Voucher đã phát |
+| `RewardClaim` | `id` | `rewardId`, `studentId`, `rewardName`, `pointsCost`, `failureReason`, `status`, `voucherCode`, `claimedOn`, `expiresAt` | khóa offer, lặp pending/issued trả claim cũ | `PENDING/ISSUED/FAILED`, chỉ issued có voucher |
 | `StudentRecognitionProfile` | `studentId` | `totalPoints`, `badgeCount`, `certificateCount`, `updatedOn` | cập nhật từ event | Eligibility coupon |
 
 ### 6.8. Report Service - PostgreSQL `report_db` + MinIO

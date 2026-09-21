@@ -62,15 +62,15 @@ class NotificationService {
     @RabbitListener(queues = NotificationMessagingConfig.ACTION_ACCEPTED_QUEUE)
     void onActionAccepted(EcoActionAcceptedEvent event) {
         create(new CreateNotificationRequest(null, event.studentId(), null, "ACTION_ACCEPTED",
-                "Action accepted", "Your action %s was accepted and earned %d points."
-                .formatted(event.actionId(), event.points()), "/actions"));
+                "Action accepted", "%s was approved. %d points are being credited to your wallet."
+                .formatted(event.missionTitle() == null ? "Your submission" : event.missionTitle(), event.points()), "/actions"));
     }
 
     @RabbitListener(queues = NotificationMessagingConfig.ACTION_REJECTED_QUEUE)
     void onActionRejected(EcoActionRejectedEvent event) {
         create(new CreateNotificationRequest(null, event.studentId(), null, "ACTION_REJECTED",
-                "Action rejected", "Your action %s was rejected: %s."
-                .formatted(event.actionId(), event.reason()), "/actions"));
+                "Action rejected", "Your submission was rejected: %s."
+                .formatted(event.reason()), "/actions"));
     }
 
     @RabbitListener(queues = NotificationMessagingConfig.BADGE_UNLOCKED_QUEUE)

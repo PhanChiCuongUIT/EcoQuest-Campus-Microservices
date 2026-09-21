@@ -17,19 +17,23 @@ class CatalogMissionClient {
         this.client = RestClient.builder().baseUrl(baseUrl).build();
     }
 
-    void requireActive(String missionId, String actionType, String authorization) {
+    String requireActive(String missionId, String actionType, String stationId, String scanReceipt, String submissionKey, String authorization) {
         try {
-            client.get()
+            var result = client.get()
                     .uri(uri -> uri.path("/catalog/missions/{id}/submission-eligibility")
                             .queryParam("actionType", actionType)
+                            .queryParam("stationId", stationId == null ? "" : stationId)
+                            .queryParam("scanReceipt", scanReceipt == null ? "" : scanReceipt)
+                            .queryParam("submissionKey", submissionKey)
                             .build(missionId))
                     .header(HttpHeaders.AUTHORIZATION, authorization)
                     .retrieve()
-                    .toBodilessEntity();
+                    .body(java.util.Map.class);
+            return result == null ? null : (String) result.get("missionTitle");
         } catch (HttpClientErrorException ex) {
             throw new ResponseStatusException(
                     HttpStatus.valueOf(ex.getStatusCode().value()),
-                    ex.getResponseBodyAsString(),
+                    catalogErrorMessage(ex),
                     ex);
         } catch (RestClientException ex) {
             throw new ResponseStatusException(
@@ -37,5 +41,18 @@ class CatalogMissionClient {
                     "Catalog mission eligibility is temporarily unavailable.",
                     ex);
         }
+    }
+
+    private String catalogErrorMessage(HttpClientErrorException error) {
+        try {
+            var body = new com.fasterxml.jackson.databind.ObjectMapper().readTree(error.getResponseBodyAsString());
+            for (String field : java.util.List.of("detail", "message")) {
+                var value = body.get(field);
+                if (value != null && value.isTextual() && !value.asText().isBlank()) return value.asText();
+            }
+        } catch (java.io.IOException ignored) {
+            // Do not expose HTML error pages or internal transport details to students.
+        }
+        return "Mission or station eligibility could not be confirmed. Refresh the mission and scan again.";
     }
 }
