@@ -17,6 +17,7 @@ This directory describes the architecture, data model, business workflows, testi
 | [Presentation terminology and Q&A](bo-sung-kich-ban-bao-cao-slide.md) | Technical terminology, explanations and discussion questions. |
 | [Backend smoke test guide](backend-smoke-test-guide.md) | Test commands, coverage, expected outcomes and E2E data cleanup. |
 | [Frontend test scenarios](frontend-test-scenarios.md) | Role-specific UI workflows, uploads, notifications, analytics and responsive checks. |
+| [Functional audit](kiem-tra-chuc-nang-2026-09-22.md) | Error-state fixes, Leaderboard duplicate protection, notification connection lifecycle and verification scope. |
 
 ## Running And Testing
 
@@ -33,6 +34,7 @@ To test verification and password reset without sending external email:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\start-project.ps1 -LocalMail
 powershell -ExecutionPolicy Bypass -File scripts\backend-smoke-test.ps1 -Gateway http://localhost:18080 -Policy http://localhost:8090 -Web http://localhost:3000
+powershell -ExecutionPolicy Bypass -File scripts\test-leaderboard-dedup.ps1
 powershell -ExecutionPolicy Bypass -File scripts\cleanup-smoke-test-data.ps1
 powershell -ExecutionPolicy Bypass -File scripts\test-restart-persistence.ps1
 ```

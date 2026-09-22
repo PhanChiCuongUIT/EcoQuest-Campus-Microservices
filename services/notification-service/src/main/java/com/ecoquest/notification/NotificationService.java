@@ -15,6 +15,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,16 +47,26 @@ class NotificationService {
     }
 
     SseEmitter stream(List<String> keys) {
-        var emitter = new SseEmitter(0L);
+        var emitter = new SseEmitter(300_000L);
         var cleanKeys = keys.stream()
                 .filter(key -> key != null && !key.isBlank())
                 .distinct()
                 .toList();
         for (var key : cleanKeys) {
-            streams.computeIfAbsent(key, ignored -> new CopyOnWriteArrayList<>()).add(emitter);
+            streams.compute(key, (ignored, current) -> {
+                var list = current == null ? new CopyOnWriteArrayList<SseEmitter>() : current;
+                list.add(emitter);
+                return list;
+            });
         }
         emitter.onCompletion(() -> remove(cleanKeys, emitter));
         emitter.onTimeout(() -> remove(cleanKeys, emitter));
+        emitter.onError(error -> remove(cleanKeys, emitter));
+        try {
+            emitter.send(SseEmitter.event().comment("connected"));
+        } catch (IOException ex) {
+            remove(cleanKeys, emitter);
+        }
         return emitter;
     }
 
@@ -133,29 +144,25 @@ class NotificationService {
     }
 
     private void emit(UserNotification notification) {
-        emitTo(notification.studentId, notification);
-        emitTo(notification.userId, notification);
-        emitTo(notification.role, notification);
-    }
-
-    private void emitTo(String key, UserNotification notification) {
-        if (key == null || key.isBlank()) {
-            return;
+        var recipients = new HashSet<SseEmitter>();
+        for (String key : new String[] {notification.studentId, notification.userId, notification.role}) {
+            if (key != null && !key.isBlank()) recipients.addAll(streams.getOrDefault(key, List.of()));
         }
-        for (SseEmitter emitter : streams.getOrDefault(key, List.of())) {
+        for (SseEmitter emitter : recipients) {
             try {
                 emitter.send(SseEmitter.event().name("notification").data(notification));
-            } catch (IOException ex) {
-                remove(key, emitter);
+            } catch (IOException | IllegalStateException ex) {
+                // An expired/browser-closed stream must not fail RabbitMQ delivery.
+                remove(List.copyOf(streams.keySet()), emitter);
             }
         }
     }
 
     private void remove(String key, SseEmitter emitter) {
-        var list = streams.get(key);
-        if (list != null) {
+        streams.computeIfPresent(key, (ignored, list) -> {
             list.remove(emitter);
-        }
+            return list.isEmpty() ? null : list;
+        });
     }
 
     private void remove(List<String> keys, SseEmitter emitter) {

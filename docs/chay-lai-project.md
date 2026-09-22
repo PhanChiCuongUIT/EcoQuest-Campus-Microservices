@@ -1,6 +1,6 @@
 # Chạy Lại EcoQuest Campus Và Cập Nhật Dữ Liệu
 
-Ngày cập nhật: 21/09/2026.
+Ngày cập nhật: 22/09/2026.
 
 ## 1. Thay đổi trong lần cập nhật
 
@@ -142,6 +142,20 @@ docker compose up -d --no-deps report-service
 Quét QR bằng camera trực tiếp cần HTTPS hoặc localhost. Trên HTTP qua IP LAN có thể chọn ảnh QR làm phương án dự phòng. In nhãn QR từ origin mà điện thoại truy cập được, không in URL localhost cho điện thoại khác. Xem [cách tạo station, gán mission và quét QR](station-qr-wallet-badges.md).
 
 ## 7. Kết quả xác minh
+
+### Mốc 22/09/2026: Luồng Nghiệp Vụ Và Trạng Thái Lỗi
+
+- Full backend smoke **PASS** trên bản Notification mới qua Gateway `18080`, Policy `8090` và web proxy `3000`; gồm QR receipt, submit chờ duyệt, approve/reject, điểm/badge/coupon, certificate PDF, report và notification. 23 queue đều 0 message, mỗi queue có 1 consumer sau test và cleanup.
+- Cleanup hoàn thành: xóa 38 tài khoản test, 70 action test, 24 khóa Redis test và 48 thành viên E2E khỏi các leaderboard. Giữ dữ liệu seed và dữ liệu thao tác không mang marker test; cleanup không phải rollback toàn bộ trạng thái dùng chung.
+- Sau cleanup: 0 tài khoản E2E trong Identity, 0 thành viên E2E trong bảng điểm tuần/tháng hiện tại. Tháng hiện tại có 10 sinh viên; tuần UTC hiện tại chưa có điểm của người dùng không phải test. Không tự tạo thêm điểm để lấp bảng tuần. Startup không có `-LocalMail` đã khôi phục cấu hình `.env`; Gateway/chín service UP, web HTTP 200 và đăng nhập Admin qua web proxy thành công. Không kiểm chứng gửi/nhận email thật trong lượt này.
+
+- Java: **34 test riêng biệt PASS**, 0 failure/error trong Surefire. Lượt reactor build 13 module thành công; Notification được thêm dependency test trong lúc lượt đó đang chạy nên phải chạy lại bằng `mvn -B -ntp -pl services/notification-service -am package`, sau đó BUILD SUCCESS với 4 test Notification và 4 test common. Không ghi nhận lượt reactor đầu là 14/14 PASS.
+- Frontend: **28/28 unit test PASS**, production build PASS; bundle chính khoảng 523 kB còn cảnh báo tối ưu dung lượng của Vite.
+- Playwright: **22/22 PASS** trong khoảng 1,2 phút; 8 case nghiệp vụ QR/Policy, 12 case phản hồi lỗi giả lập và 2 case SSE thật, chia đều desktop/mobile. Có kiểm ô station sau response quét QR và kiểm lỗi HTTP thật, không bỏ assertion nghiệp vụ.
+- Redis integration **PASS**: grant trùng không tăng điểm, grant mới cập nhật cả tuần/tháng; lỗi kiểu khóa không làm ghi dở điểm và marker. Script dọn ba khóa tạm.
+- Sửa lỗi hiển thị tải dữ liệu, thao tác quyền/read notification, trạng thái coupon, số dư ví cũ khi đổi sinh viên; thêm dedup Leaderboard và quản lý vòng đời SSE. [Chi tiết thay đổi, file test và giới hạn](kiem-tra-chuc-nang-2026-09-22.md).
+- Một lượt chạy lúc tiếp tục phiên thất bại do các container đã dừng: web `ECONNREFUSED`, Notification không tìm được database. Đã khởi động đủ stack và đợi Gateway/chín service UP trước lượt thành công; không đổi assertion để bỏ qua việc backend chưa sẵn sàng.
+- Trong lượt trình duyệt cuối có WARN `AsyncRequestNotUsableException / Broken pipe` tại Report khi client hủy kết nối. Không coi đó là lỗi nghiệp vụ hoặc tuyên bố mọi log hoàn toàn không có cảnh báo. Bản Notification mới xử lý riêng disconnect và không che I/O khác.
 
 ### Mốc 21/09/2026: Policy, Thông Báo Lỗi Và CRUD
 

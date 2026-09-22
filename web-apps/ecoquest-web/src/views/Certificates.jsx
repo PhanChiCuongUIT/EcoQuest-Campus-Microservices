@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Award, Download, Gift, Eye, Star, Trophy, X, Printer } from 'lucide-react';
 import EmptyState from '../components/EmptyState.jsx';
 import AsyncBanner from '../components/AsyncBanner.jsx';
+import { claimFeedback } from '../utils/feedback.js';
 import { useToast } from '../components/Toast.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getCertificates, downloadCertificate, claimReward, getRewardClaims, getRecognitionRewards, getWallet } from '../api/ecoquestApi.js';
@@ -377,16 +378,16 @@ export default function Certificates({ studentId }) {
     try {
       const [data, claimData, rewardData, wallet] = await Promise.all([
         getCertificates(studentId),
-        getRewardClaims(studentId).catch(() => []),
-        getRecognitionRewards(studentId).catch(() => []),
+        getRewardClaims(studentId),
+        getRecognitionRewards(studentId),
         getWallet(studentId),
       ]);
       setCerts([...data].sort((a, b) => new Date(b.issuedOn) - new Date(a.issuedOn)));
       setClaims(claimData);
       setAvailablePoints(wallet.availablePoints ?? wallet.totalPoints);
       setRewards(rewardData.map(r => r.requiredPoints > (wallet.availablePoints ?? wallet.totalPoints) ? { ...r, eligible: false, eligibilityReason: 'Insufficient available points.' } : r));
-    } catch {
-      setError('Could not load certificates. Make sure Recognition service is running.');
+    } catch (error) {
+      setError(error.message);
     } finally { setLoading(false); }
   }, [studentId]);
 
@@ -403,12 +404,11 @@ export default function Certificates({ studentId }) {
     try {
       const claim = await claimReward(rewardId, studentId);
       setClaims(items => [claim, ...items.filter(item => item.id !== claim.id)]);
-      setRewards(items => items.map(item => item.id === rewardId
-        ? { ...item, remainingStock: Math.max(0, (item.remainingStock ?? 1) - 1) }
-        : item));
-      toast({ type: 'info', message: claim.status === 'ISSUED' ? 'Voucher ready' : 'Redemption pending', sub: 'Your wallet debit is being confirmed.' });
-    } catch {
-      toast({ type: 'error', message: 'Redemption failed', sub: 'Please try again later.' });
+      toast(claimFeedback(claim));
+      // Retrying can return an existing claim; do not decrement stock twice in the UI.
+      if (claim.status !== 'PENDING') load();
+    } catch (error) {
+      toast({ type: 'error', message: 'Redemption failed', sub: error.message });
     } finally { setClaiming(prev => { const n = { ...prev }; delete n[rewardId]; return n; }); }
   };
 
@@ -418,7 +418,7 @@ export default function Certificates({ studentId }) {
       getRewardClaims(studentId).then(next => {
         setClaims(next);
         if (!next.some(c => c.status === 'PENDING')) load();
-      }).catch(() => {});
+      }).catch(error => setError(error.message));
     }, 2000);
     return () => clearInterval(timer);
   }, [studentId, claims]);
@@ -431,7 +431,7 @@ export default function Certificates({ studentId }) {
       toast({
         type: 'error',
         message: 'Could not download certificate',
-        sub: error?.response?.status === 401 ? 'Please sign in again and retry.' : 'Recognition service rejected the download request.',
+        sub: error.message,
       });
     }
   };
@@ -441,7 +441,7 @@ export default function Certificates({ studentId }) {
       {[...Array(3)].map((_, i) => <div key={i} className="skeleton skeleton-card" style={{ height: 260 }} />)}
     </div>
   );
-  if (error) return <AsyncBanner type="warning" message={error} />;
+  if (error) return <><AsyncBanner type="warning" message={error} /><button className="btn btn-outline" onClick={load}>Retry</button></>;
 
   return (
     <div>
@@ -539,7 +539,7 @@ export default function Certificates({ studentId }) {
           )}
           {claims.length > 0 && (
             <div className="reward-claim-history">
-              <h3>Issued vouchers</h3>
+              <h3>Redemption history</h3>
               {claims.slice(0, 6).map(claim => (
                 <div key={claim.id}>
                   <span>

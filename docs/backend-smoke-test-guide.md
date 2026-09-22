@@ -1,6 +1,18 @@
 # Hướng Dẫn Smoke Test Backend EcoQuest
 
-Cập nhật hướng dẫn chạy: 2026-09-21. Lượt mới: Maven 14 module / 28 test PASS, frontend 26 test PASS, Playwright 8/8 PASS và full smoke PASS. Các kết quả cũ bên dưới là lịch sử; [hướng dẫn chạy hiện tại](chay-lai-project.md) ghi phạm vi, lỗi đã sửa và giới hạn kiểm chứng.
+Cập nhật hướng dẫn chạy: 2026-09-22. Kết quả ngày 21/09 (28 Java test, 26 frontend test, 8 Playwright case) bên dưới là lịch sử. [Hướng dẫn chạy hiện tại](chay-lai-project.md#7-kết-quả-xác-minh) ghi kết quả mới nhất; [báo cáo rà soát chức năng](kiem-tra-chuc-nang-2026-09-22.md) phân biệt test UI lỗi giả lập với test API/Redis/SSE thật.
+
+## Bổ Sung Chống Trùng Và Notification
+
+Lượt cuối ngày 22/09/2026: full smoke **PASS**, Redis integration **PASS**, 34 Java test riêng biệt và 28 unit test frontend PASS, Playwright 22/22 PASS. Sau cleanup, 23 queue đều 0 message và mỗi queue có consumer. Chi tiết cách xác nhận build Java và cảnh báo runtime được ghi trong `chay-lai-project.md`, mục 7.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\test-leaderboard-dedup.ps1
+```
+
+Script chạy Lua của Leaderboard trên Redis thật: một grant 10 điểm, gửi lại cùng grant, rồi grant khác 5 điểm phải ra 15 điểm ở cả tuần/tháng. Khi khóa tháng sai kiểu, tuần và marker phải giữ nguyên. Ba khóa tạm được xóa trong `finally`. `LeaderboardDeliveryTest` kiểm service truyền đúng grant ID/tuần UTC vào script; không nhầm test mock này với kiểm chứng Lua thật.
+
+`NotificationStreamTest` kiểm kết nối trùng recipient chỉ nhận một lần, emitter đã đóng không cản người khác, thời hạn kết nối và chỉ xử lý riêng lỗi client disconnected. Browser có thêm test SSE thật. Cleanup chỉ quét sorted-set weekly/monthly để không gọi `ZRANGE` vào set chống trùng mới; giữ nguyên grant marker của người dùng không phải E2E.
 
 ## Phạm Vi Bổ Sung Ngày 21/09/2026
 

@@ -21,6 +21,14 @@ import java.util.UUID;
 
 @Service
 class LeaderboardService {
+    private static final org.springframework.data.redis.core.script.DefaultRedisScript<Long> APPLY_POINTS = pointsScript();
+
+    private static org.springframework.data.redis.core.script.DefaultRedisScript<Long> pointsScript() {
+        var script = new org.springframework.data.redis.core.script.DefaultRedisScript<Long>();
+        script.setLocation(new org.springframework.core.io.ClassPathResource("apply-points.lua"));
+        script.setResultType(Long.class);
+        return script;
+    }
     private static final String WEEKLY_KEY = "ecoquest:leaderboard:weekly";
     private static final String MONTHLY_KEY = "ecoquest:leaderboard:monthly";
     private static final WeekFields ISO_WEEK = WeekFields.ISO;
@@ -38,7 +46,13 @@ class LeaderboardService {
     @RabbitListener(queues = LeaderboardMessagingConfig.POINTS_GRANTED_QUEUE)
     public void onPointsGranted(PointsGrantedEvent event) {
         Instant occurredOn = event.occurredOn() == null ? Instant.now() : event.occurredOn();
-        increment(event.studentId(), event.points(), occurredOn);
+        String grantId = event.sourceActionId() == null || event.sourceActionId().isBlank()
+                ? event.eventId() : event.sourceActionId();
+        if (grantId == null || grantId.isBlank() || event.studentId() == null || event.studentId().isBlank()) {
+            throw new IllegalArgumentException("Points event requires a grant ID and student ID.");
+        }
+        redis.execute(APPLY_POINTS, List.of("ecoquest:leaderboard:processed:" + event.studentId(),
+                weeklyKey(occurredOn), monthlyKey(occurredOn)), grantId, Integer.toString(event.points()), event.studentId());
     }
 
     List<LeaderboardEntry> top(String type, int limit) {
@@ -104,11 +118,6 @@ class LeaderboardService {
             return month == null || year == null ? monthlyKey(Instant.now()) : monthlyKey(year, month);
         }
         return week == null || year == null ? weeklyKey(Instant.now()) : weeklyKey(year, week);
-    }
-
-    void increment(String studentId, int points, Instant occurredOn) {
-        redis.opsForZSet().incrementScore(weeklyKey(occurredOn), studentId, points);
-        redis.opsForZSet().incrementScore(monthlyKey(occurredOn), studentId, points);
     }
 
     static String weeklyKey(Instant instant) {

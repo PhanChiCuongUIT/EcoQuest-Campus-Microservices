@@ -3,9 +3,11 @@ package com.ecoquest.notification;
 import com.ecoquest.common.security.RoleAuthorizer;
 import com.ecoquest.common.security.JwtPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -15,8 +17,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.web.util.DisconnectedClientHelper;
 
 import java.time.Instant;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -25,12 +29,20 @@ import java.util.List;
 @RestController
 @RequestMapping("/notifications")
 class NotificationController {
+    private static final DisconnectedClientHelper DISCONNECTED =
+            new DisconnectedClientHelper(NotificationController.class.getName());
     private final NotificationRepository notifications;
     private final NotificationService notificationService;
 
     NotificationController(NotificationRepository notifications, NotificationService notificationService) {
         this.notifications = notifications;
         this.notificationService = notificationService;
+    }
+
+    @ExceptionHandler(IOException.class)
+    void disconnectedClient(IOException error, HttpServletResponse response) throws IOException {
+        // A closed SSE socket cannot receive an error body; retain unexpected I/O failures.
+        if (!DISCONNECTED.checkAndLogClientDisconnectedException(error)) throw error;
     }
 
     @GetMapping

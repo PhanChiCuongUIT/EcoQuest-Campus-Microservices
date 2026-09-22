@@ -9,14 +9,18 @@ import {
 } from '../api/ecoquestApi.js';
 import Modal from './Modal.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
+import AsyncBanner from './AsyncBanner.jsx';
+import { mergeNotification } from '../utils/feedback.js';
 
 export default function TopBar({
   title, studentId, setStudentId, theme, toggleTheme, onMenuClick, onNavigate, panelRole,
 }) {
   const { user, logout } = useAuth();
   const confirm = useConfirm();
-  const [unread, setUnread] = useState(0);
   const [notifications, setNotifications] = useState([]);
+  const unread = notifications.filter(item => !item.read).length;
+  const [inboxError, setInboxError] = useState('');
+  const [reading, setReading] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [infoModal, setInfoModal] = useState(null);
@@ -25,21 +29,24 @@ export default function TopBar({
 
   useEffect(() => {
     let cancelled = false;
-    getNotifications()
+    setNotifications([]); setInboxError('');
+    const refresh = () => getNotifications()
       .then(items => {
         const list = Array.isArray(items) ? items : [];
         if (!cancelled) {
           setNotifications(list);
-          setUnread(list.filter(n => !n.read).length);
+          setInboxError('');
         }
       })
-      .catch(() => {});
+      .catch(error => { if (!cancelled) setInboxError(error.message); });
+    refresh();
+    const poll = setInterval(refresh, 30000);
     const stream = openNotificationStream((notification) => {
-      setNotifications(items => [notification, ...items]);
-      if (!notification?.read) setUnread(count => count + 1);
+      if (!cancelled) setNotifications(items => mergeNotification(items, notification));
     });
     return () => {
       cancelled = true;
+      clearInterval(poll);
       if (stream) stream.close();
     };
   }, [user?.id]);
@@ -61,9 +68,9 @@ export default function TopBar({
       const items = await getNotifications();
       const list = Array.isArray(items) ? items : [];
       setNotifications(list);
-      setUnread(list.filter(n => !n.read).length);
-    } catch {
-      // The existing list remains available while the backend reconnects.
+      setInboxError('');
+    } catch (error) {
+      setInboxError(error.message);
     }
   };
 
@@ -90,18 +97,26 @@ export default function TopBar({
   };
 
   const markRead = async notification => {
-    if (!notification.read) await markNotificationRead(notification.id);
-    setNotifications(items => items.map(item => item.id === notification.id ? { ...item, read: true } : item));
-    setUnread(count => Math.max(0, count - (notification.read ? 0 : 1)));
-    const targetView = viewFromNotificationLink(notification.link);
-    if (targetView) onNavigate?.(targetView);
-    setNotificationOpen(false);
+    setReading(true);
+    try {
+      if (!notification.read) await markNotificationRead(notification.id);
+      setNotifications(items => items.map(item => item.id === notification.id ? { ...item, read: true } : item));
+      setInboxError('');
+      const targetView = viewFromNotificationLink(notification.link);
+      if (targetView) onNavigate?.(targetView);
+      setNotificationOpen(false);
+    } catch (error) { setInboxError(error.message); }
+    finally { setReading(false); }
   };
 
   const markAll = async () => {
-    await markAllNotificationsRead();
-    setNotifications(items => items.map(item => ({ ...item, read: true })));
-    setUnread(0);
+    setReading(true);
+    try {
+      await markAllNotificationsRead();
+      setNotifications(items => items.map(item => ({ ...item, read: true })));
+      setInboxError('');
+    } catch (error) { setInboxError(error.message); }
+    finally { setReading(false); }
   };
 
   const handleLogout = async () => {
@@ -174,17 +189,19 @@ export default function TopBar({
                   <strong>Notifications</strong>
                   <span>{unread} unread</span>
                 </div>
-                <button className="btn btn-ghost btn-sm" onClick={markAll} disabled={unread === 0}>
+                <button className="btn btn-ghost btn-sm" onClick={markAll} disabled={unread === 0 || reading}>
                   Mark all read
                 </button>
               </div>
               <div className="notification-list compact">
-                {notifications.length === 0 && <p className="muted-copy">No notifications yet.</p>}
+                {inboxError && <AsyncBanner type="warning" message={inboxError} />}
+                {!inboxError && notifications.length === 0 && <p className="muted-copy">No notifications yet.</p>}
                 {notifications.map(notification => (
                   <button
                     key={notification.id}
                     className={`notification-item${notification.read ? '' : ' unread'}`}
                     onClick={() => markRead(notification)}
+                    disabled={reading}
                     role="menuitem"
                   >
                     <span className="notification-dot" />

@@ -15,6 +15,7 @@ import { useConfirm } from '../components/ConfirmDialog.jsx';
 import { useToast } from '../components/Toast.jsx';
 import Modal from '../components/Modal.jsx';
 import EmptyState from '../components/EmptyState.jsx';
+import AsyncBanner from '../components/AsyncBanner.jsx';
 import { reportTargetOptions } from '../utils/workflowRules.js';
 
 const MAX_EVIDENCE_BYTES = 5 * 1024 * 1024;
@@ -27,6 +28,9 @@ export default function Reports({ panelRole }) {
   const canReview = effectiveRole === 'MODERATOR' || effectiveRole === 'ADMIN';
   const canCreate = effectiveRole === 'STUDENT' || (effectiveRole === 'MODERATOR' && Boolean(user?.studentId));
   const [reports, setReports] = useState([]);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [targetError, setTargetError] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -38,16 +42,19 @@ export default function Reports({ panelRole }) {
   const targetOptions = useMemo(() => reportTargetOptions(effectiveRole), [effectiveRole]);
   const [form, setForm] = useState({ targetType: targetOptions[0]?.[0] || 'USER', targetId: '', reason: '', evidenceUrl: '' });
 
-  const load = () => (canReview ? getReports() : getMyReports())
-    .then(items => setReports(Array.isArray(items) ? items : []))
-    .catch(() => setReports([]));
+  const load = async () => {
+    setLoading(true); setError('');
+    try { setReports(await (canReview ? getReports() : getMyReports())); }
+    catch (error) { setError(error.message); }
+    finally { setLoading(false); }
+  };
   useEffect(() => { load(); }, [canReview]);
   useEffect(() => {
     setForm(current => ({ ...current, targetType: targetOptions[0]?.[0] || 'USER', targetId: '' }));
   }, [targetOptions]);
   useEffect(() => {
     let cancelled = false;
-    Promise.allSettled([getReportTargetUsers(), getMissions(), getPendingReview()]).then(results => {
+    Promise.allSettled([getReportTargetUsers(), getMissions(), canReview ? getPendingReview() : Promise.resolve([])]).then(results => {
       if (cancelled) return;
       const [userResult, missionResult, actionResult] = results;
       const users = userResult.status === 'fulfilled' ? userResult.value : [];
@@ -82,6 +89,7 @@ export default function Reports({ panelRole }) {
   useEffect(() => {
     let cancelled = false;
     setTargetsLoading(true);
+    setTargetError('');
     setTargetQuery('');
     const loadTargets = async () => {
       try {
@@ -109,8 +117,8 @@ export default function Reports({ panelRole }) {
           }));
         }
         if (!cancelled) setTargets(items);
-      } catch {
-        if (!cancelled) setTargets([]);
+      } catch (error) {
+        if (!cancelled) { setTargets([]); setTargetError(error.message); }
       } finally {
         if (!cancelled) setTargetsLoading(false);
       }
@@ -228,7 +236,7 @@ export default function Reports({ panelRole }) {
             </select></div>
           </div>
         </div>
-        {filtered.length === 0 ? <EmptyState icon={Flag} title="No reports found" description="There are no reports matching the current filters." /> : (
+        {error ? <><AsyncBanner type="warning" message={error} /><button className="btn btn-outline" onClick={load}>Retry</button></> : loading ? <div role="status">Loading reports...</div> : filtered.length === 0 ? <EmptyState icon={Flag} title="No reports found" description="There are no reports matching the current filters." /> : (
           <div className="report-list">
             {filtered.map(report => (
               <article className="report-row" key={report.id}>
@@ -277,7 +285,8 @@ export default function Reports({ panelRole }) {
         </div>
         <div className="target-picker-list">
           {targetsLoading && <div className="target-picker-empty">Loading targets...</div>}
-          {!targetsLoading && filteredTargets.length === 0 && <div className="target-picker-empty">No matching target found.</div>}
+          {targetError && <AsyncBanner type="warning" message={targetError} />}
+          {!targetsLoading && !targetError && filteredTargets.length === 0 && <div className="target-picker-empty">No matching target found.</div>}
           {!targetsLoading && filteredTargets.map(item => (
             <button
               key={item.id}

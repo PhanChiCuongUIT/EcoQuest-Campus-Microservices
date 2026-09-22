@@ -330,7 +330,7 @@ export default function SubmitActionModal({ isOpen, onClose, studentId, prefillM
       } else if (e.response?.status === 401) {
         toast({ type: 'error', message: 'Session expired', sub: 'Please sign in again before submitting this action.' });
       } else if (e.response?.status === 403) {
-        toast({ type: 'error', message: 'Submission not allowed', sub: 'This account can only submit actions for its own student profile.' });
+        toast({ type: 'error', message: 'Submission not allowed', sub: e.message });
       } else if (e.response?.status === 413) {
         toast({ type: 'error', message: 'Evidence file is too large', sub: 'Use photos under 5MB each or one video under 50MB.' });
       } else if (e.response) {
