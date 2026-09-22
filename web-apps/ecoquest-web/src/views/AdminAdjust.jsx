@@ -1,14 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, History, Search, Wallet, Zap } from 'lucide-react';
 import { adjustPoints, getTransactions, getUsers, getWallet } from '../api/ecoquestApi.js';
 import { useToast } from '../components/Toast.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
+import AsyncBanner from '../components/AsyncBanner.jsx';
 import { canApplyPointAdjustment, projectedWalletBalance } from '../utils/workflowRules.js';
 
 export default function AdminAdjust() {
   const toast = useToast();
   const confirm = useConfirm();
-  const [studentId, setStudentId] = useState('SV001');
+  const [studentId, setStudentId] = useState('');
   const [points, setPoints] = useState(0);
   const [reason, setReason] = useState('');
   const [wallet, setWallet] = useState(null);
@@ -17,8 +18,13 @@ export default function AdminAdjust() {
   const [studentQuery, setStudentQuery] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadingWallet, setLoadingWallet] = useState(false);
+  const [directoryError, setDirectoryError] = useState('');
+  const [walletError, setWalletError] = useState('');
+  const walletRequest = useRef(0);
 
   const inspect = async () => {
+    const request = ++walletRequest.current;
+    setWallet(null); setTransactions([]); setWalletError('');
     if (!studentId.trim()) return;
     setLoadingWallet(true);
     try {
@@ -26,16 +32,18 @@ export default function AdminAdjust() {
         getWallet(studentId.trim()),
         getTransactions(studentId.trim()),
       ]);
+      if (request !== walletRequest.current) return;
       setWallet(walletData);
       setTransactions(transactionData.filter(item => item.actionType === 'ADMIN_ADJUSTMENT').slice(0, 8));
     } catch (error) {
-      toast({ type: 'error', message: 'Student wallet not found', sub: error?.response?.data?.message || error.message });
+      if (request === walletRequest.current) setWalletError(error.message);
     } finally {
-      setLoadingWallet(false);
+      if (request === walletRequest.current) setLoadingWallet(false);
     }
   };
 
-  useEffect(() => {
+  const loadStudents = () => {
+    setDirectoryError('');
     getUsers()
       .then(items => {
         const studentAccounts = (Array.isArray(items) ? items : [])
@@ -47,13 +55,14 @@ export default function AdminAdjust() {
           setStudentId(firstStudent.studentId);
         }
       })
-      .catch(() => setStudents([]));
-  }, []);
+      .catch(error => setDirectoryError(error.message));
+  };
+  useEffect(() => { loadStudents(); }, []);
 
   useEffect(() => { inspect(); }, [studentId]);
 
   const handleAdjust = async () => {
-    if (!studentId.trim() || points === 0 || !reason.trim()) return;
+    if (!canApply || saving) return;
     const projected = projectedWalletBalance(wallet?.availablePoints ?? wallet?.totalPoints, points);
     const accepted = await confirm({
       title: 'Apply manual point adjustment?',
@@ -78,7 +87,8 @@ export default function AdminAdjust() {
   };
 
   const projected = projectedWalletBalance(wallet?.availablePoints ?? wallet?.totalPoints, points);
-  const canApply = canApplyPointAdjustment(wallet?.availablePoints ?? wallet?.totalPoints, points, reason);
+  const canApply = !loadingWallet && !directoryError && wallet?.studentId === studentId
+    && canApplyPointAdjustment(wallet?.availablePoints ?? wallet?.totalPoints, points, reason);
   const selectedStudent = students.find(account => account.studentId === studentId);
   const filteredStudents = useMemo(() => {
     const text = studentQuery.toLowerCase().trim();
@@ -92,15 +102,18 @@ export default function AdminAdjust() {
       </div>
       <div className="adjust-layout">
         <section className="adjust-form-panel">
+          {directoryError && <><AsyncBanner type="error" message={directoryError} /><button className="btn btn-outline btn-sm" onClick={loadStudents}>Retry</button></>}
+          {walletError && <AsyncBanner type="error" message={walletError} />}
           <div className="student-wallet-search">
             <div className="search-field"><Search size={16} /><input value={studentQuery} onChange={event => setStudentQuery(event.target.value)} placeholder="Search student by name, email, or student ID" /></div>
-            <button className="btn btn-outline" onClick={inspect} disabled={loadingWallet}>{loadingWallet ? 'Loading...' : 'Inspect wallet'}</button>
+            <button className="btn btn-outline" onClick={inspect} disabled={loadingWallet || !studentId || saving}>{loadingWallet ? 'Loading...' : 'Inspect wallet'}</button>
           </div>
           <div className="target-picker-list compact">
             {filteredStudents.map(account => (
               <button
                 key={account.id}
                 type="button"
+                disabled={saving}
                 className={`target-picker-item${account.studentId === studentId ? ' selected' : ''}`}
                 onClick={() => {
                   setStudentId(account.studentId);
@@ -113,8 +126,8 @@ export default function AdminAdjust() {
             ))}
           </div>
           <div className="adjust-balance">
-            <div><Wallet size={18} /><span>{selectedStudent?.displayName || studentId} - available</span><strong>{wallet?.availablePoints ?? wallet?.totalPoints ?? 0}</strong></div>
-            <div className={points < 0 ? 'negative' : ''}><Zap size={18} /><span>Projected balance</span><strong>{projected}</strong></div>
+            <div><Wallet size={18} /><span>{selectedStudent?.displayName || studentId} - available</span><strong>{wallet?.studentId === studentId ? wallet.availablePoints ?? wallet.totalPoints : '-'}</strong></div>
+            <div className={points < 0 ? 'negative' : ''}><Zap size={18} /><span>Projected balance</span><strong>{wallet?.studentId === studentId ? projected : '-'}</strong></div>
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="adjust-points">Adjustment</label>
@@ -135,7 +148,7 @@ export default function AdminAdjust() {
         </section>
         <section className="adjust-history-panel">
           <h3><History size={17} /> Recent manual adjustments</h3>
-          {transactions.length === 0 && <p className="muted-copy">No manual adjustments for this student.</p>}
+          {wallet && !loadingWallet && transactions.length === 0 && <p className="muted-copy">No manual adjustments for this student.</p>}
           {transactions.map(transaction => (
             <div className="adjust-history-item" key={transaction.id}>
               <span className={transaction.points < 0 ? 'negative' : 'positive'}>{transaction.points > 0 ? '+' : ''}{transaction.points}</span>

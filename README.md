@@ -205,6 +205,18 @@ npm.cmd run test:browser
 
 The browser suite covers station labels, QR photo decoding, mission submission and approval, wallet reasons, and Catalog forms at desktop and mobile sizes. Run the E2E cleanup script from the repository root after both smoke and browser tests finish.
 
+Browser failure-injection tests also verify that unavailable Users, Reports, Analytics, coupon and rank APIs display errors instead of empty results. Failed role edits and notification read operations preserve the displayed state; point adjustments require a successfully loaded wallet for the selected student.
+
+Notification streams have a bounded lifetime and reconnect through EventSource, with a 30-second inbox polling fallback. A live connection receives a notification only once even when both user and student recipient keys match. Browser tests also exercise live SSE and inbox persistence after disconnect.
+
+Test Leaderboard's Redis-side duplicate protection independently:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\test-leaderboard-dedup.ps1
+```
+
+This test uses temporary keys and removes them on completion. Leaderboard records processed grant IDs and updates weekly/monthly scores in one Lua operation on the current standalone Redis deployment. It does not read Reward's database. Historical grants processed before this change are not backfilled into the duplicate index; deleting Redis data also deletes this protection. This is consumer idempotency, not an end-to-end exactly-once guarantee.
+
 ## Development And Operations
 
 To run Vite against the containerized backend, stop the web container to free port 3000:

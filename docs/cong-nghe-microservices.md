@@ -1,6 +1,6 @@
 # Công Nghệ Microservices Trong EcoQuest Campus
 
-Cập nhật: 2026-07-10
+Cập nhật: 2026-09-21
 
 Tài liệu này tổng hợp các công nghệ microservices đang có trong project EcoQuest Campus và chúng được dùng ở đâu, dùng như thế nào.
 
@@ -109,6 +109,8 @@ Cách kiểm tra RabbitMQ:
 - Reward không cần Action gọi trực tiếp để cộng điểm.
 - Report không cần đọc DB Action/Reward/Catalog/Identity.
 - Notification không cần service khác gọi sync.
+
+Ở phía trình duyệt, Notification dùng SSE và inbox polling 30 giây. Mỗi kết nối SSE có thời hạn 5 phút rồi EventSource kết nối lại; server dọn emitter khi đóng/lỗi/hết hạn. Cùng một kết nối khớp nhiều recipient key chỉ nhận một bản notification, UI cũng gộp theo ID. Cơ chế này không thay thế inbox chống trùng integration event bền vững; broker redelivery vẫn là giới hạn cần xử lý thêm. Xem [báo cáo kiểm thử chức năng](kiem-tra-chuc-nang-2026-09-22.md).
 - Hệ thống chấp nhận eventual consistency, nên UI cần refetch/poll sau event.
 
 ## 6. gRPC Giữa Action Và Policy
@@ -140,11 +142,14 @@ Redis đang dùng cho hai nhóm việc:
    - Sorted set cho weekly/monthly ranking.
    - Score là điểm student.
    - Truy vấn rank nhanh cho dashboard/leaderboard.
+   - Set `ecoquest:leaderboard:processed:{studentId}` lưu `sourceActionId` đã xử lý; dùng `eventId` khi contract cũ không có source action. Lua kiểm trùng và cập nhật hai bảng điểm tuần/tháng trong một thao tác trên Redis độc lập hiện tại.
+   - Service không đọc database Reward để chống trùng. Set chưa có dữ liệu các grant trước khi triển khai bản sửa; không được xóa set rồi replay event cũ mà không có kế hoạch dựng lại toàn bộ projection. Cấu hình này chưa hỗ trợ Redis Cluster nhiều hash slot và không phải cam kết exactly-once toàn hệ thống.
 
 Cách kiểm tra nhanh:
 
 ```powershell
-docker exec -it microservices-se361-redis-1 redis-cli keys *
+docker compose exec -T redis redis-cli --scan --pattern "ecoquest:leaderboard:*"
+powershell -ExecutionPolicy Bypass -File scripts\test-leaderboard-dedup.ps1
 ```
 
 ## 8. MinIO Object Storage

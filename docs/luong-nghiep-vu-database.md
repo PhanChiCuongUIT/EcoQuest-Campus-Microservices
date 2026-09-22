@@ -187,6 +187,7 @@ Action dùng gRPC để gọi Policy. Admin dùng REST qua Nginx/Vite proxy cùn
 | --- | --- | --- | --- |
 | Redis sorted set | weekly key | member `studentId`, score `points` | Rank tuần |
 | Redis sorted set | monthly key | member `studentId`, score `points` | Rank tháng |
+| Redis set | `ecoquest:leaderboard:processed:{studentId}` | Các grant ID (`sourceActionId`, dự phòng `eventId`) | Chống cộng lại grant; Lua cập nhật marker và điểm tuần/tháng cùng thao tác trên Redis standalone |
 | `LeaderboardSnapshot` | `id` | `seasonId`, `seasonType`, `studentId`, `rankNumber`, `points`, `closedOn` | Snapshot khi close season |
 
 ### 6.7. Recognition Service - PostgreSQL `recognition_db` + MinIO

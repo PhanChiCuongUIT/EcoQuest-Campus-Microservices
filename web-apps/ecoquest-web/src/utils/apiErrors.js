@@ -17,6 +17,9 @@ function detailFrom(body, depth = 0) {
 }
 
 export function requestErrorMessage(error) {
+  if (error?.code === 'ECONNABORTED' || error?.code === 'ETIMEDOUT') {
+    return 'The request timed out. Check your history before retrying; the operation may still complete.';
+  }
   const status = error?.response?.status;
   const detail = detailFrom(error?.response?.data);
   if (detail) return detail;

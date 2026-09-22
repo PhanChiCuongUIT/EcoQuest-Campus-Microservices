@@ -9,7 +9,7 @@ import { normalizeApiError } from '../utils/apiErrors.js';
 
 const BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
-const client = axios.create({ baseURL: BASE });
+const client = axios.create({ baseURL: BASE, timeout: 120000 });
 client.interceptors.response.use(response => response, normalizeApiError);
 
 // ── Auth header injection ──────────────────────────────────────
@@ -164,7 +164,7 @@ export const getRecognitionRewards = (studentId) =>
 // ── Policy (local-only, direct to service) ────────────────────
 
 export const POLICY_BASE = (import.meta.env.VITE_POLICY_BASE_URL || '').replace(/\/$/, '');
-const policyClient = axios.create();
+const policyClient = axios.create({ timeout: 30000 });
 policyClient.interceptors.response.use(response => response, normalizeApiError);
 
 export const getPolicyRules = () =>

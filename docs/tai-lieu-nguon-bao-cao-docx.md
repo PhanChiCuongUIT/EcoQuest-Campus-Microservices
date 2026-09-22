@@ -1,8 +1,10 @@
 # Tài Liệu Nguồn Viết Báo Cáo DOCX - EcoQuest Campus
 
-Cập nhật đặc tả và kiểm thử: 2026-09-21. Cập nhật vận hành và seed: 2026-09-19.
+Cập nhật đặc tả và kiểm thử: 2026-09-22. Cập nhật vận hành và seed: 2026-09-19.
 
-Kết quả mới nhất: reactor toàn bộ 14 module và 28 Java test PASS; frontend 26 test, Playwright 8 case desktop/mobile, production build và full smoke PASS. Policy UI dùng proxy cùng origin; lỗi nghiệp vụ trả JSON rõ ràng; JWT filter không đổi lỗi controller thành 401; mission bắt buộc `actionType`. Leaderboard UI/test dùng UTC giống backend. Các guard mission đã có vẫn được giữ: Admin sửa không gửi `status` giữ trạng thái hiện tại, đổi trạng thái phát event, Moderator không tự kích hoạt. Xem mục 7 trong `chay-lai-project.md` để biết phạm vi và giới hạn kiểm chứng.
+Policy UI dùng proxy cùng origin; lỗi nghiệp vụ trả JSON rõ ràng; JWT filter không đổi lỗi controller thành 401; mission bắt buộc `actionType`. Leaderboard UI/test dùng UTC giống backend. Các guard mission đã có vẫn được giữ: Admin sửa không gửi `status` giữ trạng thái hiện tại, đổi trạng thái phát event, Moderator không tự kích hoạt. Xem [mục 7 của hướng dẫn chạy](chay-lai-project.md#7-kết-quả-xác-minh) để biết kết quả test mới nhất, phạm vi và giới hạn kiểm chứng; không dùng số test của các mốc lịch sử thay cho hiện trạng.
+
+Lượt rà soát mới bổ sung xử lý lỗi tải dữ liệu, trạng thái coupon, chặn Adjust Points dùng ví của sinh viên trước, gộp notification trùng và quản lý vòng đời SSE. Leaderboard dùng Redis set lưu grant đã xử lý và Lua cập nhật điểm tuần/tháng, không đọc DB Reward. [Báo cáo chức năng ngày 22/09](kiem-tra-chuc-nang-2026-09-22.md) mô tả chi tiết thay đổi và giới hạn chống trùng.
 
 Phần mở rộng mới: [Station QR, badge và điểm tiêu dùng](station-qr-wallet-badges.md). Catalog sở hữu QR và receipt gắn user/mission/station, mission bắt buộc station có danh sách được phép. Action kiểm receipt qua API Catalog trước khi lưu pending review. Reward đồng bộ quy tắc badge qua RabbitMQ, hỗ trợ ảnh và retire badge; wallet phân biệt tổng điểm, điểm đã tiêu và số dư. Recognition giữ stock/claim pending, Reward debit điểm tiêu dùng rồi Recognition mới phát voucher. Vẫn có 9 business service và không truy cập database chéo. Chi tiết bảng mới và ràng buộc nằm trong mục 7 của tài liệu mở rộng; các bảng bên dưới là mô hình cơ sở, đọc cùng phần bổ sung này.
 

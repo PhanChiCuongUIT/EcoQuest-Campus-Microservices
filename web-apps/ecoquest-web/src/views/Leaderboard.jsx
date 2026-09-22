@@ -139,13 +139,14 @@ export default function Leaderboard({ studentId, role }) {
       setBoard(data);
       // Also load current user rank
       if (hasViewerStudentId) {
-        const r = await getStudentRank(viewerStudentId, tab, periodParams).catch(() => null);
+        const r = await getStudentRank(viewerStudentId, tab, periodParams);
         setMyRank(r);
       } else {
         setMyRank(null);
       }
-    } catch {
-      setError('Could not load leaderboard. Make sure Leaderboard service is running.');
+    } catch (error) {
+      setMyRank(null);
+      setError(error.message);
     } finally { setLoading(false); }
   }, [tab, hasViewerStudentId, viewerStudentId, periodParams]);
 
@@ -160,8 +161,9 @@ export default function Leaderboard({ studentId, role }) {
     try {
       const r = await getStudentRank(sid, tab, periodParams);
       setLookupResult(r);
-    } catch {
-      setLookupResult({ rank: null, score: null });
+    } catch (error) {
+      setLookupResult(null);
+      toast({ type: 'error', message: 'Rank lookup failed', sub: error.message });
     }
   };
 

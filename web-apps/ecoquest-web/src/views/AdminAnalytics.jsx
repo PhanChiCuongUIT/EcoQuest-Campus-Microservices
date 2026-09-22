@@ -63,6 +63,8 @@ export default function AdminAnalytics() {
   const [studentOutcomes, setStudentOutcomes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [revision, setRevision] = useState(0);
 
   const maxWeek = seriesYear === CURRENT_YEAR ? CURRENT_WEEK : maxIsoWeek(seriesYear);
   const maxMonth = seriesYear === CURRENT_YEAR ? CURRENT_MONTH : 12;
@@ -94,34 +96,46 @@ export default function AdminAnalytics() {
   }, [seriesPeriod, seriesYear, fromWeek, fromMonth, fromYear]);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
+    setErrors(current => ({ ...current, summary: '' }));
     Promise.all([
       getReportAnalyticsSummary(period),
       Promise.all(PERIODS.map(item => getReportAnalyticsSummary(item))),
       getManagedMissions(),
       getUsers(),
     ]).then(([current, summaries, missionList, userList]) => {
+      if (cancelled) return;
       setSummary(current);
       setTrend(PERIODS.map((label, index) => ({ label, value: summaries[index]?.submittedActions ?? 0 })));
       setMissions(Array.isArray(missionList) ? missionList : []);
       setUsers(Array.isArray(userList) ? userList : []);
-    }).finally(() => setLoading(false));
-  }, [period]);
+    }).catch(error => { if (!cancelled) setErrors(current => ({ ...current, summary: error.message })); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [period, revision]);
 
   useEffect(() => {
     if (rangeInvalid) return;
+    let cancelled = false;
+    setErrors(current => ({ ...current, series: '' }));
     getReportAnalyticsSeries(seriesPeriod, {
       ...seriesOptions(),
-    }).then(setSeries).catch(() => setSeries(null));
-  }, [seriesPeriod, seriesYear, fromWeek, toWeek, fromMonth, toMonth, fromYear, toYear, rangeInvalid]);
+    }).then(value => { if (!cancelled) setSeries(value); })
+      .catch(error => { if (!cancelled) setErrors(current => ({ ...current, series: error.message })); });
+    return () => { cancelled = true; };
+  }, [seriesPeriod, seriesYear, fromWeek, toWeek, fromMonth, toMonth, fromYear, toYear, rangeInvalid, revision]);
 
   useEffect(() => {
     if (rangeInvalid) return;
-    getStudentAnalyticsOutcomes(studentRangeOptions()).then(setStudentOutcomes).catch(() => setStudentOutcomes([]));
-    if (studentMode === 'single' && studentId) {
-      getStudentAnalytics(studentId, studentRangeOptions()).then(setStudent).catch(() => setStudent(null));
-    }
-  }, [seriesPeriod, seriesYear, fromWeek, toWeek, fromMonth, toMonth, fromYear, toYear, rangeInvalid, studentMode, studentId]);
+    let cancelled = false;
+    setErrors(current => ({ ...current, students: '' }));
+    Promise.all([getStudentAnalyticsOutcomes(studentRangeOptions()),
+      studentMode === 'single' && studentId ? getStudentAnalytics(studentId, studentRangeOptions()) : Promise.resolve(null)])
+      .then(([outcomes, student]) => { if (!cancelled) { setStudentOutcomes(outcomes); setStudent(student); } })
+      .catch(error => { if (!cancelled) setErrors(current => ({ ...current, students: error.message })); });
+    return () => { cancelled = true; };
+  }, [seriesPeriod, seriesYear, fromWeek, toWeek, fromMonth, toMonth, fromYear, toYear, rangeInvalid, studentMode, studentId, revision]);
 
   useEffect(() => {
     const rows = series?.buckets || [];
@@ -141,8 +155,7 @@ export default function AdminAnalytics() {
 
   const lookup = async () => {
     if (!studentId.trim()) return;
-    try { setStudent(await getStudentAnalytics(studentId.trim(), studentRangeOptions())); }
-    catch { setStudent(null); }
+    setRevision(value => value + 1);
   };
 
   const exportPdf = async () => {
@@ -155,8 +168,8 @@ export default function AdminAnalytics() {
     try {
       await downloadReportAnalytics(seriesPeriod, options);
       toast({ type: 'success', message: 'Analytics PDF export started' });
-    } catch {
-      toast({ type: 'error', message: 'Could not export analytics PDF' });
+    } catch (error) {
+      toast({ type: 'error', message: 'Could not export analytics PDF', sub: error.message });
     } finally {
       setExporting(false);
     }
@@ -201,6 +214,12 @@ export default function AdminAnalytics() {
     .filter(row => row.submittedActions || row.missionsCreated || row.usersRegistered || row.totalPoints)
     .slice(-12)
     .map(row => ({ label: row.label, value: row.submittedActions }));
+
+  if (Object.values(errors).some(Boolean)) return <>
+    <AsyncBanner type="warning" message={Object.values(errors).filter(Boolean).join(' ')} />
+    <button className="btn btn-outline" onClick={() => setRevision(value => value + 1)}>Retry</button>
+  </>;
+  if (loading) return <div role="status">Loading analytics...</div>;
 
   return (
     <div>

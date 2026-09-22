@@ -4,6 +4,7 @@ import { deleteBannedUser, getUsers, updateUserRole, updateUserStatus } from '..
 import { useConfirm } from '../components/ConfirmDialog.jsx';
 import { useToast } from '../components/Toast.jsx';
 import EmptyState from '../components/EmptyState.jsx';
+import AsyncBanner from '../components/AsyncBanner.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function AdminUsers() {
@@ -15,8 +16,15 @@ export default function AdminUsers() {
   const [status, setStatus] = useState('');
   const [role, setRoleFilter] = useState('');
   const [busyId, setBusyId] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const load = () => getUsers().then(setUsers).catch(() => setUsers([]));
+  const load = async () => {
+    setLoading(true); setError('');
+    try { setUsers(await getUsers()); }
+    catch (error) { setError(error.message); }
+    finally { setLoading(false); }
+  };
   useEffect(() => { load(); }, []);
 
   const filtered = useMemo(() => users.filter(account => {
@@ -45,6 +53,8 @@ export default function AdminUsers() {
       await updateUserRole(account.id, nextRole);
       await load();
       toast({ type: 'success', message: 'Role updated' });
+    } catch (error) {
+      toast({ type: 'error', message: 'Role update failed', sub: error.message });
     } finally {
       setBusyId('');
     }
@@ -70,6 +80,8 @@ export default function AdminUsers() {
       await updateUserStatus(account.id, nextStatus, reason);
       await load();
       toast({ type: 'success', message: `Status changed to ${nextStatus}` });
+    } catch (error) {
+      toast({ type: 'error', message: 'Status update failed', sub: error.message });
     } finally {
       setBusyId('');
     }
@@ -92,6 +104,8 @@ export default function AdminUsers() {
       await deleteBannedUser(account.id);
       await load();
       toast({ type: 'success', message: 'Banned user deleted' });
+    } catch (error) {
+      toast({ type: 'error', message: 'User deletion failed', sub: error.message });
     } finally {
       setBusyId('');
     }
@@ -100,6 +114,8 @@ export default function AdminUsers() {
   const activeCount = users.filter(account => account.status === 'ACTIVE').length;
   const moderatorCount = users.filter(account => account.role === 'MODERATOR').length;
   const restrictedCount = users.filter(account => account.status !== 'ACTIVE').length;
+  if (loading) return <div role="status">Loading users...</div>;
+  if (error) return <><AsyncBanner type="warning" message={error} /><button className="btn btn-outline" onClick={load}>Retry</button></>;
 
   return (
     <div>

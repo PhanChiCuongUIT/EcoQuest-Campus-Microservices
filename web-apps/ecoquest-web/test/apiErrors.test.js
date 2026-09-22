@@ -18,6 +18,7 @@ test('generic JSON, HTML, network and HTTP errors get actionable messages', () =
   assert.match(requestErrorMessage(failure(403, {})), /permission/);
   assert.match(requestErrorMessage(failure(500, {})), /temporarily/);
   assert.match(requestErrorMessage({}), /connection/);
+  assert.match(requestErrorMessage({ code: 'ECONNABORTED' }), /history before retrying/);
 });
 test('normalization preserves status and supplies all existing view error fallbacks', async () => {
   const error = failure(409, new Blob([JSON.stringify({ detail: 'Station scan expired. Please scan again.' })]));

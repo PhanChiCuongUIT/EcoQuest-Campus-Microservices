@@ -209,7 +209,7 @@ WHERE student_id LIKE 'SV_E2E%'
 "@
 
 Write-Step "Cleaning Redis E2E draft/idempotency/leaderboard keys"
-$redisKeys = docker exec microservices-se361-redis-1 redis-cli --scan --pattern "*E2E*"
+$redisKeys = @(docker exec microservices-se361-redis-1 redis-cli --scan --pattern "*E2E*") + @(docker exec microservices-se361-redis-1 redis-cli --scan --pattern "*SV_AUTH*")
 if ($redisKeys) {
     foreach ($key in $redisKeys) {
         docker exec microservices-se361-redis-1 redis-cli DEL $key | Out-Null
@@ -222,7 +222,7 @@ if ($redisKeys) {
 $removedLeaderboardMembers = 0
 $leaderboardKeys = docker exec microservices-se361-redis-1 redis-cli --scan --pattern "ecoquest:leaderboard:*"
 foreach ($key in @($leaderboardKeys)) {
-    if ([string]::IsNullOrWhiteSpace($key)) {
+    if ([string]::IsNullOrWhiteSpace($key) -or $key -notmatch '^ecoquest:leaderboard:(weekly|monthly)(:|$)') {
         continue
     }
     $members = docker exec microservices-se361-redis-1 redis-cli ZRANGE $key 0 -1

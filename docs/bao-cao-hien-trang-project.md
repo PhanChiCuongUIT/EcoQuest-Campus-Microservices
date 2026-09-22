@@ -4,6 +4,8 @@ Cập nhật: 2026-09-21. [Chi tiết chạy và kiểm thử](chay-lai-project.
 
 Bản mới sửa Policy Rules sang proxy cùng origin, bỏ ghi chú kỹ thuật khỏi UI và bổ sung validation CRUD. Lỗi nghiệp vụ được trả bằng JSON có `detail`/`message`; quét sai station hiển thị lý do cụ thể. Bộ lọc JWT không còn đổi lỗi xử lý backend thành lỗi đăng nhập 401. Catalog yêu cầu `actionType` khi tạo/sửa mission. Các thay đổi giữ nguyên 9 microservice và quyền sở hữu database; xem [phạm vi test mới](backend-smoke-test-guide.md#phạm-vi-bổ-sung-ngày-21092026).
 
+Lượt rà soát tiếp theo sửa trạng thái lỗi tải Users/Reports/Analytics, tra hạng và coupon; không hiển thị lỗi thành danh sách trống hoặc redemption đang chờ. Notification có polling dự phòng 30 giây, gộp SSE trùng theo ID và báo lỗi khi đánh dấu đọc thất bại. Adjust Points không cho dùng số dư của sinh viên trước nếu tải ví mới lỗi. Leaderboard chống nhận trùng grant bằng Redis Lua, cập nhật điểm tuần/tháng cùng thao tác; xem [cơ chế và giới hạn](cong-nghe-microservices.md#7-redis).
+
 Hệ thống vẫn có 9 microservice. Bản cập nhật bổ sung named volume cho các kho dữ liệu, Redis AOF, sửa seed ghi đè dữ liệu khi restart và thêm `refresh-demo-data.ps1` để tạo hoạt động trong ngày qua API. Các số liệu kiểm thử tháng 7 bên dưới là lịch sử, không đại diện cho lần chạy mới.
 
 Chi tiết database, use case, frontend và nội dung dùng để viết báo cáo DOCX nằm ở `tai-lieu-nguon-bao-cao-docx.md`; phần luồng nghiệp vụ và bảng/collection theo từng service nằm ở `luong-nghiep-vu-database.md`; phần công nghệ microservices, cách chạy, cách show khi báo cáo và câu hỏi phản biện nằm ở `cam-nang-bao-cao-microservices.md`.
@@ -110,6 +112,8 @@ Audit ngày 19/09/2026 sau cleanup và refresh: **12 tài khoản, 18 mission, 6
 - Docker Compose chạy toàn bộ local stack.
 
 ## 6. Kiểm Thử Đã Chạy
+
+Ngày 22/09/2026: 34 Java test riêng biệt PASS (30 ở reactor và 4 Notification mới sau khi build lại module), 28 unit test frontend, production build, 22 Playwright case desktop/mobile và integration Redis chống trùng PASS. Browser gồm cả lỗi API giả lập lẫn SSE thật; không thay thế thử tải hoặc fault-injection broker/database. [Kết quả và cách chạy](chay-lai-project.md#7-kết-quả-xác-minh).
 
 Ngày 20/09/2026: bổ sung QR station và receipt bắt buộc cho mission cần station; Catalog badge CRUD/ảnh/quy tắc động; coupon debit bất đồng bộ từ điểm tiêu dùng; ledger hiển thị lý do/tên mission. Maven 14 module, 17 unit test PASS; frontend 20 unit test và 6 Playwright case desktop/mobile PASS; production build và full backend smoke PASS. Gateway được build lại riêng để sửa DNS cache sau kiểm thử restart. Xem [contract, dữ liệu, luồng nghiệp vụ và giới hạn kiểm chứng](station-qr-wallet-badges.md).
 

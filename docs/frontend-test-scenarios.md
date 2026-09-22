@@ -1,10 +1,10 @@
 # Kịch Bản Kiểm Thử Frontend EcoQuest
 
-Cập nhật: 2026-09-20
+Cập nhật: 2026-09-22
 
 ## QR, Badge Và Coupon
 
-Suite `web-apps/ecoquest-web/e2e/station-rewards.spec.js` chạy trên Chromium desktop 1440x1000 và mobile 390x844, tổng 6 case. Chạy sau khi khởi động stack bằng `scripts/start-project.ps1 -LocalMail`; trong thư mục frontend dùng `npm.cmd ci`, `npx.cmd playwright install chromium`, `npm.cmd run test:browser`.
+Suite `web-apps/ecoquest-web/e2e/station-rewards.spec.js` chạy trên Chromium desktop 1440x1000 và mobile 390x844, tổng 8 case. Chạy sau khi khởi động stack bằng `scripts/start-project.ps1 -LocalMail`; trong thư mục frontend dùng `npm.cmd ci`, `npx.cmd playwright install chromium`, `npm.cmd run test:browser`.
 
 - Admin: mở QR station, kiểm ảnh có pixel, tải PNG; chọn tiêu chí badge và station mission; kiểm light/dark và không tràn chiều ngang.
 - Student mới: quét ảnh QR trong modal, station tự điền và readonly, upload minh chứng, submit pending, kiểm chưa có điểm, approve qua API, chờ event rồi kiểm điểm và tên mission trong ledger.
@@ -40,7 +40,7 @@ npm.cmd test
 npm.cmd run build
 ```
 
-Kết quả kỳ vọng của bộ unit test hiện tại: 16/16 pass.
+Kết quả kỳ vọng của bộ unit test hiện tại: 28/28 pass. Kết quả kiểm chứng mới nhất xem mục cuối tài liệu.
 
 - student không thấy pending/rejected mission;
 - chỉ active mission được submit;
@@ -237,9 +237,19 @@ Admin:
 4. Tắt Gateway để kiểm tra lỗi kết nối; bật lại để kiểm tra lỗi server không bị nhầm với sai mật khẩu.
 5. Mở `Policy & privacy` và `Application guide`; tiêu đề và nội dung phải khác nhau, đóng/mở độc lập.
 
-### Kết Quả Mới Nhất: 21/09/2026
+### Kết Quả Lịch Sử: 21/09/2026
 
 26 unit test PASS, production build PASS và 8/8 Playwright case PASS trên desktop/mobile. Bổ sung `apiErrors.test.js` cho thông báo nghiệp vụ/Blob/HTTP/network, validation Policy và `leaderboardPeriods.test.js` cho UTC qua giao tuần/tháng. Browser kiểm Policy CRUD, hostname LAN, quét QR sai rồi quét đúng và submit → duyệt → ví hiển thị giao dịch. Camera điện thoại vật lý và mọi trình duyệt chưa nằm trong phạm vi chạy này. Xem `chay-lai-project.md`, mục 7, để biết kết quả backend và cleanup.
+
+### Bổ Sung Ngày 22/09/2026
+
+Kết quả cuối: 28/28 unit test, production build và **22/22 Playwright case PASS**. Trước đó có lượt thất bại vì stack Docker đã dừng; kết quả PASS là sau khi startup xác nhận toàn bộ health UP.
+
+- `failure-feedback.spec.js`: sáu case ở mỗi viewport. API Users/Reports/Analytics/coupon/rank lỗi không được hiển thị thành rỗng hoặc không có hạng. Đổi quyền và đánh dấu notification lỗi phải có thông báo. Đổi sinh viên nhưng tải ví thất bại phải vô hiệu hóa Adjust Points.
+- `notification-stream.spec.js`: một case mỗi viewport, dùng SSE/API thật. Một notification có hai recipient key khớp vẫn chỉ tới một lần trên kết nối; đóng stream không làm mất bản ghi inbox tiếp theo.
+- `feedback.test.js`: trạng thái coupon thật và gộp SSE theo ID; `apiErrors.test.js` có tình huống timeout, hướng dẫn kiểm lịch sử trước khi thử lại.
+- Ảnh chụp trong `test-results` kiểm tra bố cục lỗi Users desktop và Adjust Points mobile; nút bị vô hiệu hóa, số dư chưa tải không hiển thị số dư sinh viên trước.
+- Các bài giả lập HTTP lỗi là kiểm thử UI, không chứng minh backend chịu được mất mạng/đứt broker. Không đổi assertion nghiệp vụ để cho qua lỗi.
 
 ### 17. Policy Rules CRUD
 
