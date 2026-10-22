@@ -189,7 +189,9 @@ WHERE student_id LIKE 'SV_E2E%'
       SELECT certificate_id FROM certificate_analytics_record WHERE certificate_id LIKE '%E2E%'
    );
 DELETE FROM mission_analytics_record
-WHERE mission_id LIKE 'MISSION-E2E%';
+WHERE mission_id LIKE 'MISSION-E2E%'
+   OR (mission_id ~ '^MISSION-MODERATOR-OWN-[0-9]{14}-[0-9]+$'
+       AND title = 'Moderator Owned Mission');
 DELETE FROM student_reward_snapshot
 WHERE student_id LIKE 'SV_E2E%'
    OR student_id LIKE 'SV_AUTH%';
@@ -205,7 +207,10 @@ WHERE student_id LIKE 'SV_E2E%'
    OR student_id LIKE 'SV_AUTH%'
    OR title ILIKE '%E2E%'
    OR message ILIKE '%E2E%'
-   OR link ILIKE '%E2E%';
+   OR link ILIKE '%E2E%'
+   OR (title = 'Mission status updated' AND link = '/admin-catalog'
+       AND message IN ('Mission Moderator Owned Mission is now PENDING.',
+                       'Mission Moderator Owned Mission is now ACTIVE.'));
 "@
 
 Write-Step "Cleaning Redis E2E draft/idempotency/leaderboard keys"

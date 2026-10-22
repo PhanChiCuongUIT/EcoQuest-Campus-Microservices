@@ -7,14 +7,10 @@ This directory describes the architecture, data model, business workflows, testi
 | Document | Contents |
 | --- | --- |
 | [Startup and data refresh](chay-lai-project.md) | Startup checks, ports, persistent storage, sample data refresh, troubleshooting and dated verification results. |
-| [Project report source](tai-lieu-nguon-bao-cao-docx.md) | Project scope, architecture, databases, use cases, frontend, testing and limitations. |
 | [Project overview](bao-cao-hien-trang-project.md) | Business capabilities, technology stack and project status. |
 | [Business workflows and databases](luong-nghiep-vu-database.md) | Point, badge, certificate and coupon workflows; tables, collections and constraints by service. |
 | [Station QR, badges and coupon debit](station-qr-wallet-badges.md) | Station assignments, scan receipts, badge rules/images, spendable balance, asynchronous coupon claims and regression coverage. |
 | [Microservice technologies](cong-nghe-microservices.md) | Gateway, gRPC, RabbitMQ, Redis, MinIO, database ownership, JWT authorization and Actuator. |
-| [Architecture presentation guide](cam-nang-bao-cao-microservices.md) | Architecture explanations, demonstrations and technical questions. |
-| [System demonstration](kich-ban-demo-microservices.md) | End-to-end demonstrations with application screens, infrastructure tools and test commands. |
-| [Presentation terminology and Q&A](bo-sung-kich-ban-bao-cao-slide.md) | Technical terminology, explanations and discussion questions. |
 | [Backend smoke test guide](backend-smoke-test-guide.md) | Test commands, coverage, expected outcomes and E2E data cleanup. |
 | [Frontend test scenarios](frontend-test-scenarios.md) | Role-specific UI workflows, uploads, notifications, analytics and responsive checks. |
 | [Functional audit](kiem-tra-chuc-nang-2026-09-22.md) | Error-state fixes, Leaderboard duplicate protection, notification connection lifecycle and verification scope. |

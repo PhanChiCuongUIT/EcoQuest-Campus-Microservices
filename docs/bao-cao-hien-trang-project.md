@@ -8,7 +8,7 @@ Lượt rà soát tiếp theo sửa trạng thái lỗi tải Users/Reports/Anal
 
 Hệ thống vẫn có 9 microservice. Bản cập nhật bổ sung named volume cho các kho dữ liệu, Redis AOF, sửa seed ghi đè dữ liệu khi restart và thêm `refresh-demo-data.ps1` để tạo hoạt động trong ngày qua API. Các số liệu kiểm thử tháng 7 bên dưới là lịch sử, không đại diện cho lần chạy mới.
 
-Chi tiết database, use case, frontend và nội dung dùng để viết báo cáo DOCX nằm ở `tai-lieu-nguon-bao-cao-docx.md`; phần luồng nghiệp vụ và bảng/collection theo từng service nằm ở `luong-nghiep-vu-database.md`; phần công nghệ microservices, cách chạy, cách show khi báo cáo và câu hỏi phản biện nằm ở `cam-nang-bao-cao-microservices.md`.
+Chi tiết luồng nghiệp vụ và bảng/collection theo từng service nằm ở [Luồng nghiệp vụ và database](luong-nghiep-vu-database.md). Tham khảo [Công nghệ microservices](cong-nghe-microservices.md) và [Hướng dẫn chạy](chay-lai-project.md) để tìm hiểu kiến trúc và vận hành hệ thống.
 
 ## 1. Mục Tiêu Hệ Thống
 

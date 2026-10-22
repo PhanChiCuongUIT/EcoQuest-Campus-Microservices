@@ -4,7 +4,7 @@ Cập nhật: 2026-09-21
 
 Tài liệu này tổng hợp các công nghệ microservices đang có trong project EcoQuest Campus và chúng được dùng ở đâu, dùng như thế nào.
 
-Nếu cần một file để cầm đi thuyết trình, xem `cam-nang-bao-cao-microservices.md`. File hiện tại thiên về mô tả công nghệ; cẩm nang mới có thêm kịch bản demo và câu hỏi phản biện.
+Tài liệu này mô tả vai trò của từng công nghệ trong hệ thống. Các bước khởi động và kiểm tra được trình bày trong [Hướng dẫn chạy](chay-lai-project.md) và [Hướng dẫn smoke test](backend-smoke-test-guide.md).
 
 ## 1. Kiến Trúc Tổng Thể
 

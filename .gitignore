@@ -6,5 +6,26 @@ dist/
 .vscode/
 *.log
 .env
+.env.*
+!.env.example
 web-apps/ecoquest-web/test-results/
 web-apps/ecoquest-web/playwright-report/
+
+# Local presentation preparation and personal artifacts.
+/docs/bo-sung-kich-ban-bao-cao-slide.md
+/docs/cam-nang-bao-cao-microservices.md
+/docs/kich-ban-demo-microservices.md
+/docs/tai-lieu-nguon-bao-cao-docx.md
+/docs/backend-review-summary.md
+/docs/ECOQUEST_FRONTEND_CHANGELOG.md
+/docs/frontend-handoff.md
+/docs/frontend-summary.md
+/docs/huong-dan-su-dung-cong-nghe-microservices.md
+/docs/implementation_plan.md
+/docs/note-se361-implementation-report.md
+/docs/private/
+/.tmp-note-images/
+/tmp_docx_extract.txt
+/output/
+/tmp/
+/portfolio/

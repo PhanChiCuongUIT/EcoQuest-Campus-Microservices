@@ -604,10 +604,10 @@ $moderatorOwnPending = Invoke-Api -Method "POST" -Uri "$Gateway/actions/submit" 
 Assert-True ($moderatorOwnPending.status -eq "PENDING_REVIEW") "Moderator should be able to submit their own student action"
 $moderatorSelfApproveStatus = Get-StatusCode -Method "PUT" -Uri "$Gateway/actions/$($moderatorOwnPending.id)/approve"
 Assert-True ($moderatorSelfApproveStatus -eq 403) "Moderator should not approve their own action"
-$moderatorMissionId = "MISSION-MODERATOR-OWN-$runId"
+$moderatorMissionId = "MISSION-E2E-MODERATOR-OWN-$runId"
 $moderatorMission = Invoke-Api -Method "POST" -Uri "$Gateway/catalog/missions" -Body @{
     id = $moderatorMissionId
-    title = "Moderator Owned Mission"
+    title = "E2E Moderator Owned Mission"
     actionType = "MODERATOR_OWNED_ACTION"
     basePoints = 2
     evidenceRequired = $false
@@ -974,13 +974,29 @@ $currentWeekBoard = @(Invoke-ApiList -Uri "$Gateway/leaderboards/weekly?limit=20
 Assert-True ($currentWeekBoard.Count -ge 1) "Leaderboard should expose current-week seeded rankings"
 $currentMonthBoard = @(Invoke-ApiList -Uri "$Gateway/leaderboards/monthly?limit=20&year=$($currentDate.Year)&month=$currentMonth")
 Assert-True ($currentMonthBoard.Count -ge 1) "Leaderboard should expose current-month seeded rankings"
+function Assert-HistoricalLeaderboard($Rows, [string]$RedisKey) {
+    # A period without activity is legitimately empty. Compare with the owning
+    # service's read model instead of assuming seed data exists in every period.
+    Assert-True (-not (Has-ItemWithValue $Rows "studentId" $studentAccepted)) "Current-run grants must not leak into historical periods"
+    if (-not $SkipDockerChecks) {
+        $json = docker compose exec -T redis redis-cli --json ZREVRANGE $RedisKey 0 19 WITHSCORES
+        Assert-True ($LASTEXITCODE -eq 0) "Historical leaderboard Redis inspection should succeed"
+        $expected = $json | ConvertFrom-Json
+        Assert-True ($Rows.Count -eq $expected.Count) "Historical leaderboard count should match the selected Redis period"
+        for ($row = 0; $row -lt $expected.Count; $row++) {
+            Assert-True ($Rows[$row].studentId -eq $expected[$row][0]) "Historical leaderboard student order should match the selected period"
+            Assert-True ($Rows[$row].points -eq $expected[$row][1]) "Historical leaderboard points should match the selected period"
+            Assert-True ($Rows[$row].rank -eq ($row + 1)) "Historical leaderboard ranks should be sequential"
+        }
+    }
+}
 if ($currentWeek -gt 1) {
     $previousWeekBoard = @(Invoke-ApiList -Uri "$Gateway/leaderboards/weekly?limit=20&year=$currentYear&week=$($currentWeek - 1)")
-    Assert-True ($previousWeekBoard.Count -ge 1) "Leaderboard should expose previous-week rankings in the selected year"
+    Assert-HistoricalLeaderboard $previousWeekBoard ("ecoquest:leaderboard:weekly:{0}-W{1:D2}" -f $currentYear, ($currentWeek - 1))
 }
 if ($currentMonth -gt 1) {
     $previousMonthBoard = @(Invoke-ApiList -Uri "$Gateway/leaderboards/monthly?limit=20&year=$($currentDate.Year)&month=$($currentMonth - 1)")
-    Assert-True ($previousMonthBoard.Count -ge 1) "Leaderboard should expose previous-month rankings in the selected year"
+    Assert-HistoricalLeaderboard $previousMonthBoard ("ecoquest:leaderboard:monthly:{0}-{1:D2}" -f $currentDate.Year, ($currentMonth - 1))
 }
 $invalidWeekStatus = Get-StatusCode -Uri "$Gateway/leaderboards/weekly?year=$currentYear&week=54"
 Assert-True ($invalidWeekStatus -eq 400) "Leaderboard should reject invalid week numbers"
