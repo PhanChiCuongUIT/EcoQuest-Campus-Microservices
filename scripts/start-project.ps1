@@ -1,6 +1,7 @@
 param(
     [switch]$Build,
     [switch]$RefreshData,
+    [switch]$PrepareNextMonth,
     [switch]$LocalMail,
     [int]$TimeoutSeconds = 600
 )
@@ -56,7 +57,9 @@ try {
     $webPort = $configuration.services.'ecoquest-web'.ports[0].published
     $web = Invoke-WebRequest "http://localhost:$webPort" -UseBasicParsing -TimeoutSec 15
     if ($web.StatusCode -ne 200) { throw 'Frontend is not ready.' }
-    if ($RefreshData) { & "$PSScriptRoot/refresh-demo-data.ps1" -Gateway "http://localhost:$gatewayPort" }
+    if ($RefreshData -or $PrepareNextMonth) {
+        & "$PSScriptRoot/refresh-demo-data.ps1" -Gateway "http://localhost:$gatewayPort" -PrepareNextMonth:$PrepareNextMonth
+    }
     Write-Host "[EcoQuest] Web: http://localhost:$webPort"
     Write-Host "[EcoQuest] Gateway health: http://localhost:$gatewayPort/actuator/health"
     foreach ($name in @('rabbitmq', 'minio')) {

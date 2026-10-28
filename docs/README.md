@@ -56,4 +56,6 @@ Configured ports may differ when overridden in `.env`. The startup script prints
 
 Use `scripts/refresh-demo-data.ps1` to add current sample activity through the application APIs. Use `scripts/cleanup-smoke-test-data.ps1` to remove identifiable E2E records after testing. These are separate operations; refreshing data does not delete existing records.
 
+`scripts/start-project.ps1 -RefreshData -PrepareNextMonth` also prepares the next month's three campaign missions. These definitions are active immediately, but generated actions and points always belong to the current UTC date. Normal refresh automatically switches campaigns when the month changes. Run `scripts/test-refresh-demo-data.ps1` for isolated tests of repeated runs, date/month/year rollover and cancelled campaign preservation.
+
 Do not use `docker compose down -v` when existing data must be preserved. It removes the project's data volumes. See the startup guide for storage migration and backup considerations.

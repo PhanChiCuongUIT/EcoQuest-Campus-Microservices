@@ -1,11 +1,12 @@
 param(
     [string]$Gateway = 'http://localhost:18080',
-    [string]$DemoPassword = 'EcoQuest@123'
+    [string]$DemoPassword = 'EcoQuest@123',
+    [switch]$PrepareNextMonth
 )
 
 $ErrorActionPreference = 'Stop'
 $Gateway = $Gateway.TrimEnd('/')
-$today = [DateTime]::UtcNow
+$today = (Get-Date).ToUniversalTime()
 $batch = $today.ToString('yyyy-MM-dd')
 $month = $today.ToString('yyyy-MM')
 
@@ -36,23 +37,29 @@ $templates = @(
     @{ suffix = 'ENERGY'; title = 'Classroom energy saving'; actionType = 'ENERGY_SAVING'; points = 20; station = $null },
     @{ suffix = 'TREE'; title = 'Campus garden care'; actionType = 'TREE_CARE'; points = 25; station = 'STATION-E5' }
 )
-foreach ($template in $templates) {
-    $template.id = "MISSION-DEMO-$month-$($template.suffix)"
-    $mission = $catalog | Where-Object { $_.id -eq $template.id } | Select-Object -First 1
-    if (-not $mission) {
-        $mission = Api 'POST' '/catalog/missions' $admin @{
-            id = $template.id; title = "$($template.title) - $month"; actionType = $template.actionType
-            basePoints = $template.points; evidenceRequired = $true
-            stationRequired = ($null -ne $template.station)
-            allowedStationIds = @($template.station | Where-Object { $_ })
-            description = "Sample campus campaign for $month. Evidence used by this data refresh is the project logo."
+$campaignMonths = @($month)
+if ($PrepareNextMonth) { $campaignMonths += $today.AddMonths(1).ToString('yyyy-MM') }
+foreach ($campaignMonth in $campaignMonths) {
+    foreach ($template in $templates) {
+        $missionId = "MISSION-DEMO-$campaignMonth-$($template.suffix)"
+        $mission = $catalog | Where-Object { $_.id -eq $missionId } | Select-Object -First 1
+        if (-not $mission) {
+            $mission = Api 'POST' '/catalog/missions' $admin @{
+                id = $missionId; title = "$($template.title) - $campaignMonth"; actionType = $template.actionType
+                basePoints = $template.points; evidenceRequired = $true
+                stationRequired = ($null -ne $template.station)
+                allowedStationIds = @($template.station | Where-Object { $_ })
+                description = "Sample campus campaign for $campaignMonth. Evidence used by this data refresh is the project logo."
+            }
+            $mission = Api 'PUT' "/catalog/missions/$missionId/status?status=ACTIVE" $admin
         }
-        $mission = Api 'PUT' "/catalog/missions/$($template.id)/status?status=ACTIVE" $admin
+        if ($campaignMonth -eq $month -and $mission.status -ne 'ACTIVE') {
+            throw "Mission $missionId is $($mission.status). Existing moderation decisions are preserved."
+        }
     }
-    if ($mission.status -ne 'ACTIVE') {
-        throw "Mission $($template.id) is $($mission.status). Existing moderation decisions are preserved."
-    }
+    Write-Host "[EcoQuest Data] Campaign definitions ready: $campaignMonth (existing statuses preserved)."
 }
+foreach ($template in $templates) { $template.id = "MISSION-DEMO-$month-$($template.suffix)" }
 
 $logoPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'web-apps/ecoquest-web/public/logo.png'
 $logo = [Convert]::ToBase64String([IO.File]::ReadAllBytes($logoPath))

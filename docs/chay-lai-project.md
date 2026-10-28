@@ -79,6 +79,20 @@ Chạy lại trong cùng ngày không thêm action trùng. Script tìm action đ
 
 Dữ liệu seed lịch sử vẫn giữ nguyên thời gian. Các mùa giải/certificate cũ được giữ làm dữ liệu mẫu; cập nhật dữ liệu không tự phát thêm certificate. Muốn có certificate mới, Admin đóng mùa giải theo luồng hiện có.
 
+Để khởi động, bổ sung hoạt động hôm nay và chuẩn bị ba mission tháng kế tiếp:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start-project.ps1 -RefreshData -PrepareNextMonth
+```
+
+Nếu stack đã chạy, dùng `scripts/refresh-demo-data.ps1 -PrepareNextMonth`. Mission mới được tạo ở trạng thái ACTIVE và sử dụng được ngay; tháng trong tên là nhãn chiến dịch, không phải lịch mở theo ngày. Script không tạo action, điểm hoặc certificate ở ngày tương lai. Sang tháng mới, lệnh refresh thông thường tự dùng mission của tháng đó, không cần sửa code. Script không tự chạy nền và không bù các ngày đã bỏ qua. Trạng thái mission do Admin thay đổi vẫn được giữ nguyên.
+
+Kiểm tra logic seed bằng API giả lập, không ghi database:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\test-refresh-demo-data.ps1
+```
+
 ## 4. Kiểm thử
 
 Frontend:

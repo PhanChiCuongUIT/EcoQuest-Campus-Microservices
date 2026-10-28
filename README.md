@@ -142,6 +142,20 @@ powershell -ExecutionPolicy Bypass -File scripts\refresh-demo-data.ps1 -Gateway 
 
 The script creates three monthly campaign missions and up to 30 daily sample actions for ten students. It approves 20 actions through the moderation API, leaves 10 pending, and verifies point transactions. Running it again on the same UTC date does not create duplicate submissions. Generated evidence uses the project logo and is sample data.
 
+To start the stack, refresh today's activity and prepare next month's campaign definitions:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start-project.ps1 -RefreshData -PrepareNextMonth
+```
+
+Alternatively, pass `-PrepareNextMonth` directly to `scripts/refresh-demo-data.ps1` when the stack is already running. It creates three next-month missions without future-dated actions or points. Newly created campaign missions are active immediately: the month in their name is a label, not a scheduled opening date. Existing statuses are preserved. On a new month, the normal refresh command automatically uses that month's campaigns. The script only adds activity for the day it runs; it does not run in the background or backfill skipped days.
+
+Seed regression tests use mock APIs and a simulated clock, without changing application data:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\test-refresh-demo-data.ps1
+```
+
 ## Email Configuration
 
 Local mode returns verification/reset tokens for development. To enable SMTP, configure `.env`:
